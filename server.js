@@ -31,31 +31,37 @@ io.on("connection", (socket) => {
     // =========================
     // SIGN UP
     // =========================
+
     socket.on("signup", ({ username, password }, callback) => {
 
         if (!username || !password) {
+
             return callback({
                 success: false,
                 message: "Enter a username and password."
             });
+
         }
 
-        const result = db.createUser(username, password);
-
-        callback(result);
+        callback(
+            db.createUser(username, password)
+        );
 
     });
 
     // =========================
     // LOGIN
     // =========================
+
     socket.on("login", ({ username, password }, callback) => {
 
         if (!username || !password) {
+
             return callback({
                 success: false,
                 message: "Enter a username and password."
             });
+
         }
 
         const result = db.loginUser(username, password);
@@ -67,12 +73,24 @@ io.on("connection", (socket) => {
         socket.username = username;
         users[socket.id] = username;
 
-        io.emit("online count", Object.keys(users).length);
+        io.emit(
+            "online count",
+            Object.keys(users).length
+        );
 
         io.emit("chat message", {
             system: true,
             text: `🟢 ${username} joined the chat`
         });
+
+        // =========================
+        // SEND CHAT HISTORY
+        // =========================
+
+        socket.emit(
+            "chat history",
+            db.loadMessages()
+        );
 
         callback({
             success: true
@@ -83,8 +101,13 @@ io.on("connection", (socket) => {
     // =========================
     // CHAT MESSAGE
     // =========================
+
     socket.on("chat message", (data) => {
 
+        // Save message
+        db.addMessage(data);
+
+        // Broadcast
         io.emit("chat message", data);
 
     });
@@ -92,6 +115,7 @@ io.on("connection", (socket) => {
     // =========================
     // TYPING
     // =========================
+
     socket.on("typing", (username) => {
 
         if (!username) return;
@@ -121,6 +145,7 @@ io.on("connection", (socket) => {
     // =========================
     // DISCONNECT
     // =========================
+
     socket.on("disconnect", () => {
 
         const username = users[socket.id];
