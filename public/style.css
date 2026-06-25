@@ -8,19 +8,15 @@
   font-family: "Segoe UI", Arial, sans-serif;
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-}
-
 body {
   background: radial-gradient(circle at top, #0b1220, #05070d);
   color: #fff;
+  height: 100vh;
   overflow: hidden;
 }
 
 /* =========================
-   LOGIN SCREEN
+   LOGIN SCREEN (GLASS STYLE)
 ========================= */
 .login-screen {
   position: fixed;
@@ -28,6 +24,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+
   background: linear-gradient(135deg, #060b16, #0e1d35);
 }
 
@@ -35,19 +32,104 @@ body {
   width: 380px;
   padding: 42px;
   border-radius: 20px;
+
   background: rgba(20, 35, 61, 0.75);
   backdrop-filter: blur(18px);
+
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+
   text-align: center;
+  transform: translateY(0);
+  transition: 0.3s ease;
+}
+
+.login-card:hover {
+  transform: translateY(-3px);
+}
+
+.login-card h1 {
+  font-size: 40px;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.login-card p {
+  color: #a7b9d9;
+  margin-bottom: 25px;
 }
 
 /* =========================
-   APP LAYOUT (🔥 FIX HERE)
+   INPUTS (LOGIN + CHAT)
+========================= */
+#usernameInput,
+#messageInput {
+  width: 100%;
+  height: 52px;
+
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+
+  padding: 0 15px;
+  background: rgba(12, 23, 40, 0.8);
+  color: #fff;
+  font-size: 16px;
+
+  outline: none;
+  transition: 0.25s ease;
+}
+
+#usernameInput:focus,
+#messageInput:focus {
+  border-color: #4d79ff;
+  box-shadow: 0 0 0 3px rgba(77,121,255,0.25);
+  transform: translateY(-1px);
+}
+
+/* =========================
+   BUTTONS (NEON STYLE)
+========================= */
+#joinButton,
+#sendButton {
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4d79ff, #7c4dff);
+
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+#joinButton {
+  width: 100%;
+  height: 52px;
+}
+
+#sendButton {
+  width: 170px;
+  font-size: 16px;
+}
+
+#joinButton:hover,
+#sendButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(77,121,255,0.35);
+}
+
+#joinButton:active,
+#sendButton:active {
+  transform: scale(0.98);
+}
+
+/* =========================
+   MAIN APP LAYOUT
 ========================= */
 .app {
   display: flex;
-  width: 100vw;   /* 🔥 FIX: makes it fill full screen */
   height: 100vh;
 }
 
@@ -58,79 +140,274 @@ body {
   width: 260px;
   background: rgba(11, 23, 40, 0.9);
   border-right: 1px solid rgba(255,255,255,0.06);
+
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(10px);
+}
+
+.logo {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.online-section {
+  padding: 20px;
+}
+
+.online-title {
+  display: flex;
+  gap: 10px;
+  color: #86aefb;
+  font-weight: bold;
+  margin-bottom: 18px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2ed66b;
+  box-shadow: 0 0 10px #2ed66b;
+}
+
+#onlineUsers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(19, 34, 58, 0.7);
+  transition: 0.2s ease;
+}
+
+.user:hover {
+  transform: translateX(4px);
+  background: rgba(30, 55, 90, 0.8);
 }
 
 /* =========================
-   MAIN AREA (🔥 IMPORTANT FIX)
+   MAIN CHAT AREA
 ========================= */
 .main {
   flex: 1;
-  min-width: 0;   /* 🔥 prevents shrinking bug */
   display: flex;
   flex-direction: column;
 }
 
-/* =========================
-   TOPBAR
-========================= */
 .topbar {
   height: 70px;
   background: rgba(13, 27, 47, 0.9);
   border-bottom: 1px solid rgba(255,255,255,0.06);
+
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   padding: 0 25px;
+  backdrop-filter: blur(10px);
+}
+
+.chat-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+#onlineCount {
+  color: #84a8ff;
+}
+
+#settingsBtn {
+  width: 42px;
+  height: 42px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: rgba(24, 48, 82, 0.8);
+  color: white;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+#settingsBtn:hover {
+  transform: rotate(10deg) scale(1.05);
+  background: rgba(77,121,255,0.3);
 }
 
 /* =========================
-   CHAT CONTAINER (FIX)
+   CHAT CONTAINER
 ========================= */
 #chatContainer {
   flex: 1;
-  width: 100%;   /* 🔥 FIX */
   background: radial-gradient(circle at bottom, #06101f, #04070d);
   padding: 25px;
   overflow-y: auto;
 }
 
-/* =========================
-   MESSAGES
-========================= */
 #messages {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-/* =========================
-   MESSAGE BUBBLES
-========================= */
-.message {
-  background: rgba(23, 48, 79, 0.75);
-  border-radius: 14px;
-  padding: 12px;
-  max-width: 70%;
+/* system messages */
+.system-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.system-message {
+  background: rgba(22, 48, 80, 0.8);
+  color: #d6e4ff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 /* =========================
-   INPUT AREA
+   CHAT MESSAGES
+========================= */
+.message {
+  background: rgba(23, 48, 79, 0.75);
+  border: 1px solid rgba(255,255,255,0.06);
+
+  border-radius: 14px;
+  padding: 12px;
+
+  max-width: 70%;
+
+  backdrop-filter: blur(10px);
+
+  transition: 0.2s ease;
+}
+
+.message:hover {
+  transform: translateY(-2px);
+}
+
+.username {
+  color: #7fb0ff;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.time {
+  font-size: 12px;
+  color: #9fb0cf;
+  margin-top: 6px;
+}
+
+/* =========================
+   CHAT INPUT BAR
 ========================= */
 #chatForm {
   display: flex;
   gap: 12px;
+
   padding: 18px;
   background: rgba(13, 27, 47, 0.9);
+
+  border-top: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(10px);
 }
 
 /* =========================
-   EMOJI PICKER FIX
+   EMOJI PICKER BUTTON
+========================= */
+#emojiButton {
+  width: 42px;
+  height: 52px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: rgba(255,255,255,0.06);
+  color: white;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+#emojiButton:hover {
+  background: rgba(77,121,255,0.25);
+  transform: translateY(-2px);
+}
+
+/* =========================
+   EMOJI PICKER POPUP
 ========================= */
 .emoji-picker {
   position: absolute;
   bottom: 90px;
   right: 25px;
+
+  width: 260px;
+  height: 220px;
+
+  background: rgba(13, 27, 47, 0.95);
+  backdrop-filter: blur(14px);
+
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+
   display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  padding: 10px;
+  overflow-y: auto;
+
+  z-index: 999;
+}
+
+.emoji-picker span {
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 18px;
+
+  border-radius: 8px;
+  cursor: pointer;
+
+  transition: 0.15s ease;
+}
+
+.emoji-picker span:hover {
+  background: rgba(77,121,255,0.25);
+  transform: scale(1.2);
+}
+
+.emoji-picker::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emoji-picker::-webkit-scrollbar-thumb {
+  background: #4d79ff;
+  border-radius: 10px;
+}
+
+/* =========================
+   SCROLLBAR
+========================= */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#29466f, #4d79ff);
+  border-radius: 10px;
 }
