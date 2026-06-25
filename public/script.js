@@ -7,7 +7,7 @@ let isTabActive = true;
 let unreadCount = 0;
 
 // =========================
-// TYPING SYSTEM (STEP 4)
+// TYPING SYSTEM
 // =========================
 const typingIndicator = document.getElementById("typingIndicator");
 let typingUsers = new Set();
@@ -19,7 +19,6 @@ let typingTimeout;
 let audioCtx;
 
 function playNotificationSound() {
-
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -43,18 +42,16 @@ function playNotificationSound() {
 // TAB VISIBILITY
 // =========================
 document.addEventListener("visibilitychange", () => {
-
     isTabActive = !document.hidden;
 
     if (isTabActive) {
         unreadCount = 0;
         document.title = "Jetchat 2.0";
     }
-
 });
 
 // =========================
-// LOGIN ELEMENTS (UPDATED STEP 5.4)
+// LOGIN ELEMENTS
 // =========================
 const loginScreen = document.getElementById("loginScreen");
 const app = document.getElementById("app");
@@ -76,10 +73,47 @@ const onlineCount = document.getElementById("onlineCount");
 let username = "";
 
 // =========================
-// START CHAT FUNCTION
+// EMOJI PICKER (NEW)
+// =========================
+const emojiButton = document.getElementById("emojiButton");
+const emojiPicker = document.getElementById("emojiPicker");
+
+// toggle emoji picker
+emojiButton.addEventListener("click", (e) => {
+    e.preventDefault();
+
+    if (!emojiPicker) return;
+
+    emojiPicker.style.display =
+        emojiPicker.style.display === "flex" ? "none" : "flex";
+});
+
+// insert emoji into input
+if (emojiPicker) {
+    emojiPicker.querySelectorAll("span").forEach((emoji) => {
+        emoji.addEventListener("click", () => {
+            messageInput.value += emoji.textContent;
+            messageInput.focus();
+        });
+    });
+}
+
+// close emoji picker when clicking outside
+document.addEventListener("click", (e) => {
+    if (!emojiPicker || !emojiButton) return;
+
+    if (
+        !emojiPicker.contains(e.target) &&
+        e.target !== emojiButton
+    ) {
+        emojiPicker.style.display = "none";
+    }
+});
+
+// =========================
+// START CHAT
 // =========================
 function startChat(user) {
-
     username = user;
 
     loginScreen.style.display = "none";
@@ -94,7 +128,6 @@ function startChat(user) {
 // LOGIN
 // =========================
 loginButton.addEventListener("click", () => {
-
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
@@ -104,7 +137,6 @@ loginButton.addEventListener("click", () => {
     }
 
     socket.emit("login", { username: user, password: pass }, (res) => {
-
         if (!res.success) {
             alert(res.message);
             return;
@@ -112,14 +144,12 @@ loginButton.addEventListener("click", () => {
 
         startChat(user);
     });
-
 });
 
 // =========================
 // SIGNUP
 // =========================
 signupButton.addEventListener("click", () => {
-
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
@@ -129,7 +159,6 @@ signupButton.addEventListener("click", () => {
     }
 
     socket.emit("signup", { username: user, password: pass }, (res) => {
-
         if (!res.success) {
             alert(res.message);
             return;
@@ -137,58 +166,55 @@ signupButton.addEventListener("click", () => {
 
         alert("Account created! Now log in.");
     });
-
 });
 
 // =========================
 // SEND MESSAGE
 // =========================
 chatForm.addEventListener("submit", (e) => {
-
     e.preventDefault();
 
     const text = messageInput.value.trim();
-
     if (!text) return;
 
     socket.emit("chat message", {
-
         username,
         text,
-
         time: new Date().toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
         })
-
     });
 
     messageInput.value = "";
 });
 
 // =========================
-// TYPING EMIT
+// TYPING (IMPROVED - LESS SPAM)
 // =========================
+let typingSent = false;
+
 messageInput.addEventListener("input", () => {
+    if (!typingSent) {
+        socket.emit("typing", username);
+        typingSent = true;
 
-    socket.emit("typing", username);
-
+        setTimeout(() => {
+            typingSent = false;
+        }, 1000);
+    }
 });
 
 // =========================
 // RECEIVE MESSAGES
 // =========================
 socket.on("chat message", (data) => {
-
     const message = document.createElement("div");
 
     if (data.system) {
-
         message.className = "system-wrapper";
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
-
     } else {
-
         message.className = "message";
         message.innerHTML = `
             <div class="username">${data.username}</div>
@@ -201,10 +227,8 @@ socket.on("chat message", (data) => {
     messages.scrollTop = messages.scrollHeight;
 
     if (!isTabActive) {
-
         unreadCount++;
         document.title = `(${unreadCount}) Jetchat 2.0`;
-
         playNotificationSound();
     }
 });
@@ -213,7 +237,6 @@ socket.on("chat message", (data) => {
 // TYPING USERS
 // =========================
 socket.on("typing users", (users) => {
-
     typingUsers = new Set(users);
 
     if (typingUsers.size === 0) {
