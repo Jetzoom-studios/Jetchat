@@ -1,22 +1,41 @@
 /* =========================
-   GLOBAL RESET
+   BASE RESET + THEME
 ========================= */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: "Segoe UI", system-ui, Arial, sans-serif;
 }
 
 body {
-  background: radial-gradient(circle at top, #0b1220, #05070d);
-  color: #fff;
   height: 100vh;
   overflow: hidden;
+  color: #eaf1ff;
+
+  background:
+    radial-gradient(circle at 20% 10%, #1b2a4a 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, #2b1b4a 0%, transparent 45%),
+    linear-gradient(180deg, #05070d, #070b14);
+}
+
+/* subtle animated glow background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, rgba(77,121,255,0.08), transparent 60%);
+  animation: glowMove 8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes glowMove {
+  from { transform: scale(1); opacity: 0.6; }
+  to { transform: scale(1.15); opacity: 1; }
 }
 
 /* =========================
-   LOGIN SCREEN (GLASS STYLE)
+   LOGIN SCREEN (ULTRA GLASS)
 ========================= */
 .login-screen {
   position: fixed;
@@ -25,83 +44,115 @@ body {
   justify-content: center;
   align-items: center;
 
-  background: linear-gradient(135deg, #060b16, #0e1d35);
+  background: rgba(5, 7, 12, 0.6);
+  backdrop-filter: blur(10px);
 }
 
 .login-card {
-  width: 380px;
-  padding: 42px;
-  border-radius: 20px;
+  width: 390px;
+  padding: 44px;
+  border-radius: 22px;
 
-  background: rgba(20, 35, 61, 0.75);
-  backdrop-filter: blur(18px);
+  background: rgba(20, 35, 61, 0.55);
+  backdrop-filter: blur(22px);
 
   border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.7),
+    inset 0 0 0 1px rgba(255,255,255,0.05);
 
   text-align: center;
+
   transform: translateY(0);
-  transition: 0.3s ease;
+  transition: 0.35s ease;
 }
 
 .login-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
 }
 
 .login-card h1 {
-  font-size: 40px;
-  margin-bottom: 10px;
-  letter-spacing: 1px;
+  font-size: 42px;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #4d79ff, #9b5cff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .login-card p {
   color: #a7b9d9;
-  margin-bottom: 25px;
+  margin: 12px 0 25px;
 }
 
 /* =========================
-   INPUTS (LOGIN + CHAT)
+   INPUTS (MODERN FLOAT STYLE)
 ========================= */
 #usernameInput,
 #messageInput {
   width: 100%;
   height: 52px;
 
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
 
-  padding: 0 15px;
-  background: rgba(12, 23, 40, 0.8);
+  padding: 0 16px;
+
+  background: rgba(10, 18, 35, 0.75);
   color: #fff;
-  font-size: 16px;
 
+  font-size: 15px;
   outline: none;
-  transition: 0.25s ease;
+
+  transition: all 0.25s ease;
 }
 
 #usernameInput:focus,
 #messageInput:focus {
   border-color: #4d79ff;
-  box-shadow: 0 0 0 3px rgba(77,121,255,0.25);
+  box-shadow:
+    0 0 0 3px rgba(77,121,255,0.25),
+    0 10px 30px rgba(77,121,255,0.15);
+
   transform: translateY(-1px);
 }
 
 /* =========================
-   BUTTONS (NEON STYLE)
+   BUTTONS (NEON PULSE STYLE)
 ========================= */
 #joinButton,
 #sendButton {
   border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #4d79ff, #7c4dff);
+  border-radius: 14px;
 
   color: #fff;
-  font-weight: bold;
-  cursor: pointer;
+  font-weight: 600;
 
-  transition: all 0.25s ease;
+  cursor: pointer;
+  transition: 0.25s ease;
+
+  background: linear-gradient(135deg, #4d79ff, #7c4dff);
+  box-shadow: 0 10px 25px rgba(77,121,255,0.25);
+
   position: relative;
   overflow: hidden;
+}
+
+/* shimmer effect */
+#joinButton::before,
+#sendButton::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 120%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.25), transparent);
+  transition: 0.5s;
+}
+
+#joinButton:hover::before,
+#sendButton:hover::before {
+  left: 100%;
 }
 
 #joinButton {
@@ -111,22 +162,17 @@ body {
 
 #sendButton {
   width: 170px;
-  font-size: 16px;
+  height: 54px;
 }
 
 #joinButton:hover,
 #sendButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 25px rgba(77,121,255,0.35);
-}
-
-#joinButton:active,
-#sendButton:active {
-  transform: scale(0.98);
+  box-shadow: 0 18px 40px rgba(77,121,255,0.35);
 }
 
 /* =========================
-   MAIN APP LAYOUT
+   APP LAYOUT
 ========================= */
 .app {
   display: flex;
@@ -134,23 +180,25 @@ body {
 }
 
 /* =========================
-   SIDEBAR
+   SIDEBAR (MODERN GLASS PANEL)
 ========================= */
 .sidebar {
-  width: 260px;
-  background: rgba(11, 23, 40, 0.9);
+  width: 270px;
+
+  background: rgba(11, 18, 32, 0.65);
+  backdrop-filter: blur(18px);
+
   border-right: 1px solid rgba(255,255,255,0.06);
 
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(10px);
 }
 
 .logo {
-  padding: 24px;
+  padding: 26px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  font-weight: bold;
-  letter-spacing: 1px;
 }
 
 .online-section {
@@ -160,8 +208,10 @@ body {
 .online-title {
   display: flex;
   gap: 10px;
+  align-items: center;
+
   color: #86aefb;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 18px;
 }
 
@@ -169,41 +219,34 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #2ed66b;
-  box-shadow: 0 0 10px #2ed66b;
-}
-
-#onlineUsers {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  background: #2eea6a;
+  box-shadow: 0 0 12px #2eea6a;
 }
 
 .user {
-  padding: 10px;
-  border-radius: 10px;
-  background: rgba(19, 34, 58, 0.7);
+  padding: 10px 12px;
+  border-radius: 12px;
+
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.05);
 
   transition: 0.2s ease;
 }
 
 .user:hover {
-  transform: translateX(4px);
-  background: rgba(30, 55, 90, 0.8);
+  transform: translateX(6px);
+  background: rgba(77,121,255,0.12);
 }
 
 /* =========================
-   MAIN CHAT AREA
+   TOP BAR
 ========================= */
-.main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
 .topbar {
   height: 70px;
-  background: rgba(13, 27, 47, 0.9);
+
+  background: rgba(10, 16, 28, 0.75);
+  backdrop-filter: blur(14px);
+
   border-bottom: 1px solid rgba(255,255,255,0.06);
 
   display: flex;
@@ -211,45 +254,36 @@ body {
   align-items: center;
 
   padding: 0 25px;
-  backdrop-filter: blur(10px);
 }
 
-.chat-title {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-#onlineCount {
-  color: #84a8ff;
-}
-
-/* settings button upgrade */
 #settingsBtn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
 
+  border-radius: 12px;
   border: none;
-  border-radius: 10px;
 
-  background: rgba(24, 48, 82, 0.8);
+  background: rgba(255,255,255,0.05);
   color: white;
 
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: 0.25s ease;
 }
 
 #settingsBtn:hover {
-  transform: rotate(10deg) scale(1.05);
-  background: rgba(77,121,255,0.3);
+  transform: rotate(12deg) scale(1.05);
+  background: rgba(77,121,255,0.2);
 }
 
 /* =========================
-   CHAT CONTAINER
+   CHAT AREA
 ========================= */
 #chatContainer {
   flex: 1;
-  background: radial-gradient(circle at bottom, #06101f, #04070d);
+
+  background:
+    radial-gradient(circle at bottom, #061428, #04070d);
+
   padding: 25px;
   overflow-y: auto;
 }
@@ -261,48 +295,47 @@ body {
 }
 
 /* system messages */
-.system-wrapper {
-  display: flex;
-  justify-content: center;
-}
-
 .system-message {
-  background: rgba(22, 48, 80, 0.8);
-  color: #d6e4ff;
   padding: 10px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+
+  background: rgba(77,121,255,0.12);
+  border: 1px solid rgba(77,121,255,0.2);
+
+  color: #d6e4ff;
+  text-align: center;
 }
 
 /* =========================
-   CHAT MESSAGES (MODERN BUBBLES)
+   MESSAGE BUBBLES (NEXT LEVEL)
 ========================= */
 .message {
-  background: rgba(23, 48, 79, 0.75);
+  max-width: 70%;
+  padding: 12px 14px;
+
+  border-radius: 16px;
+
+  background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.06);
 
-  border-radius: 14px;
-  padding: 12px;
-
-  max-width: 70%;
-
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
 
   transition: 0.2s ease;
 }
 
 .message:hover {
   transform: translateY(-2px);
+  background: rgba(77,121,255,0.08);
 }
 
 .username {
+  font-weight: 700;
   color: #7fb0ff;
-  font-weight: bold;
   margin-bottom: 4px;
 }
 
 .time {
-  font-size: 12px;
+  font-size: 11px;
   color: #9fb0cf;
   margin-top: 6px;
 }
@@ -315,20 +348,21 @@ body {
   gap: 12px;
 
   padding: 18px;
-  background: rgba(13, 27, 47, 0.9);
+
+  background: rgba(10, 16, 28, 0.8);
+  backdrop-filter: blur(14px);
 
   border-top: 1px solid rgba(255,255,255,0.06);
-  backdrop-filter: blur(10px);
 }
 
 /* =========================
-   SCROLLBAR
+   SCROLLBAR (CLEAN)
 ========================= */
 ::-webkit-scrollbar {
   width: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(#29466f, #4d79ff);
+  background: linear-gradient(#4d79ff, #7c4dff);
   border-radius: 10px;
 }
