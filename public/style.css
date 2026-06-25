@@ -1,169 +1,95 @@
-/* =========================
-   GLOBAL RESET + THEME
-========================= */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Segoe UI", Arial, sans-serif;
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,Helvetica,sans-serif;
 }
-
-body {
-  background: radial-gradient(circle at top, #0f172a, #05070d);
-  color: #e5e7eb;
-  height: 100vh;
-  overflow: hidden;
+body{
+background:#07101d;
+color:#fff;
+height:100vh;
+overflow:hidden;
 }
-
-/* =========================
-   AUTH (LOGIN / SIGNUP)
-========================= */
-.auth-container {
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.login-screen{
+position:fixed;
+inset:0;
+display:flex;
+justify-content:center;
+align-items:center;
+background:linear-gradient(180deg,#09111f,#0e1d35);
 }
-
-.auth-box {
-  width: 380px;
-  padding: 35px;
-  border-radius: 18px;
-
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(18px);
-
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-
-  animation: popIn 0.4s ease;
+.login-card{
+width:380px;
+background:#14233d;
+padding:40px;
+border-radius:18px;
+box-shadow:0 10px 30px rgba(0,0,0,.4);
+text-align:center;
 }
-
-@keyframes popIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+.login-card h1{font-size:38px;margin-bottom:10px}
+.login-card p{color:#a7b9d9;margin-bottom:25px}
+#usernameInput{
+width:100%;
+height:52px;
+border:none;
+border-radius:12px;
+padding:0 15px;
+background:#0c1728;
+color:#fff;
+font-size:16px;
+margin-bottom:15px;
 }
-
-.auth-box h2 {
-  text-align: center;
-  margin-bottom: 22px;
-  font-size: 24px;
-  letter-spacing: 1px;
+#usernameInput:focus,#messageInput:focus{outline:none}
+#joinButton{
+width:100%;
+height:52px;
+border:none;
+border-radius:12px;
+background:#4d79ff;
+color:#fff;
+font-weight:bold;
+cursor:pointer;
 }
-
-/* =========================
-   INPUTS (LOGIN / CHAT)
-========================= */
-.auth-box input,
-.chat-input-container input {
-  width: 100%;
-  padding: 14px 16px;
-  margin: 10px 0;
-
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-
-  background: rgba(0,0,0,0.35);
-  color: white;
-
-  outline: none;
-  transition: all 0.25s ease;
+.app{display:flex;height:100vh}
+.sidebar{
+width:260px;background:#0b1728;border-right:1px solid #1b2a44;display:flex;flex-direction:column;
 }
-
-.auth-box input:focus,
-.chat-input-container input:focus {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96,165,250,0.25);
-  transform: translateY(-1px);
+.logo{padding:24px;border-bottom:1px solid #1b2a44}
+.online-section{padding:20px}
+.online-title{display:flex;gap:10px;color:#86aefb;font-weight:bold;margin-bottom:18px}
+.dot{width:10px;height:10px;border-radius:50%;background:#2ed66b}
+#onlineUsers{display:flex;flex-direction:column;gap:8px}
+.user{padding:10px;border-radius:10px;background:#13223a}
+.main{flex:1;display:flex;flex-direction:column}
+.topbar{
+height:70px;background:#0d1b2f;border-bottom:1px solid #1b2a44;
+display:flex;justify-content:space-between;align-items:center;padding:0 25px;
 }
-
-/* =========================
-   BUTTONS (GLOW EFFECT)
-========================= */
-.auth-box button,
-.chat-input-container button {
-  width: 100%;
-  padding: 14px;
-
-  border: none;
-  border-radius: 12px;
-
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
-
-  font-weight: 600;
-  cursor: pointer;
-
-  transition: all 0.25s ease;
-  position: relative;
-  overflow: hidden;
+.chat-title{display:flex;gap:10px;align-items:center}
+#onlineCount{color:#84a8ff}
+#settingsBtn{
+width:42px;height:42px;border:none;border-radius:10px;background:#183052;color:#fff;cursor:pointer;
 }
-
-/* glow hover */
-.auth-box button:hover,
-.chat-input-container button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(59,130,246,0.4);
+#chatContainer{flex:1;background:#081321;padding:25px;overflow-y:auto}
+#messages{display:flex;flex-direction:column;gap:14px}
+.system-wrapper{display:flex;justify-content:center}
+.system-message{
+background:#163050;color:#d6e4ff;padding:10px 16px;border-radius:12px;
 }
-
-/* click effect */
-.auth-box button:active,
-.chat-input-container button:active {
-  transform: scale(0.98);
+.message{
+background:#17304f;border-radius:12px;padding:12px;max-width:70%;
 }
-
-/* =========================
-   CHAT INPUT BAR (MODERN DOCK)
-========================= */
-.chat-input-container {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-
-  padding: 14px;
-  display: flex;
-  gap: 12px;
-
-  background: rgba(10,12,18,0.85);
-  backdrop-filter: blur(14px);
-
-  border-top: 1px solid rgba(255,255,255,0.08);
+.username{color:#7fb0ff;font-weight:bold;margin-bottom:4px}
+.time{font-size:12px;color:#9fb0cf;margin-top:6px}
+#chatForm{
+display:flex;gap:12px;padding:18px;background:#0d1b2f;border-top:1px solid #1b2a44;
 }
-
-.chat-input-container input {
-  flex: 1;
+#messageInput{
+flex:1;height:54px;border:none;border-radius:12px;padding:0 16px;
+background:#132540;color:#fff;font-size:16px;
 }
-
-/* =========================
-   OPTIONAL: MESSAGE STYLE (IF YOU USE IT)
-========================= */
-.message {
-  max-width: 60%;
-  padding: 12px 14px;
-  margin: 8px;
-
-  border-radius: 14px;
-
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-
-  backdrop-filter: blur(10px);
-
-  animation: fadeIn 0.2s ease;
+#sendButton{
+width:170px;border:none;border-radius:12px;background:#4d79ff;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;
 }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* user vs other messages */
-.message.user {
-  margin-left: auto;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-}
-
-.message.other {
-  margin-right: auto;
-}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-thumb{background:#29466f;border-radius:10px}
