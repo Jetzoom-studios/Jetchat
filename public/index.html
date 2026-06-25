@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jetchat 2.0</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ========================= -->
+<!-- LOGIN SCREEN -->
+<!-- ========================= -->
+
+<div id="loginScreen" class="login-screen">
+
+    <div class="login-card">
+
+        <h1>Jetchat</h1>
+
+        <p>Welcome back!</p>
+
+        <input
+            id="usernameInput"
+            type="text"
+            placeholder="Choose a username"
+            maxlength="20"
+            autocomplete="off"
+        >
+
+        <button id="joinButton">
+            Join Chat
+        </button>
+
+    </div>
+
+</div>
+
+<!-- ========================= -->
+<!-- CHAT APP -->
+<!-- ========================= -->
+
+<div id="app" class="app" style="display:none;">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <h1>Jetchat</h1>
+        </div>
+
+        <div class="online-section">
+
+            <div class="online-title">
+                <span class="dot"></span>
+                Online
+            </div>
+
+            <div id="onlineUsers">
+
+                <!-- Users appear here -->
+
+            </div>
+
+        </div>
+
+    </aside>
+
+    <!-- Main -->
+
+    <main class="main">
+
+        <!-- Header -->
+
+        <header class="topbar">
+
+            <div class="chat-title">
+
+                <h2>Global Chat</h2>
+
+                <span id="onlineCount">
+                    • 0 online
+                </span>
+
+            </div>
+
+            <button id="settingsBtn">
+                ⚙
+            </button>
+
+        </header>
+
+        <!-- Chat -->
+
+        <div id="chatContainer">
+
+            <div id="messages">
+
+                <div class="system-wrapper">
+
+                    <div class="system-message">
+
+                        👋 Welcome to Jetchat!
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Bottom -->
+
+        <form id="chatForm">
+
+            <input
+                id="messageInput"
+                type="text"
+                placeholder="Type a message..."
+                autocomplete="off"
+            >
+
+            <button
+                id="sendButton"
+                type="submit"
+            >
+                Send
+            </button>
+
+        </form>
+
+    </main>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
