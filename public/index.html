@@ -13,7 +13,7 @@
 <body>
 
 <!-- ========================= -->
-<!-- LOGIN SCREEN -->
+<!-- LOGIN SCREEN (UPDATED) -->
 <!-- ========================= -->
 
 <div id="loginScreen" class="login-screen">
@@ -22,18 +22,30 @@
 
         <h1>Jetchat</h1>
 
-        <p>Welcome back!</p>
+        <p>Login or create an account</p>
 
         <input
             id="usernameInput"
             type="text"
-            placeholder="Choose a username"
+            placeholder="Username"
             maxlength="20"
             autocomplete="off"
         >
 
-        <button id="joinButton">
-            Join Chat
+        <input
+            id="passwordInput"
+            type="password"
+            placeholder="Password"
+            maxlength="30"
+            autocomplete="off"
+        >
+
+        <button id="loginButton">
+            Login
+        </button>
+
+        <button id="signupButton">
+            Sign Up
         </button>
 
     </div>
@@ -107,10 +119,7 @@
 
         </div>
 
-        <!-- ========================= -->
-        <!-- STEP 4: TYPING INDICATOR -->
-        <!-- ========================= -->
-
+        <!-- Typing Indicator -->
         <div id="typingIndicator" class="typing-indicator"></div>
 
         <!-- Bottom -->
