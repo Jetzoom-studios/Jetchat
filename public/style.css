@@ -183,7 +183,6 @@ body {
   padding: 10px;
   border-radius: 10px;
   background: rgba(19, 34, 58, 0.7);
-
   transition: 0.2s ease;
 }
 
@@ -224,7 +223,6 @@ body {
   color: #84a8ff;
 }
 
-/* settings button upgrade */
 #settingsBtn {
   width: 42px;
   height: 42px;
@@ -275,7 +273,7 @@ body {
 }
 
 /* =========================
-   CHAT MESSAGES (MODERN BUBBLES)
+   CHAT MESSAGES
 ========================= */
 .message {
   background: rgba(23, 48, 79, 0.75);
@@ -319,6 +317,87 @@ body {
 
   border-top: 1px solid rgba(255,255,255,0.06);
   backdrop-filter: blur(10px);
+}
+
+/* =========================
+   EMOJI PICKER BUTTON
+========================= */
+#emojiButton {
+  width: 42px;
+  height: 52px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: rgba(255,255,255,0.06);
+  color: white;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+#emojiButton:hover {
+  background: rgba(77,121,255,0.25);
+  transform: translateY(-2px);
+}
+
+/* =========================
+   EMOJI PICKER POPUP
+========================= */
+.emoji-picker {
+  position: absolute;
+  bottom: 90px;
+  right: 25px;
+
+  width: 260px;
+  height: 220px;
+
+  background: rgba(13, 27, 47, 0.95);
+  backdrop-filter: blur(14px);
+
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  padding: 10px;
+  overflow-y: auto;
+
+  z-index: 999;
+}
+
+.emoji-picker span {
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 18px;
+
+  border-radius: 8px;
+  cursor: pointer;
+
+  transition: 0.15s ease;
+}
+
+.emoji-picker span:hover {
+  background: rgba(77,121,255,0.25);
+  transform: scale(1.2);
+}
+
+.emoji-picker::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emoji-picker::-webkit-scrollbar-thumb {
+  background: #4d79ff;
+  border-radius: 10px;
 }
 
 /* =========================
