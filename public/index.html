@@ -70,10 +70,12 @@
 
     </aside>
 
-    <!-- Main -->
+    <!-- ========================= -->
+    <!-- MAIN -->
+    <!-- ========================= -->
     <main class="main">
 
-        <!-- Top bar -->
+        <!-- Top Bar -->
         <header class="topbar">
 
             <div class="chat-title">
@@ -85,7 +87,9 @@
 
         </header>
 
-        <!-- Chat -->
+        <!-- ========================= -->
+        <!-- CHAT -->
+        <!-- ========================= -->
         <div id="chatContainer">
 
             <div id="messages">
@@ -100,18 +104,57 @@
 
         </div>
 
-        <!-- Typing Indicator -->
+        <!-- ========================= -->
+        <!-- TYPING INDICATOR -->
+        <!-- ========================= -->
         <div id="typingIndicator" class="typing-indicator"></div>
 
         <!-- ========================= -->
-        <!-- CHAT INPUT AREA (UPGRADED) -->
+        <!-- REPLY PREVIEW (NEW) -->
+        <!-- ========================= -->
+        <div
+            id="replyPreview"
+            class="reply-preview"
+            style="display:none;"
+        >
+
+            <div class="reply-info">
+
+                <div class="reply-title">
+                    ↩ Replying to
+                    <span id="replyUsername"></span>
+                </div>
+
+                <div
+                    id="replyMessage"
+                    class="reply-message"
+                ></div>
+
+            </div>
+
+            <button
+                id="cancelReply"
+                type="button"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <!-- ========================= -->
+        <!-- CHAT INPUT -->
         <!-- ========================= -->
         <form id="chatForm">
 
-            <!-- emoji button -->
-            <button type="button" id="emojiButton">😊</button>
+            <!-- Emoji Button -->
+            <button
+                type="button"
+                id="emojiButton"
+            >
+                😊
+            </button>
 
-            <!-- message input -->
+            <!-- Message -->
             <input
                 id="messageInput"
                 type="text"
@@ -119,26 +162,45 @@
                 autocomplete="off"
             >
 
-            <!-- send -->
-            <button id="sendButton" type="submit">
+            <!-- Send -->
+            <button
+                id="sendButton"
+                type="submit"
+            >
                 Send
             </button>
 
-            <!-- emoji picker popup -->
-            <div class="emoji-picker" id="emojiPicker">
+            <!-- ========================= -->
+            <!-- EMOJI PICKER -->
+            <!-- ========================= -->
+            <div
+                class="emoji-picker"
+                id="emojiPicker"
+            >
 
                 <span>😀</span>
+                <span>😁</span>
                 <span>😂</span>
+                <span>🤣</span>
+                <span>😊</span>
                 <span>😍</span>
+                <span>🥰</span>
                 <span>😎</span>
                 <span>😭</span>
-                <span>👍</span>
-                <span>🔥</span>
-                <span>💀</span>
-                <span>🎉</span>
-                <span>❤️</span>
                 <span>😡</span>
                 <span>🤔</span>
+                <span>👍</span>
+                <span>👎</span>
+                <span>👏</span>
+                <span>🙌</span>
+                <span>🔥</span>
+                <span>💯</span>
+                <span>🎉</span>
+                <span>❤️</span>
+                <span>💙</span>
+                <span>💀</span>
+                <span>✨</span>
+                <span>🚀</span>
 
             </div>
 
@@ -148,8 +210,10 @@
 
 </div>
 
-<!-- SOCKET + SCRIPT -->
+<!-- Socket.IO -->
 <script src="/socket.io/socket.io.js"></script>
+
+<!-- Jetchat -->
 <script src="script.js"></script>
 
 </body>
