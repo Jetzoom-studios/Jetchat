@@ -16,6 +16,11 @@ app.use(express.static(path.join(__dirname, "public")));
 const users = {};
 
 // =========================
+// STEP 4: TYPING SYSTEM
+// =========================
+const typingUsers = new Map();
+
+// =========================
 // SOCKET.IO
 // =========================
 
@@ -44,6 +49,30 @@ io.on("connection", (socket) => {
 
     });
 
+    // =========================
+    // STEP 4: TYPING SYSTEM
+    // =========================
+    socket.on("typing", (username) => {
+
+        if (!username) return;
+
+        typingUsers.set(socket.id, username);
+
+        io.emit("typing users", Array.from(typingUsers.values()));
+
+        // reset timeout per user
+        clearTimeout(socket.typingTimeout);
+
+        socket.typingTimeout = setTimeout(() => {
+
+            typingUsers.delete(socket.id);
+
+            io.emit("typing users", Array.from(typingUsers.values()));
+
+        }, 2000);
+
+    });
+
     // User disconnects
     socket.on("disconnect", () => {
 
@@ -59,8 +88,13 @@ io.on("connection", (socket) => {
             delete users[socket.id];
 
             io.emit("online count", Object.keys(users).length);
-
         }
+
+        // =========================
+        // CLEANUP TYPING ON DISCONNECT
+        // =========================
+        typingUsers.delete(socket.id);
+        io.emit("typing users", Array.from(typingUsers.values()));
 
         console.log("🔴 Someone disconnected");
 
