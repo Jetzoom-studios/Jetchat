@@ -3,6 +3,8 @@ const http = require("http");
 const path = require("path");
 const { Server } = require("socket.io");
 
+const db = require("./database"); // ✅ STEP 5.3 ADD
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -28,29 +30,68 @@ io.on("connection", (socket) => {
 
     console.log("🟢 Someone connected");
 
-    // User joins
-    socket.on("join", (username) => {
+    // =========================
+    // 🔐 STEP 5.3: SIGNUP
+    // =========================
+    socket.on("signup", ({ username, password }, callback) => {
 
-        users[socket.id] = username;
+        if (!username || !password) {
+            return callback({ success: false, message: "Missing fields" });
+        }
 
-        io.emit("online count", Object.keys(users).length);
+        db.run(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            [username, password],
+            function (err) {
 
-        io.emit("chat message", {
-            system: true,
-            text: `🟢 ${username} joined the chat`
-        });
+                if (err) {
+                    return callback({ success: false, message: "Username already exists" });
+                }
 
-    });
-
-    // Chat messages
-    socket.on("chat message", (data) => {
-
-        io.emit("chat message", data);
-
+                return callback({ success: true });
+            }
+        );
     });
 
     // =========================
-    // STEP 4: TYPING SYSTEM
+    // 🔐 STEP 5.3: LOGIN
+    // =========================
+    socket.on("login", ({ username, password }, callback) => {
+
+        db.get(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            [username, password],
+            (err, row) => {
+
+                if (err || !row) {
+                    return callback({ success: false, message: "Invalid login" });
+                }
+
+                socket.username = username;
+                users[socket.id] = username;
+
+                io.emit("online count", Object.keys(users).length);
+
+                io.emit("chat message", {
+                    system: true,
+                    text: `🟢 ${username} joined the chat`
+                });
+
+                callback({ success: true });
+            }
+        );
+    });
+
+    // =========================
+    // CHAT MESSAGES
+    // (unchanged)
+    // =========================
+    socket.on("chat message", (data) => {
+        io.emit("chat message", data);
+    });
+
+    // =========================
+    // TYPING SYSTEM (UNCHANGED)
     // =========================
     socket.on("typing", (username) => {
 
@@ -60,7 +101,6 @@ io.on("connection", (socket) => {
 
         io.emit("typing users", Array.from(typingUsers.values()));
 
-        // reset timeout per user
         clearTimeout(socket.typingTimeout);
 
         socket.typingTimeout = setTimeout(() => {
@@ -73,7 +113,9 @@ io.on("connection", (socket) => {
 
     });
 
-    // User disconnects
+    // =========================
+    // DISCONNECT
+    // =========================
     socket.on("disconnect", () => {
 
         const username = users[socket.id];
@@ -90,14 +132,10 @@ io.on("connection", (socket) => {
             io.emit("online count", Object.keys(users).length);
         }
 
-        // =========================
-        // CLEANUP TYPING ON DISCONNECT
-        // =========================
         typingUsers.delete(socket.id);
         io.emit("typing users", Array.from(typingUsers.values()));
 
         console.log("🔴 Someone disconnected");
-
     });
 
 });
