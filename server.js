@@ -3,23 +3,21 @@ const http = require("http");
 const path = require("path");
 const { Server } = require("socket.io");
 
-const db = require("./database"); // ✅ STEP 5.3 ADD
+const db = require("./db");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Serve the public folder
 app.use(express.static(path.join(__dirname, "public")));
 
-// Store connected users
+// Connected users
 const users = {};
 
-// =========================
-// STEP 4: TYPING SYSTEM
-// =========================
+// Typing users
 const typingUsers = new Map();
 
 // =========================
@@ -31,67 +29,68 @@ io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
 
     // =========================
-    // 🔐 STEP 5.3: SIGNUP
+    // SIGN UP
     // =========================
     socket.on("signup", ({ username, password }, callback) => {
 
         if (!username || !password) {
-            return callback({ success: false, message: "Missing fields" });
+            return callback({
+                success: false,
+                message: "Enter a username and password."
+            });
         }
 
-        db.run(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            [username, password],
-            function (err) {
+        const result = db.createUser(username, password);
 
-                if (err) {
-                    return callback({ success: false, message: "Username already exists" });
-                }
+        callback(result);
 
-                return callback({ success: true });
-            }
-        );
     });
 
     // =========================
-    // 🔐 STEP 5.3: LOGIN
+    // LOGIN
     // =========================
     socket.on("login", ({ username, password }, callback) => {
 
-        db.get(
-            "SELECT * FROM users WHERE username = ? AND password = ?",
-            [username, password],
-            (err, row) => {
+        if (!username || !password) {
+            return callback({
+                success: false,
+                message: "Enter a username and password."
+            });
+        }
 
-                if (err || !row) {
-                    return callback({ success: false, message: "Invalid login" });
-                }
+        const result = db.loginUser(username, password);
 
-                socket.username = username;
-                users[socket.id] = username;
+        if (!result.success) {
+            return callback(result);
+        }
 
-                io.emit("online count", Object.keys(users).length);
+        socket.username = username;
+        users[socket.id] = username;
 
-                io.emit("chat message", {
-                    system: true,
-                    text: `🟢 ${username} joined the chat`
-                });
+        io.emit("online count", Object.keys(users).length);
 
-                callback({ success: true });
-            }
-        );
+        io.emit("chat message", {
+            system: true,
+            text: `🟢 ${username} joined the chat`
+        });
+
+        callback({
+            success: true
+        });
+
     });
 
     // =========================
-    // CHAT MESSAGES
-    // (unchanged)
+    // CHAT MESSAGE
     // =========================
     socket.on("chat message", (data) => {
+
         io.emit("chat message", data);
+
     });
 
     // =========================
-    // TYPING SYSTEM (UNCHANGED)
+    // TYPING
     // =========================
     socket.on("typing", (username) => {
 
@@ -99,7 +98,10 @@ io.on("connection", (socket) => {
 
         typingUsers.set(socket.id, username);
 
-        io.emit("typing users", Array.from(typingUsers.values()));
+        io.emit(
+            "typing users",
+            Array.from(typingUsers.values())
+        );
 
         clearTimeout(socket.typingTimeout);
 
@@ -107,7 +109,10 @@ io.on("connection", (socket) => {
 
             typingUsers.delete(socket.id);
 
-            io.emit("typing users", Array.from(typingUsers.values()));
+            io.emit(
+                "typing users",
+                Array.from(typingUsers.values())
+            );
 
         }, 2000);
 
@@ -129,13 +134,22 @@ io.on("connection", (socket) => {
 
             delete users[socket.id];
 
-            io.emit("online count", Object.keys(users).length);
+            io.emit(
+                "online count",
+                Object.keys(users).length
+            );
+
         }
 
         typingUsers.delete(socket.id);
-        io.emit("typing users", Array.from(typingUsers.values()));
+
+        io.emit(
+            "typing users",
+            Array.from(typingUsers.values())
+        );
 
         console.log("🔴 Someone disconnected");
+
     });
 
 });
@@ -149,7 +163,7 @@ server.listen(PORT, () => {
     console.log("");
     console.log("=================================");
     console.log("🚀 Jetchat is running!");
-    console.log(`🌐 http://localhost:${PORT}`);
+    console.log(`🌐 Port: ${PORT}`);
     console.log("=================================");
     console.log("");
 
