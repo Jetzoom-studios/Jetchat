@@ -14,7 +14,7 @@ let typingUsers = new Set();
 let typingTimeout;
 
 // =========================
-// NOTIFICATION SOUND (KEEP FROM STEP 3)
+// NOTIFICATION SOUND
 // =========================
 let audioCtx;
 
@@ -54,12 +54,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // =========================
-// LOGIN ELEMENTS
+// LOGIN ELEMENTS (UPDATED STEP 5.4)
 // =========================
 const loginScreen = document.getElementById("loginScreen");
 const app = document.getElementById("app");
+
 const usernameInput = document.getElementById("usernameInput");
-const joinButton = document.getElementById("joinButton");
+const passwordInput = document.getElementById("passwordInput");
+
+const loginButton = document.getElementById("loginButton");
+const signupButton = document.getElementById("signupButton");
 
 // =========================
 // CHAT ELEMENTS
@@ -72,16 +76,11 @@ const onlineCount = document.getElementById("onlineCount");
 let username = "";
 
 // =========================
-// JOIN CHAT
+// START CHAT FUNCTION
 // =========================
-joinButton.addEventListener("click", () => {
+function startChat(user) {
 
-    username = usernameInput.value.trim();
-
-    if (!username) {
-        alert("Please enter a username.");
-        return;
-    }
+    username = user;
 
     loginScreen.style.display = "none";
     app.style.display = "flex";
@@ -89,6 +88,56 @@ joinButton.addEventListener("click", () => {
     socket.emit("join", username);
 
     messageInput.focus();
+}
+
+// =========================
+// LOGIN
+// =========================
+loginButton.addEventListener("click", () => {
+
+    const user = usernameInput.value.trim();
+    const pass = passwordInput.value.trim();
+
+    if (!user || !pass) {
+        alert("Enter username and password");
+        return;
+    }
+
+    socket.emit("login", { username: user, password: pass }, (res) => {
+
+        if (!res.success) {
+            alert(res.message);
+            return;
+        }
+
+        startChat(user);
+    });
+
+});
+
+// =========================
+// SIGNUP
+// =========================
+signupButton.addEventListener("click", () => {
+
+    const user = usernameInput.value.trim();
+    const pass = passwordInput.value.trim();
+
+    if (!user || !pass) {
+        alert("Enter username and password");
+        return;
+    }
+
+    socket.emit("signup", { username: user, password: pass }, (res) => {
+
+        if (!res.success) {
+            alert(res.message);
+            return;
+        }
+
+        alert("Account created! Now log in.");
+    });
+
 });
 
 // =========================
@@ -118,7 +167,7 @@ chatForm.addEventListener("submit", (e) => {
 });
 
 // =========================
-// TYPING EMIT (STEP 4 CLIENT)
+// TYPING EMIT
 // =========================
 messageInput.addEventListener("input", () => {
 
@@ -151,9 +200,6 @@ socket.on("chat message", (data) => {
     messages.appendChild(message);
     messages.scrollTop = messages.scrollHeight;
 
-    // =========================
-    // STEP 2 + 3 (UNREAD + SOUND)
-    // =========================
     if (!isTabActive) {
 
         unreadCount++;
@@ -164,7 +210,7 @@ socket.on("chat message", (data) => {
 });
 
 // =========================
-// RECEIVE TYPING USERS (STEP 4)
+// TYPING USERS
 // =========================
 socket.on("typing users", (users) => {
 
@@ -183,7 +229,6 @@ socket.on("typing users", (users) => {
         typingIndicator.textContent = `${list.join(", ")} are typing...`;
     }
 
-    // auto-clear after inactivity safety
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
         typingIndicator.textContent = "";
