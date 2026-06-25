@@ -1,24 +1,46 @@
 const socket = io();
 
 // =========================
-// TAB STATE + UNREAD SYSTEM
+// STATE
 // =========================
 let isTabActive = true;
 let unreadCount = 0;
 
-// =========================
-// TYPING SYSTEM
-// =========================
-const typingIndicator = document.getElementById("typingIndicator");
+let username = "";
+
+// typing system
 let typingUsers = new Set();
 let typingTimeout;
+let typingSent = false;
 
 // =========================
-// NOTIFICATION SOUND
+// DOM ELEMENTS
+// =========================
+const loginScreen = document.getElementById("loginScreen");
+const app = document.getElementById("app");
+
+const usernameInput = document.getElementById("usernameInput");
+const passwordInput = document.getElementById("passwordInput");
+
+const loginButton = document.getElementById("loginButton");
+const signupButton = document.getElementById("signupButton");
+
+const chatForm = document.getElementById("chatForm");
+const messageInput = document.getElementById("messageInput");
+const messages = document.getElementById("messages");
+const onlineCount = document.getElementById("onlineCount");
+const typingIndicator = document.getElementById("typingIndicator");
+
+// emoji
+const emojiButton = document.getElementById("emojiButton");
+const emojiPicker = document.getElementById("emojiPicker");
+
+// =========================
+// SOUND
 // =========================
 let audioCtx;
 
-function playNotificationSound() {
+function playSound(freq = 800) {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -30,16 +52,16 @@ function playNotificationSound() {
     gain.connect(audioCtx.destination);
 
     osc.type = "sine";
-    osc.frequency.value = 800;
+    osc.frequency.value = freq;
 
-    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
 
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
+    osc.stop(audioCtx.currentTime + 0.08);
 }
 
 // =========================
-// TAB VISIBILITY
+// TAB STATE
 // =========================
 document.addEventListener("visibilitychange", () => {
     isTabActive = !document.hidden;
@@ -51,67 +73,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // =========================
-// LOGIN ELEMENTS
-// =========================
-const loginScreen = document.getElementById("loginScreen");
-const app = document.getElementById("app");
-
-const usernameInput = document.getElementById("usernameInput");
-const passwordInput = document.getElementById("passwordInput");
-
-const loginButton = document.getElementById("loginButton");
-const signupButton = document.getElementById("signupButton");
-
-// =========================
-// CHAT ELEMENTS
-// =========================
-const chatForm = document.getElementById("chatForm");
-const messageInput = document.getElementById("messageInput");
-const messages = document.getElementById("messages");
-const onlineCount = document.getElementById("onlineCount");
-
-let username = "";
-
-// =========================
-// EMOJI PICKER (NEW)
-// =========================
-const emojiButton = document.getElementById("emojiButton");
-const emojiPicker = document.getElementById("emojiPicker");
-
-// toggle emoji picker
-emojiButton.addEventListener("click", (e) => {
-    e.preventDefault();
-
-    if (!emojiPicker) return;
-
-    emojiPicker.style.display =
-        emojiPicker.style.display === "flex" ? "none" : "flex";
-});
-
-// insert emoji into input
-if (emojiPicker) {
-    emojiPicker.querySelectorAll("span").forEach((emoji) => {
-        emoji.addEventListener("click", () => {
-            messageInput.value += emoji.textContent;
-            messageInput.focus();
-        });
-    });
-}
-
-// close emoji picker when clicking outside
-document.addEventListener("click", (e) => {
-    if (!emojiPicker || !emojiButton) return;
-
-    if (
-        !emojiPicker.contains(e.target) &&
-        e.target !== emojiButton
-    ) {
-        emojiPicker.style.display = "none";
-    }
-});
-
-// =========================
-// START CHAT
+// LOGIN FLOW
 // =========================
 function startChat(user) {
     username = user;
@@ -124,48 +86,50 @@ function startChat(user) {
     messageInput.focus();
 }
 
-// =========================
-// LOGIN
-// =========================
 loginButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
-    if (!user || !pass) {
-        alert("Enter username and password");
-        return;
-    }
+    if (!user || !pass) return alert("Enter username and password");
 
     socket.emit("login", { username: user, password: pass }, (res) => {
-        if (!res.success) {
-            alert(res.message);
-            return;
-        }
-
+        if (!res.success) return alert(res.message);
         startChat(user);
     });
 });
 
-// =========================
-// SIGNUP
-// =========================
 signupButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
-    if (!user || !pass) {
-        alert("Enter username and password");
-        return;
-    }
+    if (!user || !pass) return alert("Enter username and password");
 
     socket.emit("signup", { username: user, password: pass }, (res) => {
-        if (!res.success) {
-            alert(res.message);
-            return;
-        }
-
+        if (!res.success) return alert(res.message);
         alert("Account created! Now log in.");
     });
+});
+
+// =========================
+// EMOJI SYSTEM
+// =========================
+emojiButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    emojiPicker.style.display =
+        emojiPicker.style.display === "flex" ? "none" : "flex";
+});
+
+emojiPicker.querySelectorAll("span").forEach(e => {
+    e.addEventListener("click", () => {
+        messageInput.value += e.textContent;
+        messageInput.focus();
+    });
+});
+
+document.addEventListener("click", (e) => {
+    if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
+        emojiPicker.style.display = "none";
+    }
 });
 
 // =========================
@@ -187,26 +151,23 @@ chatForm.addEventListener("submit", (e) => {
     });
 
     messageInput.value = "";
+    playSound(900);
 });
 
 // =========================
-// TYPING (IMPROVED - LESS SPAM)
+// TYPING (OPTIMIZED)
 // =========================
-let typingSent = false;
-
 messageInput.addEventListener("input", () => {
     if (!typingSent) {
         socket.emit("typing", username);
         typingSent = true;
 
-        setTimeout(() => {
-            typingSent = false;
-        }, 1000);
+        setTimeout(() => typingSent = false, 1000);
     }
 });
 
 // =========================
-// RECEIVE MESSAGES
+// RECEIVE MESSAGES (DISCORD STYLE)
 // =========================
 socket.on("chat message", (data) => {
     const message = document.createElement("div");
@@ -216,11 +177,36 @@ socket.on("chat message", (data) => {
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
     } else {
         message.className = "message";
+        message.style.opacity = "0";
+        message.style.transform = "translateY(10px)";
+
         message.innerHTML = `
             <div class="username">${data.username}</div>
-            <div>${data.text}</div>
+            <div class="text">${data.text}</div>
             <div class="time">${data.time}</div>
+
+            <!-- REACTIONS -->
+            <div class="reactions">
+                <button class="react">👍</button>
+                <button class="react">😂</button>
+                <button class="react">❤️</button>
+            </div>
         `;
+
+        // animate in (Discord feel)
+        setTimeout(() => {
+            message.style.transition = "0.2s ease";
+            message.style.opacity = "1";
+            message.style.transform = "translateY(0)";
+        }, 10);
+
+        // reaction system (local only for now)
+        message.querySelectorAll(".react").forEach(btn => {
+            btn.addEventListener("click", () => {
+                btn.classList.toggle("active");
+                playSound(600);
+            });
+        });
     }
 
     messages.appendChild(message);
@@ -229,32 +215,33 @@ socket.on("chat message", (data) => {
     if (!isTabActive) {
         unreadCount++;
         document.title = `(${unreadCount}) Jetchat 2.0`;
-        playNotificationSound();
+        playSound(800);
     }
 });
 
 // =========================
-// TYPING USERS
+// TYPING INDICATOR (DISCORD STYLE)
 // =========================
 socket.on("typing users", (users) => {
     typingUsers = new Set(users);
 
-    if (typingUsers.size === 0) {
-        typingIndicator.textContent = "";
+    const list = [...typingUsers];
+
+    if (list.length === 0) {
+        typingIndicator.innerHTML = "";
         return;
     }
 
-    const list = Array.from(typingUsers);
-
-    if (list.length === 1) {
-        typingIndicator.textContent = `${list[0]} is typing...`;
-    } else {
-        typingIndicator.textContent = `${list.join(", ")} are typing...`;
-    }
+    typingIndicator.innerHTML = `
+        <span class="typing-dots">
+            ${list.join(", ")} is typing
+            <span>.</span><span>.</span><span>.</span>
+        </span>
+    `;
 
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        typingIndicator.textContent = "";
+        typingIndicator.innerHTML = "";
     }, 2000);
 });
 
