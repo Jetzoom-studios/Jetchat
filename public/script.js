@@ -1,12 +1,59 @@
 const socket = io();
 
-// Login Elements
+// =========================
+// TAB STATE + UNREAD SYSTEM
+// =========================
+let isTabActive = true;
+let unreadCount = 0;
+
+// Detect tab switch
+document.addEventListener("visibilitychange", () => {
+
+    isTabActive = !document.hidden;
+
+    if (isTabActive) {
+        unreadCount = 0;
+        document.title = "Jetchat 2.0";
+    }
+});
+
+// =========================
+// NOTIFICATION SOUND (FIXED)
+// =========================
+let audioCtx;
+
+function playNotificationSound() {
+
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.type = "sine";
+    osc.frequency.value = 800;
+
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// =========================
+// LOGIN ELEMENTS
+// =========================
 const loginScreen = document.getElementById("loginScreen");
 const app = document.getElementById("app");
 const usernameInput = document.getElementById("usernameInput");
 const joinButton = document.getElementById("joinButton");
 
-// Chat Elements
+// =========================
+// CHAT ELEMENTS
+// =========================
 const chatForm = document.getElementById("chatForm");
 const messageInput = document.getElementById("messageInput");
 const messages = document.getElementById("messages");
@@ -17,12 +64,11 @@ let username = "";
 // =========================
 // JOIN CHAT
 // =========================
-
 joinButton.addEventListener("click", () => {
 
     username = usernameInput.value.trim();
 
-    if (username === "") {
+    if (!username) {
         alert("Please enter a username.");
         return;
     }
@@ -33,93 +79,74 @@ joinButton.addEventListener("click", () => {
     socket.emit("join", username);
 
     messageInput.focus();
-
-});
-
-usernameInput.addEventListener("keydown", (e) => {
-
-    if (e.key === "Enter") {
-        joinButton.click();
-    }
-
 });
 
 // =========================
 // SEND MESSAGE
 // =========================
-
 chatForm.addEventListener("submit", (e) => {
 
     e.preventDefault();
 
     const text = messageInput.value.trim();
 
-    if (text === "") return;
+    if (!text) return;
 
     socket.emit("chat message", {
 
-        username: username,
-
-        text: text,
+        username,
+        text,
 
         time: new Date().toLocaleTimeString([], {
-
             hour: "2-digit",
             minute: "2-digit"
-
         })
 
     });
 
     messageInput.value = "";
-    messageInput.focus();
-
 });
 
 // =========================
 // RECEIVE MESSAGE
 // =========================
-
 socket.on("chat message", (data) => {
+
+    const message = document.createElement("div");
 
     if (data.system) {
 
-        const wrapper = document.createElement("div");
-        wrapper.className = "system-wrapper";
-
-        wrapper.innerHTML = `
-            <div class="system-message">
-                ${data.text}
-            </div>
-        `;
-
-        messages.appendChild(wrapper);
+        message.className = "system-wrapper";
+        message.innerHTML = `<div class="system-message">${data.text}</div>`;
 
     } else {
 
-        const message = document.createElement("div");
         message.className = "message";
-
         message.innerHTML = `
             <div class="username">${data.username}</div>
             <div>${data.text}</div>
             <div class="time">${data.time}</div>
         `;
-
-        messages.appendChild(message);
-
     }
 
+    messages.appendChild(message);
     messages.scrollTop = messages.scrollHeight;
 
+    // =========================
+    // STEP 2 + 3 FIXED LOGIC
+    // =========================
+    if (!isTabActive) {
+
+        unreadCount++;
+        document.title = `(${unreadCount}) Jetchat 2.0`;
+
+        playNotificationSound();
+    }
 });
 
 // =========================
 // ONLINE COUNT
 // =========================
-
 socket.on("online count", (count) => {
-
     onlineCount.textContent = `• ${count} online`;
-
 });
