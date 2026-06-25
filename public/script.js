@@ -6,19 +6,15 @@ const socket = io();
 let isTabActive = true;
 let unreadCount = 0;
 
-// Detect tab switch
-document.addEventListener("visibilitychange", () => {
-
-    isTabActive = !document.hidden;
-
-    if (isTabActive) {
-        unreadCount = 0;
-        document.title = "Jetchat 2.0";
-    }
-});
+// =========================
+// TYPING SYSTEM (STEP 4)
+// =========================
+const typingIndicator = document.getElementById("typingIndicator");
+let typingUsers = new Set();
+let typingTimeout;
 
 // =========================
-// NOTIFICATION SOUND (FIXED)
+// NOTIFICATION SOUND (KEEP FROM STEP 3)
 // =========================
 let audioCtx;
 
@@ -42,6 +38,20 @@ function playNotificationSound() {
     osc.start();
     osc.stop(audioCtx.currentTime + 0.1);
 }
+
+// =========================
+// TAB VISIBILITY
+// =========================
+document.addEventListener("visibilitychange", () => {
+
+    isTabActive = !document.hidden;
+
+    if (isTabActive) {
+        unreadCount = 0;
+        document.title = "Jetchat 2.0";
+    }
+
+});
 
 // =========================
 // LOGIN ELEMENTS
@@ -108,7 +118,16 @@ chatForm.addEventListener("submit", (e) => {
 });
 
 // =========================
-// RECEIVE MESSAGE
+// TYPING EMIT (STEP 4 CLIENT)
+// =========================
+messageInput.addEventListener("input", () => {
+
+    socket.emit("typing", username);
+
+});
+
+// =========================
+// RECEIVE MESSAGES
 // =========================
 socket.on("chat message", (data) => {
 
@@ -133,7 +152,7 @@ socket.on("chat message", (data) => {
     messages.scrollTop = messages.scrollHeight;
 
     // =========================
-    // STEP 2 + 3 FIXED LOGIC
+    // STEP 2 + 3 (UNREAD + SOUND)
     // =========================
     if (!isTabActive) {
 
@@ -142,6 +161,33 @@ socket.on("chat message", (data) => {
 
         playNotificationSound();
     }
+});
+
+// =========================
+// RECEIVE TYPING USERS (STEP 4)
+// =========================
+socket.on("typing users", (users) => {
+
+    typingUsers = new Set(users);
+
+    if (typingUsers.size === 0) {
+        typingIndicator.textContent = "";
+        return;
+    }
+
+    const list = Array.from(typingUsers);
+
+    if (list.length === 1) {
+        typingIndicator.textContent = `${list[0]} is typing...`;
+    } else {
+        typingIndicator.textContent = `${list.join(", ")} are typing...`;
+    }
+
+    // auto-clear after inactivity safety
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        typingIndicator.textContent = "";
+    }, 2000);
 });
 
 // =========================
