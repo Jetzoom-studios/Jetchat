@@ -5,13 +5,16 @@ const socket = io();
 // =========================
 let isTabActive = true;
 let unreadCount = 0;
-
 let username = "";
 
 // typing system
 let typingUsers = new Set();
 let typingTimeout;
 let typingSent = false;
+
+// reply system
+let replyingTo = null;
+let replyPreview;
 
 // =========================
 // DOM ELEMENTS
@@ -58,6 +61,44 @@ function playSound(freq = 800) {
 
     osc.start();
     osc.stop(audioCtx.currentTime + 0.08);
+}
+
+// =========================
+// REPLY SYSTEM (SAFE INIT)
+// =========================
+function createReplyPreview() {
+    replyPreview = document.createElement("div");
+    replyPreview.id = "replyPreview";
+    replyPreview.style.display = "none";
+    replyPreview.style.padding = "6px 10px";
+    replyPreview.style.background = "#2b2d31";
+    replyPreview.style.borderLeft = "3px solid #5865F2";
+    replyPreview.style.fontSize = "13px";
+    replyPreview.style.marginBottom = "6px";
+    replyPreview.style.borderRadius = "6px";
+
+    chatForm.parentNode.insertBefore(replyPreview, chatForm);
+}
+
+createReplyPreview();
+
+function startReply(data) {
+    replyingTo = data;
+
+    replyPreview.innerHTML = `
+        <strong>Replying to ${data.username}</strong><br>
+        ${data.text}
+        <button id="cancelReply" type="button" style="float:right;cursor:pointer;">✕</button>
+    `;
+
+    replyPreview.style.display = "block";
+
+    document.getElementById("cancelReply").onclick = () => {
+        replyingTo = null;
+        replyPreview.style.display = "none";
+    };
+
+    messageInput.focus();
 }
 
 // =========================
@@ -144,30 +185,22 @@ chatForm.addEventListener("submit", (e) => {
     socket.emit("chat message", {
         username,
         text,
+        replyTo: replyingTo,
         time: new Date().toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
         })
     });
 
+    replyingTo = null;
+    replyPreview.style.display = "none";
+
     messageInput.value = "";
     playSound(900);
 });
 
 // =========================
-// TYPING (OPTIMIZED)
-// =========================
-messageInput.addEventListener("input", () => {
-    if (!typingSent) {
-        socket.emit("typing", username);
-        typingSent = true;
-
-        setTimeout(() => typingSent = false, 1000);
-    }
-});
-
-// =========================
-// RECEIVE MESSAGES (DISCORD STYLE)
+// RECEIVE MESSAGES
 // =========================
 socket.on("chat message", (data) => {
     const message = document.createElement("div");
@@ -177,15 +210,30 @@ socket.on("chat message", (data) => {
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
     } else {
         message.className = "message";
-        message.style.opacity = "0";
-        message.style.transform = "translateY(10px)";
 
         message.innerHTML = `
             <div class="username">${data.username}</div>
+
+            ${data.replyTo ? `
+                <div class="reply-box" style="
+                    font-size:12px;
+                    padding:5px;
+                    margin-bottom:5px;
+                    border-left:3px solid #5865F2;
+                    opacity:0.8;
+                ">
+                    <strong>${data.replyTo.username}</strong><br>
+                    ${data.replyTo.text}
+                </div>
+            ` : ""}
+
             <div class="text">${data.text}</div>
             <div class="time">${data.time}</div>
 
-            <!-- REACTIONS -->
+            <div class="message-actions">
+                <button class="reply-btn">↩ Reply</button>
+            </div>
+
             <div class="reactions">
                 <button class="react">👍</button>
                 <button class="react">😂</button>
@@ -193,14 +241,13 @@ socket.on("chat message", (data) => {
             </div>
         `;
 
-        // animate in (Discord feel)
-        setTimeout(() => {
-            message.style.transition = "0.2s ease";
-            message.style.opacity = "1";
-            message.style.transform = "translateY(0)";
-        }, 10);
+        message.querySelector(".reply-btn").addEventListener("click", () => {
+            startReply({
+                username: data.username,
+                text: data.text
+            });
+        });
 
-        // reaction system (local only for now)
         message.querySelectorAll(".react").forEach(btn => {
             btn.addEventListener("click", () => {
                 btn.classList.toggle("active");
@@ -220,7 +267,18 @@ socket.on("chat message", (data) => {
 });
 
 // =========================
-// TYPING INDICATOR (DISCORD STYLE)
+// TYPING
+// =========================
+messageInput.addEventListener("input", () => {
+    if (!typingSent) {
+        socket.emit("typing", username);
+        typingSent = true;
+        setTimeout(() => typingSent = false, 1000);
+    }
+});
+
+// =========================
+// TYPING INDICATOR
 // =========================
 socket.on("typing users", (users) => {
     typingUsers = new Set(users);
@@ -234,8 +292,7 @@ socket.on("typing users", (users) => {
 
     typingIndicator.innerHTML = `
         <span class="typing-dots">
-            ${list.join(", ")} is typing
-            <span>.</span><span>.</span><span>.</span>
+            ${list.join(", ")} is typing...
         </span>
     `;
 
