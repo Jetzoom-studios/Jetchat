@@ -16,6 +16,10 @@ let typingSent = false;
 let replyingTo = null;
 let replyPreview;
 
+// DISCORD GROUPING STATE
+let lastMessageUser = null;
+let lastMessageElement = null;
+
 // =========================
 // DOM ELEMENTS
 // =========================
@@ -200,61 +204,81 @@ chatForm.addEventListener("submit", (e) => {
 });
 
 // =========================
-// RECEIVE MESSAGES
+// RECEIVE MESSAGES (DISCORD GROUPING)
 // =========================
 socket.on("chat message", (data) => {
     const message = document.createElement("div");
 
+    // reset grouping on system messages
     if (data.system) {
         message.className = "system-wrapper";
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
-    } else {
-        message.className = "message";
 
-        message.innerHTML = `
-            <div class="username">${data.username}</div>
+        messages.appendChild(message);
+        messages.scrollTop = messages.scrollHeight;
 
-            ${data.replyTo ? `
-                <div class="reply-preview">
-                    <div class="reply-bar"></div>
-                    <div class="reply-content">
-                        <span class="reply-user">${data.replyTo.username}</span>
-                        <span class="reply-text">${data.replyTo.text}</span>
-                    </div>
+        lastMessageUser = null;
+        lastMessageElement = null;
+        return;
+    }
+
+    message.className = "message";
+
+    const isGrouped =
+        data.username === lastMessageUser &&
+        lastMessageElement &&
+        !lastMessageElement.classList.contains("system-wrapper");
+
+    message.innerHTML = `
+        ${isGrouped ? "" : `<div class="username">${data.username}</div>`}
+
+        ${data.replyTo ? `
+            <div class="reply-preview">
+                <div class="reply-bar"></div>
+                <div class="reply-content">
+                    <span class="reply-user">${data.replyTo.username}</span>
+                    <span class="reply-text">${data.replyTo.text}</span>
                 </div>
-            ` : ""}
-
-            <div class="text">${data.text}</div>
-            <div class="time">${data.time}</div>
-
-            <div class="message-actions">
-                <button class="reply-btn">↩ Reply</button>
             </div>
+        ` : ""}
 
-            <div class="reactions">
-                <button class="react">👍</button>
-                <button class="react">😂</button>
-                <button class="react">❤️</button>
-            </div>
-        `;
+        <div class="text">${data.text}</div>
+        <div class="time">${data.time}</div>
 
-        message.querySelector(".reply-btn").addEventListener("click", () => {
-            startReply({
-                username: data.username,
-                text: data.text
-            });
+        <div class="message-actions">
+            <button class="reply-btn">↩ Reply</button>
+        </div>
+
+        <div class="reactions">
+            <button class="react">👍</button>
+            <button class="react">😂</button>
+            <button class="react">❤️</button>
+        </div>
+    `;
+
+    message.querySelector(".reply-btn").addEventListener("click", () => {
+        startReply({
+            username: data.username,
+            text: data.text
         });
+    });
 
-        message.querySelectorAll(".react").forEach(btn => {
-            btn.addEventListener("click", () => {
-                btn.classList.toggle("active");
-                playSound(600);
-            });
+    message.querySelectorAll(".react").forEach(btn => {
+        btn.addEventListener("click", () => {
+            btn.classList.toggle("active");
+            playSound(600);
         });
+    });
+
+    if (isGrouped) {
+        message.style.marginTop = "2px";
     }
 
     messages.appendChild(message);
     messages.scrollTop = messages.scrollHeight;
+
+    lastMessageUser = data.username;
+    lastMessageElement = message;
 
     if (!isTabActive) {
         unreadCount++;
