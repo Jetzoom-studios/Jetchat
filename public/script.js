@@ -247,44 +247,29 @@ socket.on("chat message", (data) => {
         </div>
     `;
 
-    // reply
     message.querySelector(".reply-btn").addEventListener("click", () => {
-        startReply({
-            username: data.username,
-            text: data.text
-        });
+        startReply({ username: data.username, text: data.text });
     });
 
-    // edit
     message.querySelector(".edit-btn").addEventListener("click", () => {
-
         const oldText = data.text;
         const newText = prompt("Edit message:", oldText);
 
         if (!newText || newText === oldText) return;
 
-        socket.emit("edit message", {
-            oldText,
-            newText
-        });
+        socket.emit("edit message", { oldText, newText });
 
         const el = findMessageElement(oldText, data.username);
-        if (el) {
-            el.querySelector(".text").textContent = newText;
-        }
+        if (el) el.querySelector(".text").textContent = newText;
     });
 
-    // delete
     message.querySelector(".delete-btn").addEventListener("click", () => {
-
         if (!confirm("Delete this message?")) return;
 
         socket.emit("delete message", data.text);
 
         const el = findMessageElement(data.text, data.username);
-        if (el) {
-            el.remove();
-        }
+        if (el) el.remove();
     });
 
     messages.appendChild(message);
@@ -340,15 +325,17 @@ socket.on("online count", (count) => {
 });
 
 /* =========================
-   ⚙ SETTINGS (ADDED ONLY — NOTHING REMOVED)
+   ⚙ SETTINGS + THEME SYSTEM (ADDED)
 ========================= */
 
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettings = document.getElementById("closeSettings");
-const darkModeToggle = document.getElementById("darkModeToggle");
 
-// open
+const darkModeToggle = document.getElementById("darkModeToggle");
+const lightModeToggle = document.getElementById("lightModeToggle");
+
+// open settings
 if (settingsBtn && settingsPanel) {
     settingsBtn.addEventListener("click", () => {
         settingsPanel.style.display =
@@ -356,16 +343,35 @@ if (settingsBtn && settingsPanel) {
     });
 }
 
-// close
+// close settings
 if (closeSettings) {
     closeSettings.addEventListener("click", () => {
         settingsPanel.style.display = "none";
     });
 }
 
-// dark mode
+// DARK MODE
 if (darkModeToggle) {
     darkModeToggle.addEventListener("change", () => {
-        document.body.classList.toggle("dark-mode", darkModeToggle.checked);
+        if (darkModeToggle.checked) {
+            document.body.classList.add("dark-mode");
+            document.body.classList.remove("light-mode");
+            if (lightModeToggle) lightModeToggle.checked = false;
+        } else {
+            document.body.classList.remove("dark-mode");
+        }
+    });
+}
+
+// LIGHT MODE
+if (lightModeToggle) {
+    lightModeToggle.addEventListener("change", () => {
+        if (lightModeToggle.checked) {
+            document.body.classList.add("light-mode");
+            document.body.classList.remove("dark-mode");
+            if (darkModeToggle) darkModeToggle.checked = false;
+        } else {
+            document.body.classList.remove("light-mode");
+        }
     });
 }
