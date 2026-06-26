@@ -16,7 +16,7 @@ let typingSent = false;
 let replyingTo = null;
 let replyPreview;
 
-// DISCORD GROUPING STATE
+// Discord grouping
 let lastMessageUser = null;
 let lastMessageElement = null;
 
@@ -38,7 +38,6 @@ const messages = document.getElementById("messages");
 const onlineCount = document.getElementById("onlineCount");
 const typingIndicator = document.getElementById("typingIndicator");
 
-// emoji
 const emojiButton = document.getElementById("emojiButton");
 const emojiPicker = document.getElementById("emojiPicker");
 
@@ -68,7 +67,22 @@ function playSound(freq = 800) {
 }
 
 // =========================
-// REPLY SYSTEM (SAFE INIT)
+// HELPERS
+// =========================
+function findMessageElement(text, username) {
+    return [...document.querySelectorAll(".message")].reverse().find(msg => {
+        const textEl = msg.querySelector(".text");
+        const userEl = msg.querySelector(".username");
+
+        if (!textEl) return false;
+
+        return textEl.textContent === text &&
+            (!username || userEl?.textContent === username);
+    });
+}
+
+// =========================
+// REPLY SYSTEM
 // =========================
 function createReplyPreview() {
     replyPreview = document.createElement("div");
@@ -106,19 +120,7 @@ function startReply(data) {
 }
 
 // =========================
-// TAB STATE
-// =========================
-document.addEventListener("visibilitychange", () => {
-    isTabActive = !document.hidden;
-
-    if (isTabActive) {
-        unreadCount = 0;
-        document.title = "Jetchat 2.0";
-    }
-});
-
-// =========================
-// LOGIN FLOW
+// LOGIN
 // =========================
 function startChat(user) {
     username = user;
@@ -156,7 +158,7 @@ signupButton.addEventListener("click", () => {
 });
 
 // =========================
-// EMOJI SYSTEM
+// EMOJI
 // =========================
 emojiButton.addEventListener("click", (e) => {
     e.preventDefault();
@@ -204,12 +206,12 @@ chatForm.addEventListener("submit", (e) => {
 });
 
 // =========================
-// RECEIVE MESSAGES (DISCORD GROUPING)
+// RECEIVE MESSAGES
 // =========================
 socket.on("chat message", (data) => {
+
     const message = document.createElement("div");
 
-    // reset grouping on system messages
     if (data.system) {
         message.className = "system-wrapper";
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
@@ -243,21 +245,19 @@ socket.on("chat message", (data) => {
         ` : ""}
 
         <div class="message-body">
-    <div class="text">${data.text}</div>
-    <div class="time">${data.time}</div>
-</div>
+            <div class="text">${data.text}</div>
+            <div class="time">${data.time}</div>
+        </div>
 
         <div class="message-toolbar">
-    <button class="react-btn" title="Add Reaction">😊</button>
-    <button class="reply-btn" title="Reply">↩</button>
-    <button class="edit-btn" title="Edit">✏️</button>
-    <button class="delete-btn" title="Delete">🗑️</button>
-    <button class="more-btn" title="More">⋯</button>
-</div>
-
-<div class="reactions" style="display:none;"></div>
+            <button class="react-btn">😊</button>
+            <button class="reply-btn">↩</button>
+            <button class="edit-btn">✏️</button>
+            <button class="delete-btn">🗑️</button>
+        </div>
     `;
 
+    // reply
     message.querySelector(".reply-btn").addEventListener("click", () => {
         startReply({
             username: data.username,
@@ -265,25 +265,37 @@ socket.on("chat message", (data) => {
         });
     });
 
-    message.querySelector(".react-btn").addEventListener("click", () => {
-    playSound(600);
-});
+    // edit
+    message.querySelector(".edit-btn").addEventListener("click", () => {
 
-message.querySelector(".edit-btn").addEventListener("click", () => {
-    // Edit feature coming soon
-});
+        const oldText = data.text;
+        const newText = prompt("Edit message:", oldText);
 
-message.querySelector(".delete-btn").addEventListener("click", () => {
-    // Delete feature coming soon
-});
+        if (!newText || newText === oldText) return;
 
-message.querySelector(".more-btn").addEventListener("click", () => {
-    // More menu coming soon
-});
+        socket.emit("edit message", {
+            oldText,
+            newText
+        });
 
-    if (isGrouped) {
-        message.style.marginTop = "2px";
-    }
+        const el = findMessageElement(oldText, data.username);
+        if (el) {
+            el.querySelector(".text").textContent = newText;
+        }
+    });
+
+    // delete
+    message.querySelector(".delete-btn").addEventListener("click", () => {
+
+        if (!confirm("Delete this message?")) return;
+
+        socket.emit("delete message", data.text);
+
+        const el = findMessageElement(data.text, data.username);
+        if (el) {
+            el.remove();
+        }
+    });
 
     messages.appendChild(message);
     messages.scrollTop = messages.scrollHeight;
@@ -299,6 +311,23 @@ message.querySelector(".more-btn").addEventListener("click", () => {
 });
 
 // =========================
+// SOCKET EVENTS (SYNC)
+// =========================
+socket.on("chat message edited", (data) => {
+    const el = findMessageElement(data.oldText, data.username);
+    if (el) {
+        el.querySelector(".text").textContent = data.newText;
+    }
+});
+
+socket.on("chat message deleted", (data) => {
+    const el = findMessageElement(data.text, data.username);
+    if (el) {
+        el.remove();
+    }
+});
+
+// =========================
 // TYPING
 // =========================
 messageInput.addEventListener("input", () => {
@@ -309,9 +338,6 @@ messageInput.addEventListener("input", () => {
     }
 });
 
-// =========================
-// TYPING INDICATOR
-// =========================
 socket.on("typing users", (users) => {
     typingUsers = new Set(users);
 
