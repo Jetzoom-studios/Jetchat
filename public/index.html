@@ -4,33 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jetchat 2.0</title>
+
+    <!-- FAVICON -->
+    <link rel="icon" href="/logo.png">
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <!-- ========================= -->
+<!-- SETTINGS PANEL (ADDED ONLY, NOTHING REMOVED) -->
+<!-- ========================= -->
+<div id="settingsPanel" class="settings-panel" style="display:none;">
+
+    <div class="settings-card">
+
+        <h2>⚙ Settings</h2>
+
+        <button id="closeSettings">Close</button>
+
+        <div class="setting-item">
+            <label>
+                <input type="checkbox" id="darkModeToggle">
+                Dark Mode
+            </label>
+        </div>
+
+        <div class="setting-item">
+            <label>
+                <input type="checkbox" id="lightModeToggle">
+                Light Mode
+            </label>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================= -->
 <!-- LOGIN SCREEN -->
 <!-- ========================= -->
-
 <div id="loginScreen" class="login-screen">
 
     <div class="login-card">
 
         <h1>Jetchat</h1>
-
-        <p>Welcome back!</p>
+        <p>Login or create an account</p>
 
         <input
             id="usernameInput"
             type="text"
-            placeholder="Choose a username"
+            placeholder="Username"
             maxlength="20"
             autocomplete="off"
         >
 
-        <button id="joinButton">
-            Join Chat
-        </button>
+        <input
+            id="passwordInput"
+            type="password"
+            placeholder="Password"
+            maxlength="30"
+            autocomplete="off"
+        >
+
+        <button id="loginButton">Login</button>
+        <button id="signupButton">Sign Up</button>
 
     </div>
 
@@ -39,7 +77,6 @@
 <!-- ========================= -->
 <!-- CHAT APP -->
 <!-- ========================= -->
-
 <div id="app" class="app" style="display:none;">
 
     <!-- Sidebar -->
@@ -56,63 +93,84 @@
                 Online
             </div>
 
-            <div id="onlineUsers">
-
-                <!-- Users appear here -->
-
-            </div>
+            <div id="onlineUsers"></div>
 
         </div>
 
     </aside>
 
-    <!-- Main -->
-
+    <!-- ========================= -->
+    <!-- MAIN -->
+    <!-- ========================= -->
     <main class="main">
 
-        <!-- Header -->
-
+        <!-- Top Bar -->
         <header class="topbar">
 
             <div class="chat-title">
-
                 <h2>Global Chat</h2>
-
-                <span id="onlineCount">
-                    • 0 online
-                </span>
-
+                <span id="onlineCount">• 0 online</span>
             </div>
 
-            <button id="settingsBtn">
-                ⚙
-            </button>
+            <button id="settingsBtn">⚙</button>
 
         </header>
 
-        <!-- Chat -->
-
+        <!-- ========================= -->
+        <!-- CHAT -->
+        <!-- ========================= -->
         <div id="chatContainer">
 
             <div id="messages">
 
                 <div class="system-wrapper">
-
                     <div class="system-message">
-
                         👋 Welcome to Jetchat!
-
                     </div>
-
                 </div>
 
             </div>
 
         </div>
 
-        <!-- Bottom -->
+        <!-- ========================= -->
+        <!-- TYPING INDICATOR -->
+        <!-- ========================= -->
+        <div id="typingIndicator" class="typing-indicator"></div>
 
+        <!-- ========================= -->
+        <!-- REPLY PREVIEW -->
+        <!-- ========================= -->
+        <div
+            id="replyPreview"
+            class="reply-preview"
+            style="display:none;"
+        >
+
+            <div class="reply-info">
+
+                <div class="reply-title">
+                    ↩ Replying to
+                    <span id="replyUsername"></span>
+                </div>
+
+                <div
+                    id="replyMessage"
+                    class="reply-message"
+                ></div>
+
+            </div>
+
+            <button id="cancelReply" type="button">✕</button>
+
+        </div>
+
+        <!-- ========================= -->
+        <!-- CHAT INPUT -->
+        <!-- ========================= -->
         <form id="chatForm">
+
+            <button type="button" id="emojiButton">😊</button>
 
             <input
                 id="messageInput"
@@ -121,12 +179,36 @@
                 autocomplete="off"
             >
 
-            <button
-                id="sendButton"
-                type="submit"
-            >
-                Send
-            </button>
+            <button id="sendButton" type="submit">Send</button>
+
+            <!-- EMOJI PICKER -->
+            <div class="emoji-picker" id="emojiPicker">
+
+                <span>😀</span>
+                <span>😁</span>
+                <span>😂</span>
+                <span>🤣</span>
+                <span>😊</span>
+                <span>😍</span>
+                <span>🥰</span>
+                <span>😎</span>
+                <span>😭</span>
+                <span>😡</span>
+                <span>🤔</span>
+                <span>👍</span>
+                <span>👎</span>
+                <span>👏</span>
+                <span>🙌</span>
+                <span>🔥</span>
+                <span>💯</span>
+                <span>🎉</span>
+                <span>❤️</span>
+                <span>💙</span>
+                <span>💀</span>
+                <span>✨</span>
+                <span>🚀</span>
+
+            </div>
 
         </form>
 
@@ -134,7 +216,10 @@
 
 </div>
 
+<!-- Socket.IO -->
 <script src="/socket.io/socket.io.js"></script>
+
+<!-- Jetchat -->
 <script src="script.js"></script>
 
 </body>
