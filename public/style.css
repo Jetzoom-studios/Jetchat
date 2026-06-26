@@ -306,6 +306,46 @@ body {
 }
 
 /* =========================
+   DISCORD STYLE REPLY PREVIEW (NEW)
+========================= */
+.reply-preview {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 6px;
+  opacity: 0.85;
+  font-size: 12px;
+}
+
+.reply-bar {
+  width: 3px;
+  background: #5865F2;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+.reply-content {
+  display: flex;
+  gap: 6px;
+  background: rgba(255,255,255,0.03);
+  padding: 4px 6px;
+  border-radius: 4px;
+  max-width: 240px;
+  overflow: hidden;
+}
+
+.reply-user {
+  font-weight: bold;
+  color: #cfd8ff;
+}
+
+.reply-text {
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================
    CHAT INPUT BAR
 ========================= */
 #chatForm {
