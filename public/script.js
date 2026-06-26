@@ -1,4 +1,5 @@
 const socket = io();
+const socket = io();
 
 // =========================
 // STATE
@@ -7,13 +8,16 @@ let isTabActive = true;
 let unreadCount = 0;
 let username = "";
 
+// typing system
 let typingUsers = new Set();
 let typingTimeout;
 let typingSent = false;
 
+// reply system
 let replyingTo = null;
 let replyPreview;
 
+// Discord grouping
 let lastMessageUser = null;
 let lastMessageElement = null;
 
@@ -37,6 +41,12 @@ const typingIndicator = document.getElementById("typingIndicator");
 
 const emojiButton = document.getElementById("emojiButton");
 const emojiPicker = document.getElementById("emojiPicker");
+
+// SETTINGS (NEW)
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsPanel = document.getElementById("settingsPanel");
+const closeSettings = document.getElementById("closeSettings");
+const darkModeToggle = document.getElementById("darkModeToggle");
 
 // =========================
 // SOUND
@@ -94,7 +104,6 @@ function createReplyPreview() {
 
     chatForm.parentNode.insertBefore(replyPreview, chatForm);
 }
-
 createReplyPreview();
 
 function startReply(data) {
@@ -126,7 +135,6 @@ function startChat(user) {
     app.style.display = "flex";
 
     socket.emit("join", username);
-
     messageInput.focus();
 }
 
@@ -212,10 +220,8 @@ socket.on("chat message", (data) => {
     if (data.system) {
         message.className = "system-wrapper";
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
-
         messages.appendChild(message);
         messages.scrollTop = messages.scrollHeight;
-
         lastMessageUser = null;
         lastMessageElement = null;
         return;
@@ -301,7 +307,6 @@ messageInput.addEventListener("input", () => {
 
 socket.on("typing users", (users) => {
     typingUsers = new Set(users);
-
     const list = [...typingUsers];
 
     typingIndicator.innerHTML =
@@ -321,58 +326,40 @@ socket.on("online count", (count) => {
 });
 
 // =========================
-// SETTINGS (DISCORD STYLE PANEL)
+// DISCORD-STYLE SETTINGS PANEL (NEW)
 // =========================
-const settingsBtn = document.getElementById("settingsBtn");
-const settingsPanel = document.getElementById("settingsPanel");
-const closeSettings = document.getElementById("closeSettings");
 
-const darkModeToggle = document.getElementById("darkModeToggle");
-const lightModeToggle = document.getElementById("lightModeToggle");
-
-// open panel
-if (settingsBtn) {
+if (settingsBtn && settingsPanel) {
     settingsBtn.addEventListener("click", () => {
+        settingsPanel.style.display = "flex";
         settingsPanel.classList.add("open");
     });
 }
 
-// close panel
 if (closeSettings) {
     closeSettings.addEventListener("click", () => {
         settingsPanel.classList.remove("open");
+        setTimeout(() => {
+            settingsPanel.style.display = "none";
+        }, 200);
     });
 }
 
 // click outside closes
-document.addEventListener("click", (e) => {
-    if (settingsPanel && !settingsPanel.contains(e.target) && e.target !== settingsBtn) {
-        settingsPanel.classList.remove("open");
-    }
-});
-
-// DARK MODE
-if (darkModeToggle) {
-    darkModeToggle.addEventListener("change", () => {
-        if (darkModeToggle.checked) {
-            document.body.classList.add("dark-mode");
-            document.body.classList.remove("light-mode");
-            if (lightModeToggle) lightModeToggle.checked = false;
-        } else {
-            document.body.classList.remove("dark-mode");
+if (settingsPanel) {
+    settingsPanel.addEventListener("click", (e) => {
+        if (e.target === settingsPanel) {
+            closeSettings.click();
         }
     });
 }
 
-// LIGHT MODE
-if (lightModeToggle) {
-    lightModeToggle.addEventListener("change", () => {
-        if (lightModeToggle.checked) {
-            document.body.classList.add("light-mode");
-            document.body.classList.remove("dark-mode");
-            if (darkModeToggle) darkModeToggle.checked = false;
-        } else {
-            document.body.classList.remove("light-mode");
-        }
+// =========================
+// LIGHT MODE (NEW)
+// =========================
+
+if (darkModeToggle) {
+    darkModeToggle.addEventListener("change", () => {
+        document.body.classList.toggle("light-mode", darkModeToggle.checked);
     });
 }
