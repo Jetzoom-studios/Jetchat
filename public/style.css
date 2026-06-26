@@ -569,3 +569,89 @@ body {
   flex-direction:column;
   gap:4px;
 }
+
+ /* =========================
+   ⚙ SETTINGS PANEL (ADDED - NO REMOVALS)
+========================= */
+
+.settings-panel {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    width: 260px;
+
+    background: rgba(20, 35, 61, 0.95);
+    backdrop-filter: blur(16px);
+
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+
+    padding: 15px;
+
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+
+    z-index: 9999;
+    animation: settingsPop 0.15s ease;
+}
+
+.settings-card h2 {
+    margin-bottom: 10px;
+    font-size: 18px;
+    color: #ffffff;
+}
+
+.settings-card button {
+    margin-top: 10px;
+    padding: 8px 10px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #4d79ff;
+    color: white;
+
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.settings-card button:hover {
+    transform: scale(1.05);
+    background: #6a8cff;
+}
+
+.setting-item {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #cfd8ff;
+}
+
+/* =========================
+   DARK MODE (TOGGLE SUPPORT)
+========================= */
+
+body.dark-mode {
+    background: radial-gradient(circle at top, #0a0f1a, #02040a);
+}
+
+body.dark-mode .login-card,
+body.dark-mode .sidebar,
+body.dark-mode .topbar,
+body.dark-mode #chatContainer,
+body.dark-mode #chatForm {
+    background: rgba(10, 15, 25, 0.95) !important;
+}
+
+/* =========================
+   ANIMATION
+========================= */
+
+@keyframes settingsPop {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
