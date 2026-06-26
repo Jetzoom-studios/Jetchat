@@ -242,8 +242,10 @@ socket.on("chat message", (data) => {
             </div>
         ` : ""}
 
-        <div class="text">${data.text}</div>
-        <div class="time">${data.time}</div>
+        <div class="message-body">
+    <div class="text">${data.text}</div>
+    <div class="time">${data.time}</div>
+</div>
 
         <div class="message-toolbar">
     <button class="react-btn" title="Add Reaction">😊</button>
@@ -253,7 +255,7 @@ socket.on("chat message", (data) => {
     <button class="more-btn" title="More">⋯</button>
 </div>
 
-<div class="reactions"></div>
+<div class="reactions" style="display:none;"></div>
     `;
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
