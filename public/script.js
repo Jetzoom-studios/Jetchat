@@ -215,15 +215,12 @@ socket.on("chat message", (data) => {
             <div class="username">${data.username}</div>
 
             ${data.replyTo ? `
-                <div class="reply-box" style="
-                    font-size:12px;
-                    padding:5px;
-                    margin-bottom:5px;
-                    border-left:3px solid #5865F2;
-                    opacity:0.8;
-                ">
-                    <strong>${data.replyTo.username}</strong><br>
-                    ${data.replyTo.text}
+                <div class="reply-preview">
+                    <div class="reply-bar"></div>
+                    <div class="reply-content">
+                        <span class="reply-user">${data.replyTo.username}</span>
+                        <span class="reply-text">${data.replyTo.text}</span>
+                    </div>
                 </div>
             ` : ""}
 
