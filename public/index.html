@@ -13,6 +13,28 @@
 <body>
 
 <!-- ========================= -->
+<!-- SETTINGS PANEL (ADDED ONLY, NOTHING REMOVED) -->
+<!-- ========================= -->
+<div id="settingsPanel" class="settings-panel" style="display:none;">
+
+    <div class="settings-card">
+
+        <h2>⚙ Settings</h2>
+
+        <button id="closeSettings">Close</button>
+
+        <div class="setting-item">
+            <label>
+                <input type="checkbox" id="darkModeToggle">
+                Dark Mode
+            </label>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================= -->
 <!-- LOGIN SCREEN -->
 <!-- ========================= -->
 <div id="loginScreen" class="login-screen">
@@ -110,7 +132,7 @@
         <div id="typingIndicator" class="typing-indicator"></div>
 
         <!-- ========================= -->
-        <!-- REPLY PREVIEW (NEW) -->
+        <!-- REPLY PREVIEW -->
         <!-- ========================= -->
         <div
             id="replyPreview"
@@ -132,12 +154,7 @@
 
             </div>
 
-            <button
-                id="cancelReply"
-                type="button"
-            >
-                ✕
-            </button>
+            <button id="cancelReply" type="button">✕</button>
 
         </div>
 
@@ -146,15 +163,8 @@
         <!-- ========================= -->
         <form id="chatForm">
 
-            <!-- Emoji Button -->
-            <button
-                type="button"
-                id="emojiButton"
-            >
-                😊
-            </button>
+            <button type="button" id="emojiButton">😊</button>
 
-            <!-- Message -->
             <input
                 id="messageInput"
                 type="text"
@@ -162,21 +172,10 @@
                 autocomplete="off"
             >
 
-            <!-- Send -->
-            <button
-                id="sendButton"
-                type="submit"
-            >
-                Send
-            </button>
+            <button id="sendButton" type="submit">Send</button>
 
-            <!-- ========================= -->
             <!-- EMOJI PICKER -->
-            <!-- ========================= -->
-            <div
-                class="emoji-picker"
-                id="emojiPicker"
-            >
+            <div class="emoji-picker" id="emojiPicker">
 
                 <span>😀</span>
                 <span>😁</span>
