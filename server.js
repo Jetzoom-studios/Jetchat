@@ -23,23 +23,13 @@ const typingUsers = new Map();
 // =========================
 // HELPERS
 // =========================
-
-function findMessageIndex(username, text) {
-    const messages = db.loadMessages();
-
-    // find LAST matching message (safer for duplicates)
-    for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].username === username && messages[i].text === text) {
-            return i;
-        }
-    }
-    return -1;
+function findMessageIndexById(messages, id) {
+    return messages.findIndex(m => m.id === id);
 }
 
 // =========================
 // SOCKET.IO
 // =========================
-
 io.on("connection", (socket) => {
 
     console.log("🟢 Someone connected");
@@ -87,78 +77,72 @@ io.on("connection", (socket) => {
             text: `🟢 ${username} joined the chat`
         });
 
-        // Send chat history
         socket.emit("chat history", db.loadMessages());
 
         callback({ success: true });
     });
 
     // =========================
-    // CHAT MESSAGE
+    // CHAT MESSAGE (FIXED)
     // =========================
     socket.on("chat message", (data) => {
 
-        db.addMessage({
+        const msg = {
+            id: Date.now() + Math.random(), // UNIQUE ID
             username: socket.username,
             text: data.text,
             time: Date.now()
-        });
+        };
 
-        io.emit("chat message", {
-            username: socket.username,
-            text: data.text,
-            time: Date.now()
-        });
+        db.addMessage(msg);
+
+        io.emit("chat message", msg);
     });
 
     // =========================
-    // EDIT MESSAGE
+    // EDIT MESSAGE (FIXED)
     // =========================
-    socket.on("edit message", ({ oldText, newText }) => {
+    socket.on("edit message", ({ id, newText }) => {
 
         if (!socket.username) return;
 
         const messages = db.loadMessages();
-        const index = findMessageIndex(socket.username, oldText);
 
+        const index = findMessageIndexById(messages, id);
         if (index === -1) return;
+
+        if (messages[index].username !== socket.username) return;
 
         messages[index].text = newText;
         messages[index].edited = true;
 
-        if (db.saveMessages) {
-            db.saveMessages(messages);
-        }
+        db.saveMessages(messages);
 
         io.emit("chat message edited", {
-            username: socket.username,
-            oldText,
+            id,
             newText
         });
     });
 
     // =========================
-    // DELETE MESSAGE
+    // DELETE MESSAGE (FIXED)
     // =========================
-    socket.on("delete message", (text) => {
+    socket.on("delete message", (id) => {
 
         if (!socket.username) return;
 
         const messages = db.loadMessages();
-        const index = findMessageIndex(socket.username, text);
 
+        const index = findMessageIndexById(messages, id);
         if (index === -1) return;
+
+        if (messages[index].username !== socket.username) return;
 
         messages.splice(index, 1);
 
-        if (db.saveMessages) {
-            db.saveMessages(messages);
-        }
+        db.saveMessages(messages);
 
-        io.emit("chat message deleted", {
-            username: socket.username,
-            text
-        });
+        io.emit("chat message deleted", { id });
     });
 
     // =========================
@@ -210,7 +194,6 @@ io.on("connection", (socket) => {
 // =========================
 // START SERVER
 // =========================
-
 server.listen(PORT, () => {
     console.log("");
     console.log("=================================");
