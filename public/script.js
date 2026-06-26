@@ -245,15 +245,15 @@ socket.on("chat message", (data) => {
         <div class="text">${data.text}</div>
         <div class="time">${data.time}</div>
 
-        <div class="message-actions">
-            <button class="reply-btn">↩ Reply</button>
-        </div>
+        <div class="message-toolbar">
+    <button class="react-btn" title="Add Reaction">😊</button>
+    <button class="reply-btn" title="Reply">↩</button>
+    <button class="edit-btn" title="Edit">✏️</button>
+    <button class="delete-btn" title="Delete">🗑️</button>
+    <button class="more-btn" title="More">⋯</button>
+</div>
 
-        <div class="reactions">
-            <button class="react">👍</button>
-            <button class="react">😂</button>
-            <button class="react">❤️</button>
-        </div>
+<div class="reactions"></div>
     `;
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
@@ -263,12 +263,21 @@ socket.on("chat message", (data) => {
         });
     });
 
-    message.querySelectorAll(".react").forEach(btn => {
-        btn.addEventListener("click", () => {
-            btn.classList.toggle("active");
-            playSound(600);
-        });
-    });
+    message.querySelector(".react-btn").addEventListener("click", () => {
+    playSound(600);
+});
+
+message.querySelector(".edit-btn").addEventListener("click", () => {
+    // Edit feature coming soon
+});
+
+message.querySelector(".delete-btn").addEventListener("click", () => {
+    // Delete feature coming soon
+});
+
+message.querySelector(".more-btn").addEventListener("click", () => {
+    // More menu coming soon
+});
 
     if (isGrouped) {
         message.style.marginTop = "2px";
