@@ -701,3 +701,63 @@ body.light-mode #settingsBtn {
     background: #e9ecef;
     color: #111;
 }
+
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+
+    width: 320px;
+    height: 100vh;
+
+    background: rgba(20, 22, 28, 0.98);
+    backdrop-filter: blur(18px);
+
+    border-left: 1px solid rgba(255,255,255,0.08);
+
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+
+    z-index: 9999;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-panel.open {
+    transform: translateX(0);
+}
+
+.settings-card {
+    padding: 20px;
+}
+
+.settings-card h2 {
+    color: white;
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.setting-item {
+    margin: 12px 0;
+    color: #cfd8ff;
+}
+
+.settings-card button {
+    margin-top: 10px;
+    padding: 10px;
+    width: 100%;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #4d79ff;
+    color: white;
+
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.settings-card button:hover {
+    background: #6a8cff;
+}
