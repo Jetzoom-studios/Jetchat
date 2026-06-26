@@ -287,12 +287,15 @@ body {
   backdrop-filter: blur(10px);
 
   transition: 0.2s ease;
+
+  position: relative;
 }
 
 .message:hover {
   transform: translateY(-2px);
 }
 
+/* username + time */
 .username {
   color: #7fb0ff;
   font-weight: bold;
@@ -346,6 +349,59 @@ body {
 }
 
 /* =========================
+   🔥 NEW: MESSAGE ACTIONS (FIXED)
+========================= */
+.message .actions {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+
+  display: flex;
+  gap: 6px;
+
+  opacity: 0;
+  transform: translateY(6px);
+  transition: 0.2s ease;
+}
+
+.message:hover .actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.message .actions button {
+  background: rgba(40, 60, 95, 0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: white;
+
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.message .actions button:hover {
+  background: #4d79ff;
+  transform: scale(1.05);
+}
+
+/* reactions */
+.message .reactions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.message .reactions span {
+  background: #2b3a55;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* =========================
    CHAT INPUT BAR
 ========================= */
 #chatForm {
@@ -360,7 +416,7 @@ body {
 }
 
 /* =========================
-   EMOJI PICKER BUTTON
+   EMOJI BUTTON
 ========================= */
 #emojiButton {
   width: 42px;
@@ -382,7 +438,7 @@ body {
 }
 
 /* =========================
-   EMOJI PICKER POPUP
+   EMOJI PICKER
 ========================= */
 .emoji-picker {
   position: absolute;
@@ -429,15 +485,6 @@ body {
 .emoji-picker span:hover {
   background: rgba(77,121,255,0.25);
   transform: scale(1.2);
-}
-
-.emoji-picker::-webkit-scrollbar {
-  width: 6px;
-}
-
-.emoji-picker::-webkit-scrollbar-thumb {
-  background: #4d79ff;
-  border-radius: 10px;
 }
 
 /* =========================
