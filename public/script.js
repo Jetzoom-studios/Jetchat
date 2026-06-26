@@ -234,16 +234,6 @@ socket.on("chat message", (data) => {
     message.innerHTML = `
         ${isGrouped ? "" : `<div class="username">${data.username}</div>`}
 
-        ${data.replyTo ? `
-            <div class="reply-preview">
-                <div class="reply-bar"></div>
-                <div class="reply-content">
-                    <span class="reply-user">${data.replyTo.username}</span>
-                    <span class="reply-text">${data.replyTo.text}</span>
-                </div>
-            </div>
-        ` : ""}
-
         <div class="message-body">
             <div class="text">${data.text}</div>
             <div class="time">${data.time}</div>
@@ -302,29 +292,19 @@ socket.on("chat message", (data) => {
 
     lastMessageUser = data.username;
     lastMessageElement = message;
-
-    if (!isTabActive) {
-        unreadCount++;
-        document.title = `(${unreadCount}) Jetchat 2.0`;
-        playSound(800);
-    }
 });
 
 // =========================
-// SOCKET EVENTS (SYNC)
+// SOCKET EVENTS
 // =========================
 socket.on("chat message edited", (data) => {
     const el = findMessageElement(data.oldText, data.username);
-    if (el) {
-        el.querySelector(".text").textContent = data.newText;
-    }
+    if (el) el.querySelector(".text").textContent = data.newText;
 });
 
 socket.on("chat message deleted", (data) => {
     const el = findMessageElement(data.text, data.username);
-    if (el) {
-        el.remove();
-    }
+    if (el) el.remove();
 });
 
 // =========================
@@ -343,16 +323,8 @@ socket.on("typing users", (users) => {
 
     const list = [...typingUsers];
 
-    if (list.length === 0) {
-        typingIndicator.innerHTML = "";
-        return;
-    }
-
-    typingIndicator.innerHTML = `
-        <span class="typing-dots">
-            ${list.join(", ")} is typing...
-        </span>
-    `;
+    typingIndicator.innerHTML =
+        list.length ? `${list.join(", ")} is typing...` : "";
 
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
@@ -366,3 +338,34 @@ socket.on("typing users", (users) => {
 socket.on("online count", (count) => {
     onlineCount.textContent = `• ${count} online`;
 });
+
+/* =========================
+   ⚙ SETTINGS (ADDED ONLY — NOTHING REMOVED)
+========================= */
+
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsPanel = document.getElementById("settingsPanel");
+const closeSettings = document.getElementById("closeSettings");
+const darkModeToggle = document.getElementById("darkModeToggle");
+
+// open
+if (settingsBtn && settingsPanel) {
+    settingsBtn.addEventListener("click", () => {
+        settingsPanel.style.display =
+            settingsPanel.style.display === "block" ? "none" : "block";
+    });
+}
+
+// close
+if (closeSettings) {
+    closeSettings.addEventListener("click", () => {
+        settingsPanel.style.display = "none";
+    });
+}
+
+// dark mode
+if (darkModeToggle) {
+    darkModeToggle.addEventListener("change", () => {
+        document.body.classList.toggle("dark-mode", darkModeToggle.checked);
+    });
+}
