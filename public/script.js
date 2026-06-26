@@ -7,16 +7,13 @@ let isTabActive = true;
 let unreadCount = 0;
 let username = "";
 
-// typing system
 let typingUsers = new Set();
 let typingTimeout;
 let typingSent = false;
 
-// reply system
 let replyingTo = null;
 let replyPreview;
 
-// Discord grouping
 let lastMessageUser = null;
 let lastMessageElement = null;
 
@@ -254,7 +251,6 @@ socket.on("chat message", (data) => {
     message.querySelector(".edit-btn").addEventListener("click", () => {
         const oldText = data.text;
         const newText = prompt("Edit message:", oldText);
-
         if (!newText || newText === oldText) return;
 
         socket.emit("edit message", { oldText, newText });
@@ -324,10 +320,9 @@ socket.on("online count", (count) => {
     onlineCount.textContent = `• ${count} online`;
 });
 
-/* =========================
-   ⚙ SETTINGS + THEME SYSTEM (ADDED)
-========================= */
-
+// =========================
+// SETTINGS (DISCORD STYLE PANEL)
+// =========================
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettings = document.getElementById("closeSettings");
@@ -335,20 +330,26 @@ const closeSettings = document.getElementById("closeSettings");
 const darkModeToggle = document.getElementById("darkModeToggle");
 const lightModeToggle = document.getElementById("lightModeToggle");
 
-// open settings
-if (settingsBtn && settingsPanel) {
+// open panel
+if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-        settingsPanel.style.display =
-            settingsPanel.style.display === "block" ? "none" : "block";
+        settingsPanel.classList.add("open");
     });
 }
 
-// close settings
+// close panel
 if (closeSettings) {
     closeSettings.addEventListener("click", () => {
-        settingsPanel.style.display = "none";
+        settingsPanel.classList.remove("open");
     });
 }
+
+// click outside closes
+document.addEventListener("click", (e) => {
+    if (settingsPanel && !settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+        settingsPanel.classList.remove("open");
+    }
+});
 
 // DARK MODE
 if (darkModeToggle) {
