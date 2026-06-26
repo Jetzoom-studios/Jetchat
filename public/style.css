@@ -655,3 +655,49 @@ body.dark-mode #chatForm {
         opacity: 1;
     }
 }
+
+/* =========================
+   LIGHT MODE
+========================= */
+
+body.light-mode {
+    background: #f5f6f8;
+    color: #111;
+}
+
+/* panels */
+body.light-mode .sidebar,
+body.light-mode .topbar,
+body.light-mode #chatContainer,
+body.light-mode #chatForm {
+    background: #ffffff !important;
+    border-color: rgba(0,0,0,0.08);
+}
+
+/* messages */
+body.light-mode .message {
+    background: #f0f2f5;
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+body.light-mode .username {
+    color: #2b5cff;
+}
+
+body.light-mode .time {
+    color: #666;
+}
+
+/* input */
+body.light-mode #messageInput,
+body.light-mode #usernameInput {
+    background: #fff;
+    color: #111;
+    border: 1px solid rgba(0,0,0,0.15);
+}
+
+/* buttons */
+body.light-mode #settingsBtn {
+    background: #e9ecef;
+    color: #111;
+}
