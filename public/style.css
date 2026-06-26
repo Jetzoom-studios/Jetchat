@@ -498,3 +498,65 @@ body {
   background: linear-gradient(#29466f, #4d79ff);
   border-radius: 10px;
 }
+
+/* =========================
+   DISCORD MESSAGE TOOLBAR
+========================= */
+
+.message {
+    position: relative;
+    overflow: visible;
+}
+
+.message-toolbar {
+    position: absolute;
+    top: -16px;
+    right: 14px;
+
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    background: #2b2d31;
+    border: 1px solid #1e1f22;
+    border-radius: 8px;
+    padding: 3px;
+
+    box-shadow: 0 8px 18px rgba(0,0,0,.45);
+
+    opacity: 0;
+    transform: translateY(6px);
+
+    transition: opacity .15s ease,
+                transform .15s ease;
+
+    pointer-events: none;
+    z-index: 50;
+}
+
+.message:hover .message-toolbar {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.message-toolbar button {
+    width: 32px;
+    height: 32px;
+
+    border: none;
+    background: transparent;
+    color: #b5bac1;
+
+    border-radius: 6px;
+    cursor: pointer;
+
+    font-size: 16px;
+
+    transition: .15s;
+}
+
+.message-toolbar button:hover {
+    background: #404249;
+    color: white;
+}
