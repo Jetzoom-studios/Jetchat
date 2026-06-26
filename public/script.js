@@ -7,18 +7,21 @@ let isTabActive = true;
 let unreadCount = 0;
 let username = "";
 
+// typing system
 let typingUsers = new Set();
 let typingTimeout;
 let typingSent = false;
 
+// reply system
 let replyingTo = null;
 let replyPreview;
 
+// Discord grouping
 let lastMessageUser = null;
 let lastMessageElement = null;
 
 // =========================
-// DOM
+// DOM ELEMENTS
 // =========================
 const loginScreen = document.getElementById("loginScreen");
 const app = document.getElementById("app");
@@ -66,23 +69,35 @@ function playSound(freq = 800) {
 // =========================
 // HELPERS
 // =========================
-function findMessageElementById(id) {
-    return document.querySelector(`.message[data-id="${id}"]`);
+function findMessageElement(text, username) {
+    return [...document.querySelectorAll(".message")].reverse().find(msg => {
+        const textEl = msg.querySelector(".text");
+        const userEl = msg.querySelector(".username");
+
+        if (!textEl) return false;
+
+        return textEl.textContent === text &&
+            (!username || userEl?.textContent === username);
+    });
 }
 
 // =========================
-// REPLY
+// REPLY SYSTEM
 // =========================
 function createReplyPreview() {
     replyPreview = document.createElement("div");
+    replyPreview.id = "replyPreview";
     replyPreview.style.display = "none";
     replyPreview.style.padding = "6px 10px";
     replyPreview.style.background = "#2b2d31";
     replyPreview.style.borderLeft = "3px solid #5865F2";
+    replyPreview.style.fontSize = "13px";
     replyPreview.style.marginBottom = "6px";
+    replyPreview.style.borderRadius = "6px";
 
     chatForm.parentNode.insertBefore(replyPreview, chatForm);
 }
+
 createReplyPreview();
 
 function startReply(data) {
@@ -91,7 +106,7 @@ function startReply(data) {
     replyPreview.innerHTML = `
         <strong>Replying to ${data.username}</strong><br>
         ${data.text}
-        <button id="cancelReply" type="button" style="float:right;">✕</button>
+        <button id="cancelReply" type="button" style="float:right;cursor:pointer;">✕</button>
     `;
 
     replyPreview.style.display = "block";
@@ -100,6 +115,8 @@ function startReply(data) {
         replyingTo = null;
         replyPreview.style.display = "none";
     };
+
+    messageInput.focus();
 }
 
 // =========================
@@ -112,14 +129,15 @@ function startChat(user) {
     app.style.display = "flex";
 
     socket.emit("join", username);
+
+    messageInput.focus();
 }
 
-// =========================
-// AUTH
-// =========================
 loginButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
+
+    if (!user || !pass) return alert("Enter username and password");
 
     socket.emit("login", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
@@ -131,10 +149,34 @@ signupButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
+    if (!user || !pass) return alert("Enter username and password");
+
     socket.emit("signup", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
-        alert("Account created!");
+        alert("Account created! Now log in.");
     });
+});
+
+// =========================
+// EMOJI
+// =========================
+emojiButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    emojiPicker.style.display =
+        emojiPicker.style.display === "flex" ? "none" : "flex";
+});
+
+emojiPicker.querySelectorAll("span").forEach(e => {
+    e.addEventListener("click", () => {
+        messageInput.value += e.textContent;
+        messageInput.focus();
+    });
+});
+
+document.addEventListener("click", (e) => {
+    if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
+        emojiPicker.style.display = "none";
+    }
 });
 
 // =========================
@@ -147,108 +189,180 @@ chatForm.addEventListener("submit", (e) => {
     if (!text) return;
 
     socket.emit("chat message", {
+        username,
         text,
-        replyTo: replyingTo
+        replyTo: replyingTo,
+        time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        })
     });
 
-    messageInput.value = "";
     replyingTo = null;
     replyPreview.style.display = "none";
 
+    messageInput.value = "";
     playSound(900);
 });
 
 // =========================
-// RECEIVE MESSAGE
+// RECEIVE MESSAGES
 // =========================
 socket.on("chat message", (data) => {
 
-    const el = document.createElement("div");
-    el.className = "message";
+    const message = document.createElement("div");
 
-    el.dataset.id = data.id; // IMPORTANT
+    if (data.system) {
+        message.className = "system-wrapper";
+        message.innerHTML = `<div class="system-message">${data.text}</div>`;
 
-    el.innerHTML = `
-        <div class="username">${data.username}</div>
+        messages.appendChild(message);
+        messages.scrollTop = messages.scrollHeight;
+
+        lastMessageUser = null;
+        lastMessageElement = null;
+        return;
+    }
+
+    message.className = "message";
+
+    const isGrouped =
+        data.username === lastMessageUser &&
+        lastMessageElement &&
+        !lastMessageElement.classList.contains("system-wrapper");
+
+    message.innerHTML = `
+        ${isGrouped ? "" : `<div class="username">${data.username}</div>`}
 
         ${data.replyTo ? `
             <div class="reply-preview">
-                <strong>${data.replyTo.username}</strong>: ${data.replyTo.text}
+                <div class="reply-bar"></div>
+                <div class="reply-content">
+                    <span class="reply-user">${data.replyTo.username}</span>
+                    <span class="reply-text">${data.replyTo.text}</span>
+                </div>
             </div>
         ` : ""}
 
-        <div class="text">${data.text}</div>
-        <div class="time">${data.time || ""}</div>
+        <div class="message-body">
+            <div class="text">${data.text}</div>
+            <div class="time">${data.time}</div>
+        </div>
 
-        <button class="edit-btn">✏️</button>
-        <button class="delete-btn">🗑️</button>
+        <div class="message-toolbar">
+            <button class="react-btn">😊</button>
+            <button class="reply-btn">↩</button>
+            <button class="edit-btn">✏️</button>
+            <button class="delete-btn">🗑️</button>
+        </div>
     `;
 
-    // REPLY
-    el.querySelector(".username").addEventListener("click", () => {
+    // reply
+    message.querySelector(".reply-btn").addEventListener("click", () => {
         startReply({
             username: data.username,
             text: data.text
         });
     });
 
-    // EDIT
-    el.querySelector(".edit-btn").addEventListener("click", () => {
+    // edit
+    message.querySelector(".edit-btn").addEventListener("click", () => {
 
-        const newText = prompt("Edit message:", data.text);
-        if (!newText || newText === data.text) return;
+        const oldText = data.text;
+        const newText = prompt("Edit message:", oldText);
+
+        if (!newText || newText === oldText) return;
 
         socket.emit("edit message", {
-            id: data.id,
+            oldText,
             newText
         });
+
+        const el = findMessageElement(oldText, data.username);
+        if (el) {
+            el.querySelector(".text").textContent = newText;
+        }
     });
 
-    // DELETE
-    el.querySelector(".delete-btn").addEventListener("click", () => {
+    // delete
+    message.querySelector(".delete-btn").addEventListener("click", () => {
 
-        if (!confirm("Delete message?")) return;
+        if (!confirm("Delete this message?")) return;
 
-        socket.emit("delete message", {
-            id: data.id
-        });
+        socket.emit("delete message", data.text);
+
+        const el = findMessageElement(data.text, data.username);
+        if (el) {
+            el.remove();
+        }
     });
 
-    messages.appendChild(el);
+    messages.appendChild(message);
     messages.scrollTop = messages.scrollHeight;
+
+    lastMessageUser = data.username;
+    lastMessageElement = message;
+
+    if (!isTabActive) {
+        unreadCount++;
+        document.title = `(${unreadCount}) Jetchat 2.0`;
+        playSound(800);
+    }
 });
 
 // =========================
-// SYNC EDIT
+// SOCKET EVENTS (SYNC)
 // =========================
 socket.on("chat message edited", (data) => {
-
-    const el = findMessageElementById(data.id);
+    const el = findMessageElement(data.oldText, data.username);
     if (el) {
         el.querySelector(".text").textContent = data.newText;
     }
 });
 
-// =========================
-// SYNC DELETE
-// =========================
 socket.on("chat message deleted", (data) => {
-
-    const el = findMessageElementById(data.id);
+    const el = findMessageElement(data.text, data.username);
     if (el) {
         el.remove();
     }
 });
 
 // =========================
-// ONLINE + TYPING
+// TYPING
 // =========================
-socket.on("online count", (count) => {
-    onlineCount.textContent = `• ${count} online`;
+messageInput.addEventListener("input", () => {
+    if (!typingSent) {
+        socket.emit("typing", username);
+        typingSent = true;
+        setTimeout(() => typingSent = false, 1000);
+    }
 });
 
 socket.on("typing users", (users) => {
-    typingIndicator.textContent = users.length
-        ? `${users.join(", ")} is typing...`
-        : "";
+    typingUsers = new Set(users);
+
+    const list = [...typingUsers];
+
+    if (list.length === 0) {
+        typingIndicator.innerHTML = "";
+        return;
+    }
+
+    typingIndicator.innerHTML = `
+        <span class="typing-dots">
+            ${list.join(", ")} is typing...
+        </span>
+    `;
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        typingIndicator.innerHTML = "";
+    }, 2000);
+});
+
+// =========================
+// ONLINE COUNT
+// =========================
+socket.on("online count", (count) => {
+    onlineCount.textContent = `• ${count} online`;
 });
