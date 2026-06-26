@@ -116,7 +116,7 @@ body {
 
 #joinButton:hover,
 #sendButton:hover {
-  transform: translateY(-2px);
+  background: rgba(255,255,255,.03);
   box-shadow: 0 12px 25px rgba(77,121,255,0.35);
 }
 
@@ -276,13 +276,15 @@ body {
    CHAT MESSAGES
 ========================= */
 .message {
+  padding-right: 90px;
   background: rgba(23, 48, 79, 0.75);
   border: 1px solid rgba(255,255,255,0.06);
 
   border-radius: 14px;
   padding: 12px;
 
-  max-width: 70%;
+  width: 100%;
+  max-width: 100%;
 
   backdrop-filter: blur(10px);
 
@@ -559,4 +561,11 @@ body {
 .message-toolbar button:hover {
     background: #404249;
     color: white;
+}
+
+
+.message-body {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
 }
