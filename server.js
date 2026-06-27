@@ -121,28 +121,87 @@ io.on("connection", (socket) => {
         // =========================
     // GET PROFILE
     // =========================
-    socket.on("get profile", async (username, callback) => {
+         if (!result.success) {
+            return callback(result);
+        }
 
-    console.log("GET PROFILE EVENT:", username);
+        socket.username = result.user.username;
+        users[socket.id] = result.user.username;
 
-    try {
+        io.emit("online count", Object.keys(users).length);
 
-        const result = await db.getProfile(username);
+        io.emit("chat message", {
+            system: true,
+            text: `🟢 ${result.user.username} joined the chat`
+        });
 
-        callback(result);
+        socket.emit("chat history", db.loadMessages());
+
+        callback({
+            success: true,
+            user: result.user
+        });
 
     } catch (err) {
 
-        console.error("Profile error:", err);
+        console.error("Login error:", err);
 
         callback({
-            success: false
+            success: false,
+            message: "Database error."
         });
 
     }
 
 });
 
+        // =========================
+    // GET PROFILE
+    // =========================
+    
+
+    socket.on("get profile", async (username, callback) => {
+
+    console.log("SERVER RECEIVED:", username);
+
+    try {
+        const result = await db.getProfile(username);
+
+        console.log(result);
+
+        callback(result);
+
+    } catch (err) {
+        console.error(err);
+
+        callback({
+            success: false
+        });
+    }
+
+});
+
+    // =========================
+    // CHAT MESSAGE (FIXED)
+    // =========================
+    socket.on("chat message", (data) => {
+
+        const msg = {
+            id: Date.now() + Math.random(), // UNIQUE ID
+            username: socket.username,
+            text: data.text,
+            time: Date.now()
+        };
+
+        db.addMessage(msg);
+
+        io.emit("chat message", msg);
+    });
+
+    // =========================
+    // EDIT MESSAGE (FIXED)
+    // =========================
+    socket.on("edit message", ({ id, newText }) => {
     // =========================
     // CHAT MESSAGE (FIXED)
     // =========================
