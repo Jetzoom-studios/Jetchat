@@ -349,7 +349,11 @@ socket.on("online count", (count) => {
 
 function openProfile(username) {
 
+    console.log("Opening profile:", username);
+
     socket.emit("get profile", username, (res) => {
+
+        console.log("PROFILE RESPONSE:", res);
 
         if (!res.success) {
             return alert("Couldn't load profile.");
@@ -357,13 +361,11 @@ function openProfile(username) {
 
         profileUsername.textContent = res.profile.username;
         profileBio.textContent = res.profile.bio || "No bio yet.";
-        profileJoinDate.textContent = new Date(res.profile.join_date).toLocaleDateString();
+        profileJoinDate.textContent =
+            new Date(res.profile.join_date).toLocaleDateString();
 
-        if (res.profile.avatar) {
-            profileAvatar.src = res.profile.avatar;
-        } else {
-            profileAvatar.src = "/default-avatar.png";
-        }
+        profileAvatar.src =
+            res.profile.avatar || "/default-avatar.png";
 
         profileModal.style.display = "flex";
 
