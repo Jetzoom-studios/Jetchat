@@ -428,3 +428,25 @@ if (lightModeToggle) {
         }
     });
 }
+
+const editProfileBtn = document.getElementById("editProfileBtn");
+
+editProfileBtn.addEventListener("click", () => {
+
+    const bio = prompt("Enter your new bio:");
+
+    if (bio === null) return;
+
+    socket.emit("update bio", bio, (res) => {
+
+        if (!res.success) {
+            return alert("Couldn't save bio.");
+        }
+
+        profileBio.textContent = bio;
+
+        alert("Bio updated!");
+
+    });
+
+});
