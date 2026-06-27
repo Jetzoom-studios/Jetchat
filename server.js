@@ -140,6 +140,36 @@ io.on("connection", (socket) => {
 
     });
 
+    // =========================
+// UPDATE BIO
+// =========================
+socket.on("update bio", async (bio, callback) => {
+
+    if (!socket.username) {
+        return callback({ success: false });
+    }
+
+    try {
+
+        const result = await db.updateBio(
+            socket.username,
+            bio
+        );
+
+        callback(result);
+
+    } catch (err) {
+
+        console.error(err);
+
+        callback({
+            success: false
+        });
+
+    }
+
+});
+
         // =========================
     // CHAT MESSAGE
     // =========================
