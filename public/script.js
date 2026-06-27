@@ -42,6 +42,26 @@ const emojiButton = document.getElementById("emojiButton");
 const emojiPicker = document.getElementById("emojiPicker");
 
 // =========================
+// LOADING SCREEN
+// =========================
+const loadingOverlay = document.getElementById("loadingOverlay");
+
+function showLoading(text = "Please wait...") {
+    loadingOverlay.classList.add("show");
+    loadingOverlay.querySelector(".loading-text").textContent = text;
+
+    loginButton.disabled = true;
+    signupButton.disabled = true;
+}
+
+function hideLoading() {
+    loadingOverlay.classList.remove("show");
+
+    loginButton.disabled = false;
+    signupButton.disabled = false;
+}
+
+// =========================
 // SOUND
 // =========================
 let audioCtx;
@@ -134,27 +154,53 @@ function startChat(user) {
 }
 
 loginButton.addEventListener("click", () => {
+
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
-    if (!user || !pass) return alert("Enter username and password");
+    if (!user || !pass) {
+        return alert("Enter username and password");
+    }
+
+    showLoading("Logging in...");
 
     socket.emit("login", { username: user, password: pass }, (res) => {
-        if (!res.success) return alert(res.message);
+
+        hideLoading();
+
+        if (!res.success) {
+            return alert(res.message);
+        }
+
         startChat(user);
+
     });
+
 });
 
 signupButton.addEventListener("click", () => {
+
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
-    if (!user || !pass) return alert("Enter username and password");
+    if (!user || !pass) {
+        return alert("Enter username and password");
+    }
+
+    showLoading("Creating account...");
 
     socket.emit("signup", { username: user, password: pass }, (res) => {
-        if (!res.success) return alert(res.message);
-        alert("Account created! Now log in.");
+
+        hideLoading();
+
+        if (!res.success) {
+            return alert(res.message);
+        }
+
+        alert("✅ Account created! Now log in.");
+
     });
+
 });
 
 // =========================
