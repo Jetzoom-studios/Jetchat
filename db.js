@@ -234,13 +234,34 @@ async function getProfile(username) {
 }
 
 // =========================
+// UPDATE BIO
+// =========================
+async function updateBio(username, bio) {
+
+    await pool.query(
+        `
+        UPDATE users
+        SET bio = $1
+        WHERE username = $2
+        `,
+        [bio, username]
+    );
+
+    return {
+        success: true
+    };
+}
+
+// =========================
 // EXPORTS
 // =========================
 module.exports = {
 
+
     createUser,
     loginUser,
     getProfile,
+    updateBio,
 
     loadMessages,
     saveMessages,
