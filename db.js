@@ -1,5 +1,13 @@
 const fs = require("fs");
 const path = require("path");
+const { Pool } = require("pg");
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 // =========================
 // FILE PATHS
@@ -40,47 +48,65 @@ function saveUsers(users) {
 // =========================
 // CREATE USER
 // =========================
-function createUser(username, password) {
+async function createUser(username, password) {
 
-    const users = loadUsers();
-
-    const exists = users.find(
-        u => u.username === username
+    const existing = await pool.query(
+        "SELECT id FROM users WHERE username = $1",
+        [username]
     );
 
-    if (exists) {
+    if (existing.rows.length > 0) {
         return {
             success: false,
             message: "Username already exists"
         };
     }
 
-    users.push({
-        username,
-        password
-    });
-
-    saveUsers(users);
+    const result = await pool.query(
+        `
+        INSERT INTO users
+        (
+            username,
+            password,
+            avatar,
+            bio,
+            join_date
+        )
+        VALUES
+        (
+            $1,
+            $2,
+            '',
+            '',
+            NOW()
+        )
+        RETURNING *
+        `,
+        [username, password]
+    );
 
     return {
-        success: true
+        success: true,
+        user: result.rows[0]
     };
 }
 
 // =========================
 // LOGIN
 // =========================
-function loginUser(username, password) {
+async function loginUser(username, password) {
 
-    const users = loadUsers();
-
-    const user = users.find(
-        u =>
-            u.username === username &&
-            u.password === password
+    const result = await pool.query(
+        `
+        SELECT *
+        FROM users
+        WHERE username = $1
+        AND password = $2
+        `,
+        [username, password]
     );
 
-    if (!user) {
+    if (result.rows.length === 0) {
         return {
             success: false,
             message: "Invalid login"
@@ -88,7 +114,8 @@ function loginUser(username, password) {
     }
 
     return {
-        success: true
+        success: true,
+        user: result.rows[0]
     };
 }
 
@@ -183,6 +210,7 @@ module.exports = {
     loginUser,
 
     loadMessages,
+    saveMessages,
     addMessage,
 
     editMessage,
