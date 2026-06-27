@@ -206,6 +206,8 @@ function deleteMessage(id) {
 // =========================
 async function getProfile(username) {
 
+    console.log("Searching for username:", username);
+
     const result = await pool.query(
         `
         SELECT
@@ -219,17 +221,16 @@ async function getProfile(username) {
         [username]
     );
 
+    console.log(result.rows);
+
     if (result.rows.length === 0) {
-        return {
-            success: false
-        };
+        return { success: false };
     }
 
     return {
         success: true,
         profile: result.rows[0]
     };
-
 }
 
 // =========================
