@@ -41,6 +41,13 @@ const typingIndicator = document.getElementById("typingIndicator");
 const emojiButton = document.getElementById("emojiButton");
 const emojiPicker = document.getElementById("emojiPicker");
 
+const profileModal = document.getElementById("profileModal");
+const profileUsername = document.getElementById("profileUsername");
+const profileBio = document.getElementById("profileBio");
+const profileJoinDate = document.getElementById("profileJoinDate");
+const profileAvatar = document.getElementById("profileAvatar");
+const closeProfile = document.getElementById("closeProfile");
+
 // =========================
 // SOUND
 // =========================
@@ -232,7 +239,7 @@ socket.on("chat message", (data) => {
         !lastMessageElement.classList.contains("system-wrapper");
 
     message.innerHTML = `
-        ${isGrouped ? "" : `<div class="username">${data.username}</div>`}
+        ${isGrouped ? "" : `<div class="username clickable">${data.username}</div>`}
 
         <div class="message-body">
             <div class="text">${data.text}</div>
@@ -246,6 +253,16 @@ socket.on("chat message", (data) => {
             <button class="delete-btn">🗑️</button>
         </div>
     `;
+
+    const usernameElement = message.querySelector(".username");
+
+if (usernameElement) {
+    usernameElement.classList.add("clickable");
+
+    usernameElement.addEventListener("click", () => {
+        openProfile(data.username);
+    });
+}
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
         startReply({ username: data.username, text: data.text });
@@ -322,6 +339,38 @@ socket.on("typing users", (users) => {
 // =========================
 socket.on("online count", (count) => {
     onlineCount.textContent = `• ${count} online`;
+});
+
+// =========================
+// PROFILE SYSTEM
+// =========================
+
+function openProfile(username) {
+
+    socket.emit("get profile", username, (res) => {
+
+        if (!res.success) {
+            return alert("Couldn't load profile.");
+        }
+
+        profileUsername.textContent = res.profile.username;
+        profileBio.textContent = res.profile.bio || "No bio yet.";
+        profileJoinDate.textContent = new Date(res.profile.join_date).toLocaleDateString();
+
+        if (res.profile.avatar) {
+            profileAvatar.src = res.profile.avatar;
+        } else {
+            profileAvatar.src = "/default-avatar.png";
+        }
+
+        profileModal.style.display = "flex";
+
+    });
+
+}
+
+closeProfile.addEventListener("click", () => {
+    profileModal.style.display = "none";
 });
 
 /* =========================
