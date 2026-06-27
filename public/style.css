@@ -821,3 +821,12 @@ body.light-mode #settingsBtn {
     }
 }
 
+.clickable {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.clickable:hover {
+    color: #5865F2;
+    text-decoration: underline;
+}
