@@ -830,3 +830,108 @@ body.light-mode #settingsBtn {
     color: #5865F2;
     text-decoration: underline;
 }
+
+/* =========================
+   PROFILE MODAL
+========================= */
+
+.profile-modal {
+    position: fixed;
+    inset: 0;
+
+    display: none;
+    justify-content: center;
+    align-items: center;
+
+    background: rgba(0,0,0,.65);
+    backdrop-filter: blur(6px);
+
+    z-index: 99999;
+}
+
+.profile-card {
+    width: 420px;
+
+    background: #2b2d31;
+    border-radius: 14px;
+
+    overflow: hidden;
+
+    box-shadow: 0 25px 60px rgba(0,0,0,.5);
+
+    position: relative;
+
+    color: white;
+}
+
+.profile-banner {
+    height: 120px;
+    background: linear-gradient(135deg,#5865F2,#7289DA);
+}
+
+.profile-avatar {
+    width: 96px;
+    height: 96px;
+
+    margin: -48px auto 10px;
+
+    border-radius: 50%;
+
+    border: 5px solid #2b2d31;
+
+    overflow: hidden;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#profileUsername {
+    text-align: center;
+    margin-top: 10px;
+}
+
+#profileBio {
+    text-align: center;
+    color: #b5bac1;
+    padding: 0 20px;
+    margin-top: 10px;
+}
+
+.profile-info {
+    padding: 20px;
+    text-align: center;
+}
+
+.close-profile {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+
+    width: 36px;
+    height: 36px;
+
+    border: none;
+    border-radius: 50%;
+
+    cursor: pointer;
+
+    background: rgba(0,0,0,.4);
+    color: white;
+}
+
+#editProfileBtn {
+    width: calc(100% - 40px);
+    margin: 20px;
+    padding: 12px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #5865F2;
+    color: white;
+
+    cursor: pointer;
+}
