@@ -761,3 +761,63 @@ body.light-mode #settingsBtn {
 .settings-card button:hover {
     background: #6a8cff;
 }
+
+/* =========================
+   LOADING OVERLAY
+========================= */
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+
+    background: rgba(8, 12, 20, 0.92);
+    backdrop-filter: blur(10px);
+
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+
+    z-index: 999999;
+}
+
+.loading-overlay.show {
+    display: flex;
+}
+
+.loading-spinner {
+    width: 70px;
+    height: 70px;
+
+    border: 6px solid rgba(255,255,255,.15);
+    border-top: 6px solid #4d79ff;
+
+    border-radius: 50%;
+
+    animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+    margin-top: 20px;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: .5px;
+}
+
+.loading-subtext {
+    margin-top: 8px;
+    color: #9fb0cf;
+    font-size: 14px;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
