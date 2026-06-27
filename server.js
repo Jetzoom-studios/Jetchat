@@ -118,6 +118,29 @@ io.on("connection", (socket) => {
 
 });
 
+        // =========================
+    // GET PROFILE
+    // =========================
+    socket.on("get profile", async (username, callback) => {
+
+        try {
+
+            const result = await db.getProfile(username);
+
+            callback(result);
+
+        } catch (err) {
+
+            console.error("Profile error:", err);
+
+            callback({
+                success: false
+            });
+
+        }
+
+    });
+
     // =========================
     // CHAT MESSAGE (FIXED)
     // =========================
