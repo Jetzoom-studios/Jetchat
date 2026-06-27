@@ -123,25 +123,25 @@ io.on("connection", (socket) => {
     // =========================
     socket.on("get profile", async (username, callback) => {
 
-        try {
+    console.log("GET PROFILE EVENT:", username);
 
-            const result = await db.getProfile(username);
+    try {
 
-console.log(result);
+        const result = await db.getProfile(username);
 
-callback(result);
+        callback(result);
 
-        } catch (err) {
+    } catch (err) {
 
-            console.error("Profile error:", err);
+        console.error("Profile error:", err);
 
-            callback({
-                success: false
-            });
+        callback({
+            success: false
+        });
 
-        }
+    }
 
-    });
+});
 
     // =========================
     // CHAT MESSAGE (FIXED)
