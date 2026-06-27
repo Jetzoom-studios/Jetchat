@@ -202,12 +202,44 @@ function deleteMessage(id) {
 }
 
 // =========================
+// GET PROFILE
+// =========================
+async function getProfile(username) {
+
+    const result = await pool.query(
+        `
+        SELECT
+            username,
+            avatar,
+            bio,
+            join_date
+        FROM users
+        WHERE username = $1
+        `,
+        [username]
+    );
+
+    if (result.rows.length === 0) {
+        return {
+            success: false
+        };
+    }
+
+    return {
+        success: true,
+        profile: result.rows[0]
+    };
+
+}
+
+// =========================
 // EXPORTS
 // =========================
 module.exports = {
 
     createUser,
     loginUser,
+    getProfile,
 
     loadMessages,
     saveMessages,
