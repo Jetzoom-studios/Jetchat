@@ -127,7 +127,9 @@ io.on("connection", (socket) => {
 
             const result = await db.getProfile(username);
 
-            callback(result);
+console.log(result);
+
+callback(result);
 
         } catch (err) {
 
