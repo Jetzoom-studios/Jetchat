@@ -257,11 +257,13 @@ socket.on("chat message", (data) => {
     const usernameElement = message.querySelector(".username");
 
 if (usernameElement) {
-    usernameElement.classList.add("clickable");
+    usernameElement.style.cursor = "pointer";
 
-    usernameElement.addEventListener("click", () => {
+    usernameElement.onclick = () => {
+        console.log("CLICKED:", data.username);
+        alert("Clicked " + data.username);
         openProfile(data.username);
-    });
+    };
 }
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
