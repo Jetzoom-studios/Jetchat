@@ -37,50 +37,86 @@ io.on("connection", (socket) => {
     // =========================
     // SIGN UP
     // =========================
-    socket.on("signup", ({ username, password }, callback) => {
+    socket.on("signup", async ({ username, password }, callback) => {
 
-        if (!username || !password) {
-            return callback({
-                success: false,
-                message: "Enter a username and password."
-            });
-        }
+    if (!username || !password) {
+        return callback({
+            success: false,
+            message: "Enter a username and password."
+        });
+    }
 
-        callback(db.createUser(username, password));
-    });
+    try {
+
+        const result = await db.createUser(
+            username,
+            password
+        );
+
+        callback(result);
+
+    } catch (err) {
+
+        console.error("Signup error:", err);
+
+        callback({
+            success: false,
+            message: "Database error."
+        });
+
+    }
+
+});
 
     // =========================
     // LOGIN
     // =========================
-    socket.on("login", ({ username, password }, callback) => {
+    socket.on("login", async ({ username, password }, callback) => {
 
-        if (!username || !password) {
-            return callback({
-                success: false,
-                message: "Enter a username and password."
-            });
-        }
+    if (!username || !password) {
+        return callback({
+            success: false,
+            message: "Enter a username and password."
+        });
+    }
 
-        const result = db.loginUser(username, password);
+    try {
+
+        const result = await db.loginUser(username, password);
 
         if (!result.success) {
             return callback(result);
         }
 
-        socket.username = username;
-        users[socket.id] = username;
+        socket.username = result.user.username;
+        users[socket.id] = result.user.username;
 
         io.emit("online count", Object.keys(users).length);
 
         io.emit("chat message", {
             system: true,
-            text: `🟢 ${username} joined the chat`
+            text: `🟢 ${result.user.username} joined the chat`
         });
 
         socket.emit("chat history", db.loadMessages());
 
-        callback({ success: true });
-    });
+        callback({
+            success: true,
+            user: result.user
+        });
+
+    } catch (err) {
+
+        console.error("Login error:", err);
+
+        callback({
+            success: false,
+            message: "Database error."
+        });
+
+    }
+
+});
 
     // =========================
     // CHAT MESSAGE (FIXED)
