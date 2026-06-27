@@ -239,6 +239,48 @@
 
 </div>
 
+<!-- ========================= -->
+<!-- PROFILE MODAL -->
+<!-- ========================= -->
+<div id="profileModal" class="profile-modal" style="display:none;">
+
+    <div class="profile-card">
+
+        <button id="closeProfile" class="close-profile">✕</button>
+
+        <div class="profile-banner"></div>
+
+        <div class="profile-avatar">
+            <img
+                id="profileAvatar"
+                src="/default-avatar.png"
+                alt="Avatar"
+            >
+        </div>
+
+        <h2 id="profileUsername">Username</h2>
+
+        <p id="profileBio">
+            No bio yet.
+        </p>
+
+        <div class="profile-info">
+
+            <div>
+                <strong>Joined</strong><br>
+                <span id="profileJoinDate">Unknown</span>
+            </div>
+
+        </div>
+
+        <button id="editProfileBtn">
+            Edit Profile
+        </button>
+
+    </div>
+
+</div>    
+    
 <!-- Socket.IO -->
 <script src="/socket.io/socket.io.js"></script>
 
