@@ -11,7 +11,7 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
-// Serve the public folder
+// Serve public folder
 app.use(express.static(path.join(__dirname, "public")));
 
 // Connected users
@@ -35,192 +35,134 @@ io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
 
     // =========================
-    // SIGN UP
+    // SIGNUP
     // =========================
     socket.on("signup", async ({ username, password }, callback) => {
 
-    if (!username || !password) {
-        return callback({
-            success: false,
-            message: "Enter a username and password."
-        });
-    }
+        if (!username || !password) {
+            return callback({
+                success: false,
+                message: "Enter a username and password."
+            });
+        }
 
-    try {
+        try {
 
-        const result = await db.createUser(
-            username,
-            password
-        );
+            const result = await db.createUser(username, password);
 
-        callback(result);
+            callback(result);
 
-    } catch (err) {
+        } catch (err) {
 
-        console.error("Signup error:", err);
+            console.error("Signup error:", err);
 
-        callback({
-            success: false,
-            message: "Database error."
-        });
+            callback({
+                success: false,
+                message: "Database error."
+            });
 
-    }
+        }
 
-});
+    });
 
     // =========================
     // LOGIN
     // =========================
     socket.on("login", async ({ username, password }, callback) => {
 
-    if (!username || !password) {
-        return callback({
-            success: false,
-            message: "Enter a username and password."
-        });
-    }
-
-    try {
-
-        const result = await db.loginUser(username, password);
-
-        if (!result.success) {
-            return callback(result);
+        if (!username || !password) {
+            return callback({
+                success: false,
+                message: "Enter a username and password."
+            });
         }
 
-        socket.username = result.user.username;
-        users[socket.id] = result.user.username;
+        try {
 
-        io.emit("online count", Object.keys(users).length);
+            const result = await db.loginUser(username, password);
 
-        io.emit("chat message", {
-            system: true,
-            text: `🟢 ${result.user.username} joined the chat`
-        });
+            if (!result.success) {
+                return callback(result);
+            }
 
-        socket.emit("chat history", db.loadMessages());
+            socket.username = result.user.username;
+            users[socket.id] = result.user.username;
 
-        callback({
-            success: true,
-            user: result.user
-        });
+            io.emit("online count", Object.keys(users).length);
 
-    } catch (err) {
+            io.emit("chat message", {
+                system: true,
+                text: `🟢 ${result.user.username} joined the chat`
+            });
 
-        console.error("Login error:", err);
+            socket.emit("chat history", db.loadMessages());
 
-        callback({
-            success: false,
-            message: "Database error."
-        });
+            callback({
+                success: true,
+                user: result.user
+            });
 
-    }
+        } catch (err) {
 
-});
+            console.error("Login error:", err);
 
-        // =========================
-    // GET PROFILE
-    // =========================
-         if (!result.success) {
-            return callback(result);
+            callback({
+                success: false,
+                message: "Database error."
+            });
+
         }
 
-        socket.username = result.user.username;
-        users[socket.id] = result.user.username;
+    });
 
-        io.emit("online count", Object.keys(users).length);
-
-        io.emit("chat message", {
-            system: true,
-            text: `🟢 ${result.user.username} joined the chat`
-        });
-
-        socket.emit("chat history", db.loadMessages());
-
-        callback({
-            success: true,
-            user: result.user
-        });
-
-    } catch (err) {
-
-        console.error("Login error:", err);
-
-        callback({
-            success: false,
-            message: "Database error."
-        });
-
-    }
-
-});
-
-        // =========================
+    // =========================
     // GET PROFILE
     // =========================
-    
-
     socket.on("get profile", async (username, callback) => {
 
-    console.log("SERVER RECEIVED:", username);
+        console.log("GET PROFILE EVENT:", username);
 
-    try {
-        const result = await db.getProfile(username);
+        try {
 
-        console.log(result);
+            const result = await db.getProfile(username);
 
-        callback(result);
+            callback(result);
 
-    } catch (err) {
-        console.error(err);
+        } catch (err) {
 
-        callback({
-            success: false
-        });
-    }
+            console.error(err);
 
-});
+            callback({
+                success: false
+            });
 
-    // =========================
-    // CHAT MESSAGE (FIXED)
+        }
+
+    });
+
+        // =========================
+    // CHAT MESSAGE
     // =========================
     socket.on("chat message", (data) => {
 
+        if (!socket.username) return;
+
         const msg = {
-            id: Date.now() + Math.random(), // UNIQUE ID
+            id: Date.now() + Math.random(),
             username: socket.username,
             text: data.text,
-            time: Date.now()
+            replyTo: data.replyTo || null,
+            time: data.time || Date.now()
         };
 
         db.addMessage(msg);
 
         io.emit("chat message", msg);
+
     });
 
     // =========================
-    // EDIT MESSAGE (FIXED)
-    // =========================
-    socket.on("edit message", ({ id, newText }) => {
-    // =========================
-    // CHAT MESSAGE (FIXED)
-    // =========================
-    socket.on("chat message", (data) => {
-
-        const msg = {
-            id: Date.now() + Math.random(), // UNIQUE ID
-            username: socket.username,
-            text: data.text,
-            time: Date.now()
-        };
-
-        db.addMessage(msg);
-
-        io.emit("chat message", msg);
-    });
-
-    // =========================
-    // EDIT MESSAGE (FIXED)
+    // EDIT MESSAGE
     // =========================
     socket.on("edit message", ({ id, newText }) => {
 
@@ -229,6 +171,7 @@ io.on("connection", (socket) => {
         const messages = db.loadMessages();
 
         const index = findMessageIndexById(messages, id);
+
         if (index === -1) return;
 
         if (messages[index].username !== socket.username) return;
@@ -242,10 +185,11 @@ io.on("connection", (socket) => {
             id,
             newText
         });
+
     });
 
     // =========================
-    // DELETE MESSAGE (FIXED)
+    // DELETE MESSAGE
     // =========================
     socket.on("delete message", (id) => {
 
@@ -254,6 +198,7 @@ io.on("connection", (socket) => {
         const messages = db.loadMessages();
 
         const index = findMessageIndexById(messages, id);
+
         if (index === -1) return;
 
         if (messages[index].username !== socket.username) return;
@@ -262,7 +207,10 @@ io.on("connection", (socket) => {
 
         db.saveMessages(messages);
 
-        io.emit("chat message deleted", { id });
+        io.emit("chat message deleted", {
+            id
+        });
+
     });
 
     // =========================
@@ -279,12 +227,16 @@ io.on("connection", (socket) => {
         clearTimeout(socket.typingTimeout);
 
         socket.typingTimeout = setTimeout(() => {
+
             typingUsers.delete(socket.id);
+
             io.emit("typing users", Array.from(typingUsers.values()));
+
         }, 2000);
+
     });
 
-    // =========================
+          // =========================
     // DISCONNECT
     // =========================
     socket.on("disconnect", () => {
@@ -292,6 +244,7 @@ io.on("connection", (socket) => {
         const username = users[socket.id];
 
         if (username) {
+
             io.emit("chat message", {
                 system: true,
                 text: `🔴 ${username} left the chat`
@@ -300,6 +253,7 @@ io.on("connection", (socket) => {
             delete users[socket.id];
 
             io.emit("online count", Object.keys(users).length);
+
         }
 
         typingUsers.delete(socket.id);
@@ -307,6 +261,7 @@ io.on("connection", (socket) => {
         io.emit("typing users", Array.from(typingUsers.values()));
 
         console.log("🔴 Someone disconnected");
+
     });
 
 });
@@ -315,10 +270,12 @@ io.on("connection", (socket) => {
 // START SERVER
 // =========================
 server.listen(PORT, () => {
+
     console.log("");
     console.log("=================================");
     console.log("🚀 Jetchat is running!");
     console.log(`🌐 Port: ${PORT}`);
     console.log("=================================");
     console.log("");
+
 });
