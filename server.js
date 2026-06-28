@@ -247,6 +247,38 @@ socket.on("update bio", async (bio, callback) => {
 
 });
 
+    // =========================
+// UPDATE AVATAR
+// =========================
+socket.on("update avatar", async (avatar, callback) => {
+
+    if (!socket.username) {
+        return callback({
+            success: false
+        });
+    }
+
+    try {
+
+        const result = await db.updateAvatar(
+            socket.username,
+            avatar
+        );
+
+        callback(result);
+
+    } catch (err) {
+
+        console.error(err);
+
+        callback({
+            success: false
+        });
+
+    }
+
+});
+
         // =========================
     // CHAT MESSAGE
     // =========================
