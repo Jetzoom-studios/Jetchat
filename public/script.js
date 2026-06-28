@@ -47,6 +47,8 @@ const profileBio = document.getElementById("profileBio");
 const profileJoinDate = document.getElementById("profileJoinDate");
 const profileAvatar = document.getElementById("profileAvatar");
 const closeProfile = document.getElementById("closeProfile");
+const editProfileBtn = document.getElementById("editProfileBtn");
+const avatarInput = document.getElementById("avatarInput");
 
 // =========================
 // SOUND
@@ -428,25 +430,3 @@ if (lightModeToggle) {
         }
     });
 }
-
-const editProfileBtn = document.getElementById("editProfileBtn");
-
-editProfileBtn.addEventListener("click", () => {
-
-    const bio = prompt("Enter your new bio:");
-
-    if (bio === null) return;
-
-    socket.emit("update bio", bio, (res) => {
-
-        if (!res.success) {
-            return alert("Couldn't save bio.");
-        }
-
-        profileBio.textContent = bio;
-
-        alert("Bio updated!");
-
-    });
-
-});
