@@ -430,3 +430,86 @@ if (lightModeToggle) {
         }
     });
 }
+
+editProfileBtn.addEventListener("click", () => {
+
+    const choice = prompt(
+`What do you want to edit?
+
+1 = Bio
+2 = Avatar`
+    );
+
+    if (choice === "1") {
+
+        const bio = prompt("Enter your new bio:");
+
+        if (bio === null) return;
+
+        socket.emit("update bio", bio, (res) => {
+
+            if (!res.success) {
+                return alert("Couldn't save bio.");
+            }
+
+            profileBio.textContent = bio;
+
+            alert("Bio updated!");
+
+        });
+
+    }
+
+    else if (choice === "2") {
+
+        avatarInput.click();
+
+    }
+
+});
+
+avatarInput.addEventListener("change", async () => {
+
+    if (!avatarInput.files.length) return;
+
+    const formData = new FormData();
+
+    formData.append("avatar", avatarInput.files[0]);
+
+    try {
+
+        const upload = await fetch("/upload-avatar", {
+
+            method: "POST",
+
+            body: formData
+
+        });
+
+        const data = await upload.json();
+
+        if (!data.success) {
+            return alert("Upload failed.");
+        }
+
+        socket.emit("update avatar", data.avatar, (res) => {
+
+            if (!res.success) {
+                return alert("Couldn't save avatar.");
+            }
+
+            profileAvatar.src = data.avatar;
+
+            alert("Avatar updated!");
+
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert("Upload failed.");
+
+    }
+
+});
