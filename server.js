@@ -59,9 +59,24 @@ app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
             });
         }
 
+        const username = req.body.username;
+
+        if (!username) {
+            return res.status(400).json({
+                success: false
+            });
+        }
+
+        const avatar = "/uploads/" + req.file.filename;
+
+        await db.updateAvatar(
+            username,
+            avatar
+        );
+
         res.json({
             success: true,
-            avatar: "/uploads/" + req.file.filename
+            avatar
         });
 
     } catch (err) {
