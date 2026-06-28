@@ -251,12 +251,22 @@
         <div class="profile-banner"></div>
 
         <div class="profile-avatar">
-            <img
-                id="profileAvatar"
-                src="/default-avatar.png"
-                alt="Avatar"
-            >
-        </div>
+
+    <img
+        id="profileAvatar"
+        src="/default-avatar.png"
+        alt="Avatar"
+        title="Click to change avatar"
+    >
+
+    <input
+        type="file"
+        id="avatarInput"
+        accept="image/*"
+        style="display:none;"
+    >
+
+</div>
 
         <h2 id="profileUsername">Username</h2>
 
