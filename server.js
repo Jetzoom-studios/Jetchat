@@ -1,6 +1,8 @@
 const express = require("express");
 const http = require("http");
 const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const { Server } = require("socket.io");
 
 const db = require("./db");
@@ -11,8 +13,68 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+// =========================
+// UPLOADS
+// =========================
+
+const uploadsFolder = path.join(__dirname, "public", "uploads");
+
+if (!fs.existsSync(uploadsFolder)) {
+    fs.mkdirSync(uploadsFolder, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+
+    destination(req, file, cb) {
+        cb(null, uploadsFolder);
+    },
+
+    filename(req, file, cb) {
+
+        const ext = path.extname(file.originalname);
+
+        cb(
+            null,
+            Date.now() + "-" + Math.random().toString(36).slice(2) + ext
+        );
+
+    }
+
+});
+
+const upload = multer({
+    storage
+});
+
 // Serve public folder
 app.use(express.static(path.join(__dirname, "public")));
+
+app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
+
+    try {
+
+        if (!req.file) {
+            return res.status(400).json({
+                success: false
+            });
+        }
+
+        res.json({
+            success: true,
+            avatar: "/uploads/" + req.file.filename
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            success: false
+        });
+
+    }
+
+});
 
 // Connected users
 const users = {};
