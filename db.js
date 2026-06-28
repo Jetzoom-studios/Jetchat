@@ -253,15 +253,35 @@ async function updateBio(username, bio) {
 }
 
 // =========================
+// UPDATE AVATAR
+// =========================
+async function updateAvatar(username, avatar) {
+
+    await pool.query(
+        `
+        UPDATE users
+        SET avatar = $1
+        WHERE username = $2
+        `,
+        [avatar, username]
+    );
+
+    return {
+        success: true
+    };
+
+}
+
+// =========================
 // EXPORTS
 // =========================
 module.exports = {
-
 
     createUser,
     loginUser,
     getProfile,
     updateBio,
+    updateAvatar,
 
     loadMessages,
     saveMessages,
