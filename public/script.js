@@ -46,6 +46,7 @@ const profileUsername = document.getElementById("profileUsername");
 const profileBio = document.getElementById("profileBio");
 const profileJoinDate = document.getElementById("profileJoinDate");
 const profileAvatar = document.getElementById("profileAvatar");
+const avatarInput = document.getElementById("avatarInput");
 const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
 const avatarInput = document.getElementById("avatarInput");
