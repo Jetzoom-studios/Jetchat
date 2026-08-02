@@ -336,6 +336,24 @@ async function updateProfile(oldUsername, newUsername, bio) {
     };
 
 }
+
+// =========================
+// GET FRIEND REQUESTS
+// =========================
+async function getFriendRequests(username) {
+
+    const result = await pool.query(
+        `
+        SELECT sender
+        FROM friends
+        WHERE receiver = $1
+        `,
+        [username]
+    );
+
+    return result.rows;
+
+}
 // =========================
 // EXPORTS
 // =========================
@@ -348,13 +366,10 @@ module.exports = {
     updateBio,
     updateAvatar,
     updateProfile,
+
     sendFriendRequest,
+    getFriendRequests,
 
     loadMessages,
-    saveMessages,
-    addMessage,
-
-    editMessage,
-    deleteMessage
-
+    ...
 };
