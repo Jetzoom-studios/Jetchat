@@ -234,6 +234,50 @@ async function getProfile(username) {
 }
 
 // =========================
+// SEND FRIEND REQUEST
+// =========================
+async function sendFriendRequest(sender, receiver) {
+
+    if (sender === receiver) {
+        return {
+            success: false,
+            message: "You can't add yourself."
+        };
+    }
+
+    const existing = await pool.query(
+        `
+        SELECT *
+        FROM friends
+        WHERE
+        (sender = $1 AND receiver = $2)
+        OR
+        (sender = $2 AND receiver = $1)
+        `,
+        [sender, receiver]
+    );
+
+    if (existing.rows.length > 0) {
+        return {
+            success: false,
+            message: "Friend request already exists."
+        };
+    }
+
+    await pool.query(
+        `
+        INSERT INTO friends
+        (sender, receiver)
+        VALUES ($1, $2)
+        `,
+        [sender, receiver]
+    );
+
+    return {
+        success: true
+    };
+}
+// =========================
 // UPDATE BIO
 // =========================
 async function updateBio(username, bio) {
@@ -304,6 +348,7 @@ module.exports = {
     updateBio,
     updateAvatar,
     updateProfile,
+    sendFriendRequest,
 
     loadMessages,
     saveMessages,
