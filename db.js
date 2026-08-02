@@ -273,17 +273,18 @@ async function updateAvatar(username, avatar) {
 }
 
 // =========================
-// UPDATE AVATAR
+// UPDATE PROFILE
 // =========================
-async function updateAvatar(username, avatar) {
+async function updateProfile(oldUsername, newUsername, bio) {
 
     await pool.query(
         `
         UPDATE users
-        SET avatar = $1
-        WHERE username = $2
+        SET username = $1,
+            bio = $2
+        WHERE username = $3
         `,
-        [avatar, username]
+        [newUsername, bio, oldUsername]
     );
 
     return {
@@ -291,7 +292,6 @@ async function updateAvatar(username, avatar) {
     };
 
 }
-
 // =========================
 // EXPORTS
 // =========================
@@ -303,6 +303,7 @@ module.exports = {
     getProfile,
     updateBio,
     updateAvatar,
+    updateProfile,
 
     loadMessages,
     saveMessages,
