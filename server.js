@@ -279,6 +279,39 @@ socket.on("update avatar", async (avatar, callback) => {
 
 });
 
+    // =========================
+// UPDATE PROFILE
+// =========================
+socket.on("update profile", async (data, callback) => {
+
+    if (!socket.username) {
+        return callback({
+            success: false,
+            message: "Not logged in."
+        });
+    }
+
+    try {
+
+        await db.updateBio(socket.username, data.bio);
+
+        callback({
+            success: true
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        callback({
+            success: false,
+            message: "Couldn't update profile."
+        });
+
+    }
+
+});
+
         // =========================
     // CHAT MESSAGE
     // =========================
