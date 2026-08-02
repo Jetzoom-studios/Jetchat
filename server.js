@@ -352,6 +352,32 @@ socket.on("send friend request", async (receiver, callback) => {
 
 });
 
+    // =========================
+// GET FRIEND REQUESTS
+// =========================
+socket.on("get friend requests", async (callback) => {
+
+    if (!socket.username) {
+        return callback([]);
+    }
+
+    try {
+
+        const requests =
+            await db.getFriendRequests(socket.username);
+
+        callback(requests);
+
+    } catch (err) {
+
+        console.error(err);
+
+        callback([]);
+
+    }
+
+});
+
         // =========================
     // CHAT MESSAGE
     // =========================
