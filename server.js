@@ -318,6 +318,40 @@ socket.on("update profile", async (data, callback) => {
 
     }); 
 
+    // =========================
+// SEND FRIEND REQUEST
+// =========================
+socket.on("send friend request", async (receiver, callback) => {
+
+    if (!socket.username) {
+        return callback({
+            success: false,
+            message: "Not logged in."
+        });
+    }
+
+    try {
+
+        const result = await db.sendFriendRequest(
+            socket.username,
+            receiver
+        );
+
+        callback(result);
+
+    } catch (err) {
+
+        console.error(err);
+
+        callback({
+            success: false,
+            message: "Server error."
+        });
+
+    }
+
+});
+
         // =========================
     // CHAT MESSAGE
     // =========================
