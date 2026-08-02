@@ -293,24 +293,30 @@ socket.on("update profile", async (data, callback) => {
 
     try {
 
-        await db.updateBio(socket.username, data.bio);
+    const result = await db.updateProfile(
+        socket.username,
+        data.username,
+        data.bio
+    );
 
-        callback({
-            success: true
-        });
-
-    } catch (err) {
-
-        console.error(err);
-
-        callback({
-            success: false,
-            message: "Couldn't update profile."
-        });
-
+    if (result.success) {
+        socket.username = data.username;
     }
 
-});
+    callback(result);
+
+} catch (err) {
+
+    console.error(err);
+
+    callback({
+        success: false,
+        message: "Couldn't update profile."
+    });
+
+}
+
+    }); 
 
         // =========================
     // CHAT MESSAGE
