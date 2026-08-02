@@ -350,11 +350,12 @@ socket.on("online count", (count) => {
 // PROFILE SYSTEM
 // =========================
 
-function openProfile(username) {
+function openProfile(targetUsername) {
+   
 
-    console.log("Opening profile:", username);
+    console.log("Opening profile:", targetUsername);
 
-    socket.emit("get profile", username, (res) => {
+    socket.emit("get profile", targetUsername, (res) => {
 
         console.log("PROFILE RESPONSE:", res);
 
@@ -369,6 +370,12 @@ function openProfile(username) {
 
         profileAvatar.src =
             res.profile.avatar || "/default-avatar.png";
+
+        if (res.profile.username === username) {
+    addFriendBtn.style.display = "none";
+} else {
+    addFriendBtn.style.display = "block";
+}
 
         profileModal.style.display = "flex";
 
@@ -529,6 +536,27 @@ saveProfileBtn.addEventListener("click", () => {
         profileModal.style.display = "flex";
 
         alert("Profile updated!");
+
+    });
+
+});
+
+// =========================
+// FRIEND REQUEST BUTTON
+// =========================
+const addFriendBtn = document.getElementById("addFriendBtn");
+
+addFriendBtn.addEventListener("click", () => {
+
+    const target = profileUsername.textContent;
+
+    socket.emit("send friend request", target, (res) => {
+
+        if (!res.success) {
+            return alert(res.message);
+        }
+
+        alert("Friend request sent!");
 
     });
 
