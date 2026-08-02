@@ -49,7 +49,7 @@ const profileAvatar = document.getElementById("profileAvatar");
 const avatarInput = document.getElementById("avatarInput");
 const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
-const avatarInput = document.getElementById("avatarInput");
+
 
 // =========================
 // SOUND
@@ -432,40 +432,36 @@ if (lightModeToggle) {
     });
 }
 
+const editProfileModal = document.getElementById("editProfileModal");
+const closeEditProfile = document.getElementById("closeEditProfile");
+
+const editAvatarPreview = document.getElementById("editAvatarPreview");
+const editUsername = document.getElementById("editUsername");
+const editBio = document.getElementById("editBio");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const changeAvatarBtn = document.getElementById("changeAvatarBtn");
+
 editProfileBtn.addEventListener("click", () => {
 
-    const choice = prompt(
-`What do you want to edit?
+    editAvatarPreview.src = profileAvatar.src;
+    editUsername.value = profileUsername.textContent;
+    editBio.value = profileBio.textContent;
 
-1 = Bio
-2 = Avatar`
-    );
+    profileModal.style.display = "none";
+    editProfileModal.style.display = "flex";
 
-    if (choice === "1") {
+});
 
-        const bio = prompt("Enter your new bio:");
+closeEditProfile.addEventListener("click", () => {
 
-        if (bio === null) return;
+    editProfileModal.style.display = "none";
+    profileModal.style.display = "flex";
 
-        socket.emit("update bio", bio, (res) => {
+});
 
-            if (!res.success) {
-                return alert("Couldn't save bio.");
-            }
+changeAvatarBtn.addEventListener("click", () => {
 
-            profileBio.textContent = bio;
-
-            alert("Bio updated!");
-
-        });
-
-    }
-
-    else if (choice === "2") {
-
-        avatarInput.click();
-
-    }
+    avatarInput.click();
 
 });
 
@@ -512,5 +508,28 @@ avatarInput.addEventListener("change", async () => {
         alert("Upload failed.");
 
     }
+
+});
+
+saveProfileBtn.addEventListener("click", () => {
+
+    socket.emit("update profile", {
+        username: editUsername.value.trim(),
+        bio: editBio.value.trim()
+    }, (res) => {
+
+        if (!res.success) {
+            return alert(res.message);
+        }
+
+        profileUsername.textContent = editUsername.value;
+        profileBio.textContent = editBio.value;
+
+        editProfileModal.style.display = "none";
+        profileModal.style.display = "flex";
+
+        alert("Profile updated!");
+
+    });
 
 });
