@@ -412,6 +412,23 @@ socket.on("get friends", async (callback) => {
 });
 
     // =========================
+// LOAD CHAT
+// =========================
+socket.on("load chat", (chat) => {
+
+    const messages = db.loadMessages();
+
+    const filtered = messages.filter(m => {
+
+        return (m.chat || "global") === chat;
+
+    });
+
+    socket.emit("chat history", filtered);
+
+});
+
+    // =========================
 // ACCEPT FRIEND REQUEST
 // =========================
 socket.on("accept friend request", async (sender, callback) => {
