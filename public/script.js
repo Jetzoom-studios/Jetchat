@@ -584,13 +584,41 @@ function loadFriendRequests() {
 
         requests.forEach(request => {
 
-            const div = document.createElement("div");
+    const div = document.createElement("div");
 
-            div.textContent = request.sender;
+    div.innerHTML = `
+        ${request.sender}
+        <button class="acceptFriendBtn">
+            Accept
+        </button>
+    `;
 
-            container.appendChild(div);
+    const button =
+        div.querySelector(".acceptFriendBtn");
 
-        });
+    button.addEventListener("click", () => {
+
+        socket.emit(
+            "accept friend request",
+            request.sender,
+            (res) => {
+
+                if (!res.success) {
+                    return alert("Couldn't accept request.");
+                }
+
+                alert("Friend request accepted!");
+
+                loadFriendRequests();
+
+            }
+        );
+
+    });
+
+    container.appendChild(div);
+
+});
 
     });
 
