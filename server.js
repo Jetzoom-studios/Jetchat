@@ -461,12 +461,13 @@ socket.on("accept friend request", async (sender, callback) => {
         if (!socket.username) return;
 
         const msg = {
-            id: Date.now() + Math.random(),
-            username: socket.username,
-            text: data.text,
-            replyTo: data.replyTo || null,
-            time: data.time || Date.now()
-        };
+    id: Date.now() + Math.random(),
+    username: socket.username,
+    text: data.text,
+    chat: data.chat || "global",
+    replyTo: data.replyTo || null,
+    time: data.time || Date.now()
+};
 
         db.addMessage(msg);
 
