@@ -598,6 +598,26 @@ socket.on("accept friend request", async (sender, callback) => {
 
     });
 
+    // =========================
+// LOAD CHAT
+// =========================
+socket.on("load chat", async (chat) => {
+
+    try {
+
+        const history =
+            await db.loadMessages(chat);
+
+        socket.emit("chat history", history);
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+});
+
 });
 
 // =========================
