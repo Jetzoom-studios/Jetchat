@@ -93,6 +93,7 @@ app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
 
 // Connected users
 const users = {};
+const onlineUsers = {};
 
 // Typing users
 const typingUsers = new Map();
@@ -164,6 +165,7 @@ io.on("connection", (socket) => {
 
             socket.username = result.user.username;
             users[socket.id] = result.user.username;
+            onlineUsers[result.user.username] = socket.id;
 
             io.emit("online count", Object.keys(users).length);
 
@@ -338,6 +340,11 @@ socket.on("send friend request", async (receiver, callback) => {
         );
 
         callback(result);
+        if (result.success && onlineUsers[receiver]) {
+
+    io.to(onlineUsers[receiver]).emit("new friend request");
+
+}
 
     } catch (err) {
 
@@ -546,6 +553,9 @@ socket.on("accept friend request", async (sender, callback) => {
                 system: true,
                 text: `🔴 ${username} left the chat`
             });
+            if (socket.username) {
+    delete onlineUsers[socket.username];
+}
 
             delete users[socket.id];
 
