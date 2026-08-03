@@ -142,6 +142,7 @@ function startChat(user) {
     socket.emit("join", username);
 
     loadFriendRequests();
+    loadFriends();
 
     messageInput.focus();
 
@@ -170,6 +171,36 @@ signupButton.addEventListener("click", () => {
     });
 });
 
+// =========================
+// LOAD FRIENDS
+// =========================
+function loadFriends() {
+
+    const container =
+        document.getElementById("friendsList");
+
+    socket.emit("get friends", (friends) => {
+
+        container.innerHTML = "";
+
+        if (!friends.length) {
+            container.textContent = "No friends";
+            return;
+        }
+
+        friends.forEach(friend => {
+
+            const div = document.createElement("div");
+
+            div.textContent = friend.friend;
+
+            container.appendChild(div);
+
+        });
+
+    });
+
+}
 // =========================
 // EMOJI
 // =========================
