@@ -402,6 +402,21 @@ socket.on("online count", (count) => {
 });
 
 // =========================
+// CHAT HISTORY
+// =========================
+socket.on("chat history", (history) => {
+
+    messages.innerHTML = "";
+
+    history.forEach(msg => {
+
+        socket.emit("chat message", msg);
+
+    });
+
+});
+
+// =========================
 // PROFILE SYSTEM
 // =========================
 
@@ -679,7 +694,7 @@ function loadFriendRequests() {
 // =========================
 // LIVE FRIEND REQUEST UPDATE
 // =========================
-socket.on("new friend request", () => {
+io.on("connection", (socket) => {
 
     loadFriendRequests();
 
@@ -687,12 +702,7 @@ socket.on("new friend request", () => {
 
 // =========================
 // LIVE FRIEND UPDATES
-// =========================
-socket.on("new friend request", () => {
-
-    loadFriendRequests();
-
-});
+// ========================
 
 socket.on("friends updated", () => {
 
