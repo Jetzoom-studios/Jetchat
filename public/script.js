@@ -190,13 +190,21 @@ function loadFriends() {
 
         friends.forEach(friend => {
 
-            const div = document.createElement("div");
+    const div = document.createElement("div");
 
-            div.textContent = friend.friend;
+    div.className = "friend-item";
+    div.textContent = friend.friend;
+    div.style.cursor = "pointer";
 
-            container.appendChild(div);
+    div.addEventListener("click", () => {
 
-        });
+        alert("Opening DM with " + friend.friend);
+
+    });
+
+    container.appendChild(div);
+
+});
 
     });
 
