@@ -378,6 +378,39 @@ socket.on("get friend requests", async (callback) => {
 
 });
 
+    // =========================
+// ACCEPT FRIEND REQUEST
+// =========================
+socket.on("accept friend request", async (sender, callback) => {
+
+    if (!socket.username) {
+        return callback({
+            success: false
+        });
+    }
+
+    try {
+
+        const result =
+            await db.acceptFriendRequest(
+                sender,
+                socket.username
+            );
+
+        callback(result);
+
+    } catch (err) {
+
+        console.error(err);
+
+        callback({
+            success: false
+        });
+
+    }
+
+});
+
         // =========================
     // CHAT MESSAGE
     // =========================
