@@ -133,6 +133,7 @@ function startReply(data) {
 // LOGIN
 // =========================
 function startChat(user) {
+
     username = user;
 
     loginScreen.style.display = "none";
@@ -140,9 +141,11 @@ function startChat(user) {
 
     socket.emit("join", username);
 
-    messageInput.focus();
-}
+    loadFriendRequests();
 
+    messageInput.focus();
+
+}
 loginButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
@@ -561,3 +564,34 @@ addFriendBtn.addEventListener("click", () => {
     });
 
 });
+
+// =========================
+// LOAD FRIEND REQUESTS
+// =========================
+function loadFriendRequests() {
+
+    const container =
+        document.getElementById("friendRequests");
+
+    socket.emit("get friend requests", (requests) => {
+
+        container.innerHTML = "";
+
+        if (!requests.length) {
+            container.textContent = "No requests";
+            return;
+        }
+
+        requests.forEach(request => {
+
+            const div = document.createElement("div");
+
+            div.textContent = request.sender;
+
+            container.appendChild(div);
+
+        });
+
+    });
+
+}
