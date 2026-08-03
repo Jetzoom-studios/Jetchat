@@ -6,6 +6,7 @@ const socket = io();
 let isTabActive = true;
 let unreadCount = 0;
 let username = "";
+let currentChat = "global";
 
 // typing system
 let typingUsers = new Set();
@@ -198,9 +199,12 @@ function loadFriends() {
 
     div.addEventListener("click", () => {
 
-        alert("Opening DM with " + friend.friend);
+    currentChat = friend.friend;
 
-    });
+    document.querySelector(".chat-title h2").textContent =
+        "DM with " + friend.friend;
+
+});
 
     container.appendChild(div);
 
