@@ -204,6 +204,9 @@ function loadFriends() {
     document.querySelector(".chat-title h2").textContent =
         "DM with " + friend.friend;
 
+        messages.innerHTML = "";
+socket.emit("load chat", currentChat);
+
 });
 
     container.appendChild(div);
@@ -266,6 +269,8 @@ chatForm.addEventListener("submit", (e) => {
 // RECEIVE MESSAGES
 // =========================
 socket.on("chat message", (data) => {
+
+    if (data.chat !== currentChat) return;
 
     const message = document.createElement("div");
 
