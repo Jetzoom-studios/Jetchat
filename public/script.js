@@ -654,3 +654,12 @@ function loadFriendRequests() {
     });
 
 }
+
+// =========================
+// LIVE FRIEND REQUEST UPDATE
+// =========================
+socket.on("new friend request", () => {
+
+    loadFriendRequests();
+
+});
