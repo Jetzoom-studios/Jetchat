@@ -245,14 +245,15 @@ chatForm.addEventListener("submit", (e) => {
     if (!text) return;
 
     socket.emit("chat message", {
-        username,
-        text,
-        replyTo: replyingTo,
-        time: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-        })
-    });
+    username,
+    text,
+    chat: currentChat,
+    replyTo: replyingTo,
+    time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    })
+});
 
     replyingTo = null;
     replyPreview.style.display = "none";
