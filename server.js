@@ -431,6 +431,15 @@ socket.on("accept friend request", async (sender, callback) => {
             );
 
         callback(result);
+        if (result.success) {
+
+    io.to(socket.id).emit("friends updated");
+
+    if (onlineUsers[sender]) {
+        io.to(onlineUsers[sender]).emit("friends updated");
+    }
+
+}
 
     } catch (err) {
 
