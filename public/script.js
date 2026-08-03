@@ -663,3 +663,19 @@ socket.on("new friend request", () => {
     loadFriendRequests();
 
 });
+
+// =========================
+// LIVE FRIEND UPDATES
+// =========================
+socket.on("new friend request", () => {
+
+    loadFriendRequests();
+
+});
+
+socket.on("friends updated", () => {
+
+    loadFriendRequests();
+    loadFriends();
+
+});
