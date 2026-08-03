@@ -156,6 +156,8 @@ function addMessage(message) {
     saveMessages(messages);
 }
 
+
+
 // =========================
 // EDIT MESSAGE
 // =========================
@@ -419,6 +421,7 @@ module.exports = {
     getFriends,
 
     loadMessages,
+    loadChat,      // <-- ADD THIS
     addMessage,
     editMessage,
     deleteMessage,
