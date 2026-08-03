@@ -265,13 +265,13 @@ async function sendFriendRequest(sender, receiver) {
     }
 
     await pool.query(
-        `
-        INSERT INTO friends
-        (sender, receiver)
-        VALUES ($1, $2)
-        `,
-        [sender, receiver]
-    );
+    `
+    INSERT INTO friends
+    (sender, receiver, status)
+    VALUES ($1, $2, 'pending')
+    `,
+    [sender, receiver]
+);
 
     return {
         success: true
