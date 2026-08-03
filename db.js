@@ -345,13 +345,35 @@ async function getFriendRequests(username) {
     const result = await pool.query(
         `
         SELECT sender
-        FROM friends
-        WHERE receiver = $1
+FROM friends
+WHERE receiver = $1
+AND status = 'pending'
         `,
         [username]
     );
 
     return result.rows;
+
+}
+
+// =========================
+// ACCEPT FRIEND REQUEST
+// =========================
+async function acceptFriendRequest(sender, receiver) {
+
+    await pool.query(
+        `
+        UPDATE friends
+        SET status = 'accepted'
+        WHERE sender = $1
+        AND receiver = $2
+        `,
+        [sender, receiver]
+    );
+
+    return {
+        success: true
+    };
 
 }
 // =========================
@@ -369,12 +391,7 @@ module.exports = {
 
     sendFriendRequest,
     getFriendRequests,
+    acceptFriendRequest,
 
-    loadMessages,
-    saveMessages,
-    addMessage,
-
-    editMessage,
-    deleteMessage
-
+    loadMessages
 };
