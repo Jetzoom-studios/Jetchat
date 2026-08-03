@@ -51,6 +51,9 @@ const avatarInput = document.getElementById("avatarInput");
 const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
 
+const globalChatBtn =
+    document.getElementById("globalChatBtn");
+
 
 // =========================
 // SOUND
@@ -697,3 +700,21 @@ socket.on("friends updated", () => {
     loadFriends();
 
 });
+
+// =========================
+// GLOBAL CHAT BUTTON
+// =========================
+globalChatBtn.addEventListener("click", () => {
+
+    currentChat = "global";
+
+    document.querySelector(".chat-title h2").textContent =
+        "Global Chat";
+
+    messages.innerHTML = "";
+
+    socket.emit("load chat", "global");
+
+});
+
+
