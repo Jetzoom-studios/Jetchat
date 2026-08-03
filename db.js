@@ -393,5 +393,10 @@ module.exports = {
     getFriendRequests,
     acceptFriendRequest,
 
-    loadMessages
+    loadMessages,
+    addMessage,
+    editMessage,
+    deleteMessage,
+    saveMessages
+
 };
