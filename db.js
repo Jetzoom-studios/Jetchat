@@ -376,6 +376,30 @@ async function acceptFriendRequest(sender, receiver) {
     };
 
 }
+
+// =========================
+// GET FRIENDS
+// =========================
+async function getFriends(username) {
+
+    const result = await pool.query(
+        `
+        SELECT
+            CASE
+                WHEN sender = $1 THEN receiver
+                ELSE sender
+            END AS friend
+        FROM friends
+        WHERE
+            (sender = $1 OR receiver = $1)
+            AND status = 'accepted'
+        `,
+        [username]
+    );
+
+    return result.rows;
+
+}
 // =========================
 // EXPORTS
 // =========================
@@ -392,6 +416,7 @@ module.exports = {
     sendFriendRequest,
     getFriendRequests,
     acceptFriendRequest,
+    getFriends,
 
     loadMessages,
     addMessage,
