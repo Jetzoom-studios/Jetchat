@@ -414,17 +414,34 @@ socket.on("get friends", async (callback) => {
     // =========================
 // LOAD CHAT
 // =========================
-socket.on("load chat", (chat) => {
+socket.on("load chat", async (chat) => {
 
-    const messages = db.loadMessages();
+    try {
 
-    const filtered = messages.filter(m => {
+        let history;
 
-        return (m.chat || "global") === chat;
+        if (chat === "global") {
 
-    });
+            history = db.loadMessages();
 
-    socket.emit("chat history", filtered);
+        } else {
+
+            const users = [
+                socket.username,
+                chat
+            ].sort().join("|");
+
+            history = await db.loadChat(users);
+
+        }
+
+        socket.emit("chat history", history);
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
 
 });
 
