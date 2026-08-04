@@ -197,29 +197,14 @@ async function saveDM(message) {
 // =========================
 async function loadChat(chat) {
 
-    if (chat === "global") {
-        return loadMessages();
-    }
-
-    const users = chat.split("|");
-
     const result = await pool.query(
         `
         SELECT *
         FROM messages
-        WHERE
-        (
-            username = $1
-            AND recipient = $2
-        )
-        OR
-        (
-            username = $2
-            AND recipient = $1
-        )
+        WHERE chat = $1
         ORDER BY id ASC
         `,
-        [users[0], users[1]]
+        [chat]
     );
 
     return result.rows;
