@@ -490,24 +490,47 @@ socket.on("accept friend request", async (sender, callback) => {
         // =========================
     // CHAT MESSAGE
     // =========================
-    socket.on("chat message", (data) => {
+    socket.on("chat message", async (data) => {
 
-        if (!socket.username) return;
+    if (!socket.username) return;
 
-        const msg = {
-    id: Date.now() + Math.random(),
-    username: socket.username,
-    text: data.text,
-    chat: data.chat || "global",
-    replyTo: data.replyTo || null,
-    time: data.time || Date.now()
-};
+    const msg = {
+        id: Date.now() + Math.random(),
+        username: socket.username,
+        text: data.text,
+        replyTo: data.replyTo || null,
+        time: data.time || Date.now()
+    };
+
+    if (data.chat === "global") {
+
+        msg.chat = "global";
 
         db.addMessage(msg);
 
         io.emit("chat message", msg);
 
-    });
+    } else {
+
+        const chatId = [
+            socket.username,
+            data.chat
+        ].sort().join("|");
+
+        msg.chat = chatId;
+        msg.recipient = data.chat;
+
+        await db.saveDM(msg);
+
+        socket.emit("chat message", msg);
+
+        if (onlineUsers[data.chat]) {
+            io.to(onlineUsers[data.chat]).emit("chat message", msg);
+        }
+
+    }
+
+});
 
     // =========================
     // EDIT MESSAGE
@@ -615,27 +638,6 @@ socket.on("accept friend request", async (sender, callback) => {
 
     });
 
-    // =========================
-// LOAD CHAT
-// =========================
-socket.on("load chat", async (chat) => {
-
-    try {
-
-        const history =
-            await db.loadMessages(chat);
-
-        socket.emit("chat history", history);
-
-    } catch (err) {
-
-        console.error(err);
-
-    }
-
-});
-
-});
 
 // =========================
 // START SERVER
