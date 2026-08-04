@@ -157,6 +157,41 @@ function addMessage(message) {
 }
 
 
+// =========================
+// LOAD CHAT
+// =========================
+async function loadChat(chat) {
+
+    if (chat === "global") {
+        return loadMessages();
+    }
+
+    const users = chat.split("|");
+
+    const result = await pool.query(
+        `
+        SELECT *
+        FROM messages
+        WHERE
+        (
+            username = $1
+            AND recipient = $2
+        )
+        OR
+        (
+            username = $2
+            AND recipient = $1
+        )
+        ORDER BY id ASC
+        `,
+        [users[0], users[1]]
+    );
+
+    return result.rows;
+
+}
+
+
 
 // =========================
 // EDIT MESSAGE
