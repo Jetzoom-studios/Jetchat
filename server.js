@@ -638,6 +638,8 @@ socket.on("accept friend request", async (sender, callback) => {
 
     });
 
+    });
+
 
 // =========================
 // START SERVER
