@@ -271,7 +271,7 @@ chatForm.addEventListener("submit", (e) => {
 // =========================
 // RECEIVE MESSAGES
 // =========================
-socket.on("chat message", (data) => {
+function displayMessage(data) {
 
     if (data.chat !== currentChat) return;
 
@@ -353,8 +353,12 @@ if (usernameElement) {
     messages.scrollTop = messages.scrollHeight;
 
     lastMessageUser = data.username;
-    lastMessageElement = message;
-});
+lastMessageElement = message;
+}
+
+socket.on("chat message", displayMessage);
+
+socket.on("chat message received", displayMessage);
 
 // =========================
 // SOCKET EVENTS
@@ -408,9 +412,12 @@ socket.on("chat history", (history) => {
 
     messages.innerHTML = "";
 
+    lastMessageUser = null;
+    lastMessageElement = null;
+
     history.forEach(msg => {
 
-        socket.emit("chat message", msg);
+        socket.emit("chat message received", msg);
 
     });
 
