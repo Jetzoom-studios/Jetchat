@@ -156,6 +156,41 @@ function addMessage(message) {
     saveMessages(messages);
 }
 
+// =========================
+// SAVE DM
+// =========================
+async function saveDM(message) {
+
+    await pool.query(
+        `
+        INSERT INTO messages
+        (
+            username,
+            recipient,
+            text,
+            chat,
+            time
+        )
+        VALUES
+        (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5
+        )
+        `,
+        [
+            message.username,
+            message.recipient,
+            message.text,
+            message.chat,
+            message.time
+        ]
+    );
+
+}
+
 
 // =========================
 // LOAD CHAT
@@ -456,9 +491,10 @@ module.exports = {
     getFriends,
 
     loadMessages,
-    loadChat,
-    addMessage,
-
+     loadChat,
+     addMessage,
+      saveDM,
+    
     editMessage,
     deleteMessage,
     saveMessages
