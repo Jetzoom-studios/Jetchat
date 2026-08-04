@@ -421,8 +421,9 @@ module.exports = {
     getFriends,
 
     loadMessages,
-    loadChat,      // <-- ADD THIS
+    loadChat,
     addMessage,
+
     editMessage,
     deleteMessage,
     saveMessages
