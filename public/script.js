@@ -149,7 +149,6 @@ function startChat(user) {
     loadFriends();
 
     messageInput.focus();
-
 }
 loginButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
@@ -180,8 +179,7 @@ signupButton.addEventListener("click", () => {
 // =========================
 function loadFriends() {
 
-    const container =
-        document.getElementById("friendsList");
+    const container = document.getElementById("friendsList");
 
     socket.emit("get friends", (friends) => {
 
@@ -194,27 +192,31 @@ function loadFriends() {
 
         friends.forEach(friend => {
 
-    const div = document.createElement("div");
+            const div = document.createElement("div");
 
-    div.className = "friend-item";
-    div.textContent = friend.friend;
-    div.style.cursor = "pointer";
+            div.className = "friend-item";
+            div.textContent = friend.friend;
+            div.style.cursor = "pointer";
 
-    div.addEventListener("click", () => {
+            div.addEventListener("click", () => {
 
-    currentChat = friend.friend;
+                currentChat = `${username}|${friend.friend}`;
 
-    document.querySelector(".chat-title h2").textContent =
-        "DM with " + friend.friend;
+                document.querySelector(".chat-title h2").textContent =
+                    "DM with " + friend.friend;
 
-        messages.innerHTML = "";
-socket.emit("load chat", currentChat);
+                messages.innerHTML = "";
 
-});
+                lastMessageUser = null;
+                lastMessageElement = null;
 
-    container.appendChild(div);
+                socket.emit("load chat", currentChat);
 
-});
+            });
+
+            container.appendChild(div);
+
+        });
 
     });
 
@@ -273,7 +275,13 @@ chatForm.addEventListener("submit", (e) => {
 // =========================
 function displayMessage(data) {
 
-    if (data.chat !== currentChat) return;
+    if (
+    currentChat === "global"
+        ? data.chat !== "global"
+        : !data.chat.includes(currentChat)
+) {
+    return;
+}
 
     const message = document.createElement("div");
 
@@ -416,9 +424,7 @@ socket.on("chat history", (history) => {
     lastMessageElement = null;
 
     history.forEach(msg => {
-
-        socket.emit("chat message received", msg);
-
+        displayMessage(msg);
     });
 
 });
@@ -698,14 +704,7 @@ function loadFriendRequests() {
 
 }
 
-// =========================
-// LIVE FRIEND REQUEST UPDATE
-// =========================
-io.on("connection", (socket) => {
 
-    loadFriendRequests();
-
-});
 
 // =========================
 // LIVE FRIEND UPDATES
