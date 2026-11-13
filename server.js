@@ -758,7 +758,7 @@ socket.on("dismiss update", async (updateId, callback) => {
     // =========================
     // DISCONNECT
     // =========================
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
         const username = users[socket.id];
 
         if (username) {
@@ -779,6 +779,12 @@ socket.on("dismiss update", async (updateId, callback) => {
                     onlineUsers[socket.username] = remainingSocket.id;
                 } else {
                     delete onlineUsers[socket.username];
+
+                    try {
+                        await db.updateLastSeen(username);
+                    } catch (err) {
+                        console.error("Last seen update error:", err);
+                    }
                 }
             }
 
