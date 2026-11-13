@@ -280,7 +280,9 @@ function formatDMTime(value) {
     if (!value) return "";
 
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
+    if (Number.isNaN(date.getTime())) {
+        return String(value).replace(/\\s+/g, " ").slice(0, 12);
+    }
 
     const now = new Date();
     if (date.toDateString() === now.toDateString()) {
@@ -825,7 +827,7 @@ function handleIncomingMessage(data) {
         isTabActive &&
         document.visibilityState === "visible"
     ) {
-        socket.emit("mark chat read", currentChat);
+        socket.emit("mark chat read", currentChat, () => loadDMConversations());
     }
 }
 
@@ -839,7 +841,7 @@ document.addEventListener("visibilitychange", () => {
             currentChat !== "global" &&
             jetchatSettings.readReceipts
         ) {
-            socket.emit("mark chat read", currentChat);
+            socket.emit("mark chat read", currentChat, () => loadDMConversations());
         }
     }
 });
@@ -849,7 +851,7 @@ window.addEventListener("focus", () => {
     clearUnreadForChat(currentChat);
 
     if (currentChat !== "global" && jetchatSettings.readReceipts) {
-        socket.emit("mark chat read", currentChat);
+        socket.emit("mark chat read", currentChat, () => loadDMConversations());
     }
 });
 
@@ -1004,7 +1006,7 @@ socket.on("chat history", (history) => {
         jetchatSettings.readReceipts &&
         document.visibilityState === "visible"
     ) {
-        socket.emit("mark chat read", currentChat);
+        socket.emit("mark chat read", currentChat, () => loadDMConversations());
     }
 
     scrollChatToBottom(false);
@@ -1024,6 +1026,7 @@ function openProfile(targetUsername) {
         }
 
         profileUsername.textContent = res.profile.username;
+        profileBio.dataset.raw = res.profile.bio || "";
         profileBio.textContent = res.profile.bio || "No bio yet.";
         const customStatus = res.profile.custom_status || "";
         profileCustomStatus.dataset.status = customStatus;
