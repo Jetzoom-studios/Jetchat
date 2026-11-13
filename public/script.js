@@ -61,6 +61,13 @@ const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
 
 const globalChatBtn = document.getElementById("globalChatBtn");
+const dmListContainer = document.getElementById("dmList");
+const dmSearchInput = document.getElementById("dmSearchInput");
+const dmConversationCount = document.getElementById("dmConversationCount");
+const messageSearchInput = document.getElementById("messageSearchInput");
+const profileCustomStatus = document.getElementById("profileCustomStatus");
+
+let dmConversationCache = [];
 
 // =========================
 // CHAT SCROLL CONTROLS
@@ -204,6 +211,7 @@ function startChat(user) {
 
     loadFriendRequests();
     loadFriends();
+    loadDMConversations();
     loadUpdateNotice();
 
     messageInput.focus();
@@ -255,7 +263,169 @@ function openConversation(chat) {
     cancelReply();
     clearUnreadForChat(chat);
 
+    if (messageSearchInput) {
+        messageSearchInput.value = "";
+    }
+
     socket.emit("load chat", chat);
+    if (chat !== "global") {
+        loadDMConversations();
+    }
+}
+
+// =========================
+// DM CONVERSATION LIST
+// =========================
+function formatDMTime(value) {
+    if (!value) return "";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+    }
+
+    return date.toLocaleDateString([], {
+        month: "short",
+        day: "numeric"
+    });
+}
+
+function loadDMConversations() {
+    if (!dmListContainer) return;
+
+    socket.emit("get dm conversations", result => {
+        if (!result || !result.success) return;
+
+        dmConversationCache = Array.isArray(result.conversations)
+            ? result.conversations
+            : [];
+
+        renderDMConversations();
+    });
+}
+
+function renderDMConversations() {
+    if (!dmListContainer) return;
+
+    const query = (dmSearchInput?.value || "").trim().toLowerCase();
+    const conversations = dmConversationCache.filter(conversation =>
+        String(conversation.peer || "").toLowerCase().includes(query) ||
+        String(conversation.last_message || "").toLowerCase().includes(query)
+    );
+
+    if (dmConversationCount) {
+        dmConversationCount.textContent = String(dmConversationCache.length);
+    }
+
+    dmListContainer.innerHTML = "";
+
+    if (!conversations.length) {
+        dmListContainer.textContent = query
+            ? "No matching conversations"
+            : "No conversations yet";
+        return;
+    }
+
+    conversations.forEach(conversation => {
+        const peer = String(conversation.peer || "");
+        if (!peer) return;
+
+        const item = document.createElement("div");
+        item.className = "dm-conversation-item";
+        item.dataset.peer = peer;
+
+        if (currentChat === peer) {
+            item.classList.add("active");
+        }
+
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.className = "dm-conversation-open";
+
+        const details = document.createElement("span");
+        details.className = "dm-conversation-details";
+
+        const name = document.createElement("strong");
+        name.className = "dm-conversation-name";
+        name.textContent = peer;
+
+        const preview = document.createElement("span");
+        preview.className = "dm-conversation-preview";
+        preview.textContent = conversation.last_message
+            ? (conversation.last_sender === username ? "You: " : "") + conversation.last_message
+            : "Start a conversation";
+
+        details.append(name, preview);
+        openButton.appendChild(details);
+
+        const meta = document.createElement("span");
+        meta.className = "dm-conversation-meta";
+
+        const time = document.createElement("span");
+        time.className = "dm-conversation-time";
+        time.textContent = formatDMTime(conversation.last_message_time);
+        meta.appendChild(time);
+
+        const unread = Number(conversation.unread_count || 0);
+        if (unread > 0) {
+            const badge = document.createElement("span");
+            badge.className = "dm-conversation-unread";
+            badge.textContent = unread > 99 ? "99+" : String(unread);
+            meta.appendChild(badge);
+        }
+
+        openButton.appendChild(meta);
+        openButton.addEventListener("click", () => openConversation(peer));
+
+        const pinButton = document.createElement("button");
+        pinButton.type = "button";
+        pinButton.className = "dm-pin-button";
+        pinButton.textContent = conversation.pinned ? "★" : "☆";
+        pinButton.title = conversation.pinned ? "Unpin conversation" : "Pin conversation";
+        pinButton.setAttribute("aria-label", pinButton.title);
+        pinButton.addEventListener("click", event => {
+            event.stopPropagation();
+            socket.emit("set dm pin", {
+                peer,
+                pinned: !conversation.pinned
+            }, result => {
+                if (!result || !result.success) {
+                    return alert((result && result.message) || "Couldn't update pinned conversation.");
+                }
+                loadDMConversations();
+            });
+        });
+
+        item.append(openButton, pinButton);
+        dmListContainer.appendChild(item);
+    });
+}
+
+if (dmSearchInput) {
+    dmSearchInput.addEventListener("input", renderDMConversations);
+}
+
+function applyMessageSearch() {
+    if (!messageSearchInput || !messages) return;
+
+    const query = messageSearchInput.value.trim().toLowerCase();
+
+    messages.querySelectorAll(".message, .system-wrapper").forEach(element => {
+        const text = element.querySelector(".text")?.textContent || element.textContent || "";
+        element.style.display = !query || text.toLowerCase().includes(query)
+            ? ""
+            : "none";
+    });
+}
+
+if (messageSearchInput) {
+    messageSearchInput.addEventListener("input", applyMessageSearch);
 }
 
 // =========================
@@ -639,6 +809,12 @@ function handleIncomingMessage(data) {
     displayMessage(data);
     notifyIncomingMessage(data);
 
+    if (data && !data.system && data.chat && data.chat !== "global") {
+        loadDMConversations();
+    }
+
+    applyMessageSearch();
+
     if (
         data &&
         !data.system &&
@@ -820,6 +996,8 @@ socket.on("chat history", (history) => {
     });
 
     clearUnreadForChat(currentChat);
+    applyMessageSearch();
+    loadDMConversations();
 
     if (
         currentChat !== "global" &&
@@ -847,6 +1025,9 @@ function openProfile(targetUsername) {
 
         profileUsername.textContent = res.profile.username;
         profileBio.textContent = res.profile.bio || "No bio yet.";
+        const customStatus = res.profile.custom_status || "";
+        profileCustomStatus.dataset.status = customStatus;
+        profileCustomStatus.textContent = customStatus || "No custom status";
         profileJoinDate.textContent =
             new Date(res.profile.join_date).toLocaleDateString();
 
@@ -1277,6 +1458,7 @@ const closeEditProfile = document.getElementById("closeEditProfile");
 const editAvatarPreview = document.getElementById("editAvatarPreview");
 const editUsername = document.getElementById("editUsername");
 const editBio = document.getElementById("editBio");
+const editCustomStatus = document.getElementById("editCustomStatus");
 const editBannerColor = document.getElementById("editBannerColor");
 const saveProfileBtn = document.getElementById("saveProfileBtn");
 const changeAvatarBtn = document.getElementById("changeAvatarBtn");
@@ -1284,7 +1466,8 @@ const changeAvatarBtn = document.getElementById("changeAvatarBtn");
 editProfileBtn.addEventListener("click", () => {
     editAvatarPreview.src = profileAvatar.src;
     editUsername.value = profileUsername.textContent;
-    editBio.value = profileBio.textContent;
+    editBio.value = profileBio.dataset.raw || (profileBio.textContent === "No bio yet." ? "" : profileBio.textContent);
+    editCustomStatus.value = profileCustomStatus.dataset.status || "";
     editBannerColor.value = currentProfileColor;
 
     profileModal.style.display = "none";
@@ -1324,6 +1507,7 @@ avatarInput.addEventListener("change", async () => {
             }
 
             profileAvatar.src = data.avatar;
+            editAvatarPreview.src = data.avatar;
             alert("Avatar updated!");
         });
     } catch (err) {
@@ -1336,14 +1520,19 @@ saveProfileBtn.addEventListener("click", () => {
     socket.emit("update profile", {
         username: editUsername.value.trim(),
         bio: editBio.value.trim(),
+        customStatus: editCustomStatus.value.trim(),
         profileColor: editBannerColor.value
     }, (res) => {
         if (!res.success) {
             return alert(res.message);
         }
 
-        profileUsername.textContent = editUsername.value;
-        profileBio.textContent = editBio.value;
+        username = editUsername.value.trim();
+        profileUsername.textContent = username;
+        profileBio.textContent = editBio.value.trim() || "No bio yet.";
+        profileBio.dataset.raw = editBio.value.trim();
+        profileCustomStatus.dataset.status = editCustomStatus.value.trim();
+        profileCustomStatus.textContent = editCustomStatus.value.trim() || "No custom status";
         currentProfileColor = editBannerColor.value;
         profileBanner.style.background = currentProfileColor;
 
