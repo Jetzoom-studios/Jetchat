@@ -195,6 +195,55 @@ async function saveDM(message) {
 
 
 // =========================
+// DIRECT MESSAGE DELIVERY / READ STATUS
+// =========================
+async function ensureDMStatusColumns() {
+    await pool.query(
+        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ"
+    );
+    await pool.query(
+        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ"
+    );
+}
+
+async function markDMDelivered(chat, recipient) {
+    await ensureDMStatusColumns();
+
+    const result = await pool.query(
+        `
+        UPDATE messages
+        SET delivered_at = NOW()
+        WHERE chat = $1
+          AND recipient = $2
+          AND delivered_at IS NULL
+        RETURNING id
+        `,
+        [chat, recipient]
+    );
+
+    return result.rows.map(row => row.id);
+}
+
+async function markDMRead(chat, reader) {
+    await ensureDMStatusColumns();
+
+    const result = await pool.query(
+        `
+        UPDATE messages
+        SET delivered_at = COALESCE(delivered_at, NOW()),
+            read_at = NOW()
+        WHERE chat = $1
+          AND recipient = $2
+          AND read_at IS NULL
+        RETURNING id
+        `,
+        [chat, reader]
+    );
+
+    return result.rows.map(row => row.id);
+}
+
+// =========================
 // LOAD CHAT
 // =========================
 async function loadChat(chat, username, peer) {
@@ -579,6 +628,8 @@ module.exports = {
      loadChat,
      addMessage,
       saveDM,
+    markDMDelivered,
+    markDMRead,
     
     editMessage,
     deleteMessage,
