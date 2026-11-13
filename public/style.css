@@ -2774,3 +2774,24 @@ body.light-mode .jetchat-toast {
 body.light-mode .jetchat-toast span {
     color: #647087;
 }
+
+
+/* Phase 2: profile banner customization */
+.profile-color-label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 7px;
+    color: var(--jc-muted, #91a0b8);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#editBannerColor {
+    width: 100%;
+    height: 42px;
+    padding: 4px;
+    border: 1px solid var(--jc-border, rgba(157,177,215,.2));
+    border-radius: 10px;
+    background: rgba(128,148,190,.08);
+    cursor: pointer;
+}
