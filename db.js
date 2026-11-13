@@ -457,6 +457,55 @@ async function getFriends(username) {
     return result.rows;
 
 }
+
+// =========================
+// UPDATE LOG DISMISSALS
+// =========================
+
+async function ensureUpdateDismissalsTable() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_update_dismissals (
+            user_id TEXT NOT NULL,
+            update_id TEXT NOT NULL,
+            dismissed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id, update_id)
+        )
+    `);
+}
+
+async function hasDismissedUpdate(userId, updateId) {
+    await ensureUpdateDismissalsTable();
+
+    const result = await pool.query(
+        `
+        SELECT 1
+        FROM user_update_dismissals
+        WHERE user_id = $1
+        AND update_id = $2
+        LIMIT 1
+        `,
+        [String(userId), updateId]
+    );
+
+    return result.rows.length > 0;
+}
+
+async function dismissUpdate(userId, updateId) {
+    await ensureUpdateDismissalsTable();
+
+    await pool.query(
+        `
+        INSERT INTO user_update_dismissals
+            (user_id, update_id)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id, update_id) DO NOTHING
+        `,
+        [String(userId), updateId]
+    );
+
+    return { success: true };
+}
+
 // =========================
 // EXPORTS
 // =========================
@@ -483,5 +532,9 @@ module.exports = {
     editMessage,
     deleteMessage,
     saveMessages
+
+    hasDismissedUpdate,
+dismissUpdate,
+ensureUpdateDismissalsTable,
 
 };
