@@ -9,6 +9,22 @@ const pool = new Pool({
     }
 });
 
+// Run each additive schema migration once per server process.
+const schemaMigrations = new Map();
+
+async function runSchemaMigration(key, sql) {
+    if (!schemaMigrations.has(key)) {
+        const migration = pool.query(sql).catch(error => {
+            schemaMigrations.delete(key);
+            throw error;
+        });
+
+        schemaMigrations.set(key, migration);
+    }
+
+    await schemaMigrations.get(key);
+}
+
 // =========================
 // FILE PATHS
 // =========================
@@ -95,7 +111,8 @@ async function createUser(username, password) {
 // LOGIN
 // =========================
 async function ensureShowOnlineColumn() {
-    await pool.query(
+    await runSchemaMigration(
+        "users.show_online",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS show_online BOOLEAN NOT NULL DEFAULT TRUE"
     );
 }
@@ -205,12 +222,16 @@ async function saveDM(message) {
 // DIRECT MESSAGE DELIVERY / READ STATUS
 // =========================
 async function ensureDMStatusColumns() {
-    await pool.query(
-        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ"
-    );
-    await pool.query(
-        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ"
-    );
+    await Promise.all([
+        runSchemaMigration(
+            "messages.delivered_at",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ"
+        ),
+        runSchemaMigration(
+            "messages.read_at",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ"
+        )
+    ]);
 }
 
 async function markDMDelivered(chat, recipient) {
@@ -346,13 +367,15 @@ function deleteMessage(id) {
 // LAST SEEN
 // =========================
 async function ensureLastSeenColumn() {
-    await pool.query(
+    await runSchemaMigration(
+        "users.last_seen",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ"
     );
 }
 
 async function ensureProfileColorColumn() {
-    await pool.query(
+    await runSchemaMigration(
+        "users.profile_color",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT DEFAULT '#5865f2'"
     );
 }
