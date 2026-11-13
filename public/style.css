@@ -2818,3 +2818,207 @@ body.light-mode .jetchat-toast span {
     font-weight: 800;
     line-height: 1;
 }
+
+/* Phase 3: richer profiles and a searchable DM workspace */
+.dm-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#dmConversationCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(125, 148, 255, .15);
+    color: var(--jc-muted, #aebbd2);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.dm-search-input,
+.message-search-input,
+#editCustomStatus {
+    min-width: 0;
+    border: 1px solid var(--jc-border, rgba(157,177,215,.2));
+    border-radius: 10px;
+    background: rgba(128,148,190,.08);
+    color: inherit;
+    outline: none;
+}
+
+.dm-search-input {
+    width: 100%;
+    margin: 10px 0 8px;
+    padding: 9px 11px;
+    font-size: 12px;
+}
+
+.message-search-input {
+    width: min(230px, 28vw);
+    padding: 9px 12px;
+    font-size: 12px;
+}
+
+.dm-search-input:focus,
+.message-search-input:focus,
+#editCustomStatus:focus {
+    border-color: var(--jc-accent, #7588ff);
+    box-shadow: 0 0 0 3px rgba(111, 132, 255, .12);
+}
+
+#dmList {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 34vh;
+    overflow-y: auto;
+}
+
+.dm-conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 4px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    transition: background .18s ease, border-color .18s ease;
+}
+
+.dm-conversation-item:hover,
+.dm-conversation-item.active {
+    background: rgba(119, 143, 255, .11);
+    border-color: rgba(119, 143, 255, .18);
+}
+
+.dm-conversation-open {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    padding: 7px 6px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dm-conversation-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+}
+
+.dm-conversation-name {
+    overflow: hidden;
+    color: var(--jc-text, #edf2ff);
+    font-size: 12px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dm-conversation-preview {
+    overflow: hidden;
+    color: var(--jc-muted, #91a0b8);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dm-conversation-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    flex: 0 0 auto;
+}
+
+.dm-conversation-time {
+    color: var(--jc-muted, #91a0b8);
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.dm-conversation-unread {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #e05262;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.dm-pin-button {
+    width: 27px;
+    height: 27px;
+    flex: 0 0 27px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #e8c66a;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+.dm-pin-button:hover {
+    background: rgba(232, 198, 106, .13);
+}
+
+.profile-custom-status {
+    width: fit-content;
+    max-width: calc(100% - 40px);
+    margin: 8px auto 0;
+    padding: 6px 11px;
+    border: 1px solid rgba(145, 160, 184, .18);
+    border-radius: 999px;
+    background: rgba(145, 160, 184, .09);
+    color: var(--jc-muted, #b5bac1);
+    font-size: 12px;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+#editCustomStatus {
+    width: 100%;
+    padding: 11px 12px;
+    font: inherit;
+}
+
+body.light-mode .dm-conversation-name {
+    color: #202a3b;
+}
+
+body.light-mode .dm-conversation-preview,
+body.light-mode .dm-conversation-time {
+    color: #647087;
+}
+
+@media (max-width: 760px) {
+    .message-search-input {
+        width: min(145px, 34vw);
+        padding: 8px 9px;
+    }
+
+    #dmList {
+        max-height: 28vh;
+    }
+}
+
