@@ -1397,3 +1397,463 @@ body {
     width: 100%;
     padding: 24px;
 }
+
+/* =========================================================
+   JETCHAT SETTINGS + THEME FIX
+   Add this block at the VERY BOTTOM of style.css
+========================================================= */
+
+:root {
+    --jetchat-accent: #5865f2;
+    --jetchat-message-size: 15px;
+}
+
+/* SETTINGS PANEL */
+
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+
+    width: 340px;
+    max-width: 100%;
+    height: 100vh;
+    height: 100dvh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow-y: auto;
+
+    background: #171b26;
+    color: #f3f5fb;
+
+    border-left: 1px solid rgba(255,255,255,0.09);
+
+    transform: translateX(100%);
+    visibility: hidden;
+    pointer-events: none;
+
+    transition:
+        transform 0.25s ease,
+        visibility 0.25s ease;
+
+    z-index: 999999;
+}
+
+.settings-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.settings-card {
+    width: 100%;
+    padding: 24px;
+}
+
+.settings-card h2 {
+    margin-bottom: 20px;
+    color: inherit;
+    font-size: 21px;
+}
+
+.settings-card h3 {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    opacity: 0.7;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    margin: 12px 0;
+    padding: 10px 0;
+
+    color: inherit;
+    font-size: 14px;
+}
+
+.setting-item label {
+    cursor: pointer;
+}
+
+.setting-item select {
+    max-width: 150px;
+    padding: 8px 10px;
+
+    border: 1px solid #343b4b;
+    border-radius: 7px;
+
+    background: #242a38;
+    color: #f3f5fb;
+
+    outline: none;
+}
+
+.setting-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--jetchat-accent);
+    cursor: pointer;
+}
+
+.setting-item input[type="range"] {
+    width: 120px;
+    accent-color: var(--jetchat-accent);
+    cursor: pointer;
+}
+
+#fontSizeValue {
+    min-width: 38px;
+    text-align: right;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.settings-card button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 11px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: var(--jetchat-accent);
+    color: white;
+
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.settings-card button:hover {
+    filter: brightness(1.15);
+}
+
+/* ACCENT COLOUR */
+
+#settingsBtn:hover,
+#sendButton:hover,
+#emojiButton:hover {
+    border-color: var(--jetchat-accent);
+}
+
+/* MESSAGE FONT SIZE */
+
+.message .text {
+    font-size: var(--jetchat-message-size);
+}
+
+/* COMPACT CHAT */
+
+body.compact-chat .message {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+body.compact-chat #messages {
+    gap: 1px;
+}
+
+body.compact-chat .message .username {
+    margin-bottom: 1px;
+}
+
+/* TIMESTAMPS */
+
+body.hide-timestamps .message .time {
+    display: none;
+}
+
+/* CHAT BACKGROUNDS */
+
+body[data-chat-background="default"] #chatContainer {
+    background: #080b12;
+}
+
+body[data-chat-background="plain"] #chatContainer {
+    background: #10141d;
+}
+
+body[data-chat-background="midnight"] #chatContainer {
+    background: #050713;
+}
+
+body[data-chat-background="gradient"] #chatContainer {
+    background: linear-gradient(135deg, #111a30, #17112b);
+}
+
+/* LIGHT THEME */
+
+body.light-mode {
+    background: #f3f4f6;
+    color: #20232b;
+}
+
+body.light-mode .app {
+    background: #f3f4f6;
+}
+
+body.light-mode .sidebar {
+    background: #ffffff !important;
+    border-right: 1px solid #e1e4ea;
+}
+
+body.light-mode .logo {
+    border-bottom-color: #e1e4ea;
+}
+
+body.light-mode .logo h1 {
+    color: #20232b;
+}
+
+body.light-mode .online-title {
+    color: #687386;
+}
+
+body.light-mode .user {
+    color: #3b4352;
+}
+
+body.light-mode .user:hover {
+    background: #eef0f5;
+    color: #20232b;
+}
+
+body.light-mode .main {
+    background: #f3f4f6;
+}
+
+body.light-mode .topbar {
+    background: #ffffff !important;
+    border-bottom-color: #e1e4ea;
+}
+
+body.light-mode .chat-title h2 {
+    color: #20232b;
+}
+
+body.light-mode #onlineCount {
+    color: #697386;
+}
+
+body.light-mode #settingsBtn {
+    background: #f1f2f5;
+    color: #303747;
+    border-color: #dfe2e8;
+}
+
+body.light-mode #settingsBtn:hover {
+    background: #e6e9ef;
+}
+
+body.light-mode #chatContainer {
+    background: #f5f6f8 !important;
+}
+
+body.light-mode .message {
+    background: transparent;
+    border-color: transparent;
+}
+
+body.light-mode .message:hover {
+    background: #e9ecf2;
+    border-color: #dfe3ea;
+}
+
+body.light-mode .username {
+    color: #3159c9;
+}
+
+body.light-mode .username:hover {
+    color: #183eaa;
+}
+
+body.light-mode .text {
+    color: #252a35;
+}
+
+body.light-mode .time {
+    color: #7b8494;
+}
+
+body.light-mode .system-message {
+    background: #e9ecf2;
+    border-color: #dce1e9;
+    color: #687386;
+}
+
+body.light-mode #chatForm {
+    background: #ffffff !important;
+    border-top-color: #e1e4ea;
+}
+
+body.light-mode #messageInput {
+    background: #f4f5f7;
+    color: #20232b;
+    border-color: #d9dde5;
+}
+
+body.light-mode #messageInput::placeholder {
+    color: #9299a7;
+}
+
+body.light-mode #messageInput:focus {
+    background: #ffffff;
+    border-color: var(--jetchat-accent);
+}
+
+body.light-mode #emojiButton {
+    background: #f1f2f5;
+    color: #303747;
+    border-color: #dfe2e8;
+}
+
+body.light-mode .emoji-picker {
+    background: #ffffff;
+    border-color: #dfe2e8;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+
+body.light-mode .emoji-picker span:hover {
+    background: #e9ecf2;
+}
+
+body.light-mode .settings-panel {
+    background: #ffffff;
+    color: #20232b;
+    border-left-color: #e1e4ea;
+    box-shadow: -12px 0 35px rgba(0,0,0,0.12);
+}
+
+body.light-mode .settings-card h2,
+body.light-mode .settings-card h3 {
+    color: #20232b;
+}
+
+body.light-mode .setting-item {
+    color: #303747;
+}
+
+body.light-mode .setting-item select {
+    background: #f4f5f7;
+    color: #20232b;
+    border-color: #d9dde5;
+}
+
+body.light-mode .profile-card {
+    background: #ffffff;
+    color: #20232b;
+}
+
+body.light-mode #profileBio {
+    color: #687386;
+}
+
+body.light-mode .profile-avatar {
+    border-color: #ffffff;
+}
+
+body.light-mode .message-toolbar {
+    background: #ffffff;
+    border-color: #dfe2e8;
+    box-shadow: 0 8px 18px rgba(0,0,0,.12);
+}
+
+body.light-mode .message-toolbar button {
+    color: #444c5c;
+}
+
+body.light-mode .message-toolbar button:hover {
+    background: #e9ecf2;
+    color: #20232b;
+}
+
+body.light-mode .reply-reference {
+    background: rgba(88,101,242,0.08);
+}
+
+body.light-mode .chat-scroll-controls button {
+    background: #ffffff;
+    color: #303747;
+    border-color: #dfe2e8;
+    box-shadow: 0 5px 18px rgba(0,0,0,.12);
+}
+
+/* DARK THEME */
+
+body.dark-mode {
+    background: #080b12;
+    color: #f3f5fb;
+}
+
+body.dark-mode .app,
+body.dark-mode .main {
+    background: #080b12;
+}
+
+body.dark-mode .sidebar {
+    background: #0b1220 !important;
+}
+
+body.dark-mode .topbar,
+body.dark-mode #chatForm {
+    background: #0d111b !important;
+}
+
+body.dark-mode #chatContainer {
+    background: #080b12 !important;
+}
+
+body.dark-mode .settings-panel {
+    background: #171b26;
+    color: #f3f5fb;
+}
+
+/* HIGH CONTRAST */
+
+body.high-contrast .text,
+body.high-contrast .username,
+body.high-contrast .time,
+body.high-contrast .online-title {
+    filter: contrast(1.5);
+}
+
+body.high-contrast .message {
+    border-color: currentColor;
+}
+
+body.high-contrast #messageInput {
+    border-width: 2px;
+}
+
+/* REDUCED MOTION */
+
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+/* MOBILE SETTINGS */
+
+@media (max-width: 600px) {
+    .settings-panel {
+        width: 100%;
+    }
+
+    .settings-card {
+        padding: 20px;
+    }
+}
