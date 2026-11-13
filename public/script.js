@@ -276,8 +276,12 @@ function loadFriends() {
             const div = document.createElement("div");
 
             div.className = "friend-item";
-            div.textContent = friend.friend;
+            div.dataset.friend = friend.friend;
             div.style.cursor = "pointer";
+
+            const friendName = document.createElement("span");
+            friendName.textContent = friend.friend;
+            div.appendChild(friendName);
 
             div.addEventListener("click", () => {
                 openConversation(friend.friend);
@@ -285,6 +289,8 @@ function loadFriends() {
 
             container.appendChild(div);
         });
+
+        updateUnreadCount();
     });
 }
 
@@ -514,6 +520,24 @@ function updateUnreadCount() {
     document.title = unreadCount
         ? `(${unreadCount}) Jetchat`
         : "Jetchat";
+
+    document.querySelectorAll(".friend-item[data-friend]").forEach(item => {
+        const chatId = [username, item.dataset.friend].sort().join("|");
+        const count = unreadByChat[chatId] || 0;
+        let badge = item.querySelector(".friend-unread-badge");
+
+        if (count > 0) {
+            if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "friend-unread-badge";
+                item.appendChild(badge);
+            }
+
+            badge.textContent = count > 99 ? "99+" : String(count);
+        } else if (badge) {
+            badge.remove();
+        }
+    });
 }
 
 function clearUnreadForChat(chat) {
@@ -642,6 +666,19 @@ document.addEventListener("visibilitychange", () => {
             socket.emit("mark chat read", currentChat);
         }
     }
+});
+
+window.addEventListener("focus", () => {
+    isTabActive = true;
+    clearUnreadForChat(currentChat);
+
+    if (currentChat !== "global" && jetchatSettings.readReceipts) {
+        socket.emit("mark chat read", currentChat);
+    }
+});
+
+window.addEventListener("blur", () => {
+    isTabActive = false;
 });
 
 socket.on("chat message", handleIncomingMessage);
