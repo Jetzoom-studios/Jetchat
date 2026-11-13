@@ -459,6 +459,42 @@
 <!-- SOCKET.IO -->
 <script src="/socket.io/socket.io.js"></script>
 
+    <!-- ========================= -->
+<!-- WHAT'S NEW UPDATE MODAL -->
+<!-- ========================= -->
+
+<div id="updateModal" class="update-modal" style="display:none;">
+
+    <div class="update-card">
+
+        <button
+            id="updateClose"
+            class="update-close"
+            type="button"
+            aria-label="Close update"
+        >×</button>
+
+        <div class="update-label">JETCHAT UPDATE</div>
+
+        <h2 id="updateTitle">What's New in Jetchat</h2>
+
+        <div class="update-version">
+            <span id="updateVersion"></span>
+            <span id="updateDate"></span>
+        </div>
+
+        <div class="update-divider"></div>
+
+        <ul id="updateItems"></ul>
+
+        <button id="updateOk" type="button">
+            OK
+        </button>
+
+    </div>
+
+</div>
+
 <!-- JETCHAT -->
 <script src="script.js"></script>
 
