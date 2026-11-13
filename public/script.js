@@ -589,18 +589,206 @@ closeProfile.addEventListener("click", () => {
 
 /* =========================
    SETTINGS + THEME SYSTEM
-   FIXED
 ========================= */
 
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettings = document.getElementById("closeSettings");
 
-const darkModeToggle = document.getElementById("darkModeToggle");
-const lightModeToggle = document.getElementById("lightModeToggle");
+const themeSelect = document.getElementById("themeSelect");
+const accentSelect = document.getElementById("accentSelect");
+const chatBackgroundSelect = document.getElementById("chatBackgroundSelect");
+
+const fontSizeSetting = document.getElementById("fontSizeSetting");
+const fontSizeValue = document.getElementById("fontSizeValue");
+
+const compactModeToggle = document.getElementById("compactModeToggle");
+const timestampsToggle = document.getElementById("timestampsToggle");
+const enterToSendToggle = document.getElementById("enterToSendToggle");
+const soundToggle = document.getElementById("soundToggle");
+const browserNotificationsToggle = document.getElementById("browserNotificationsToggle");
+
+const showOnlineToggle = document.getElementById("showOnlineToggle");
+const readReceiptsToggle = document.getElementById("readReceiptsToggle");
+const typingStatusToggle = document.getElementById("typingStatusToggle");
+
+const reducedMotionToggle = document.getElementById("reducedMotionToggle");
+const highContrastToggle = document.getElementById("highContrastToggle");
+
+const resetSettings = document.getElementById("resetSettings");
+
+const SETTINGS_DEFAULTS = {
+    theme: "dark",
+    accent: "#5865f2",
+    chatBackground: "default",
+    fontSize: 15,
+    compact: false,
+    timestamps: true,
+    enterToSend: true,
+    sound: true,
+    browserNotifications: false,
+    showOnline: true,
+    readReceipts: true,
+    typingStatus: true,
+    reducedMotion: false,
+    highContrast: false
+};
+
+let jetchatSettings = { ...SETTINGS_DEFAULTS };
+
+try {
+    const savedSettings = JSON.parse(
+        localStorage.getItem("jetchatSettings") || "{}"
+    );
+
+    jetchatSettings = {
+        ...SETTINGS_DEFAULTS,
+        ...savedSettings
+    };
+} catch (error) {
+    console.warn("Could not load Jetchat settings:", error);
+}
+
+function getEffectiveTheme() {
+    if (jetchatSettings.theme === "system") {
+        return window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+    }
+
+    return jetchatSettings.theme;
+}
+
+function applyJetchatSettings() {
+    const root = document.documentElement;
+    const body = document.body;
+    const theme = getEffectiveTheme();
+
+    body.classList.toggle("dark-mode", theme === "dark");
+    body.classList.toggle("light-mode", theme === "light");
+
+    body.classList.toggle(
+        "compact-chat",
+        !!jetchatSettings.compact
+    );
+
+    body.classList.toggle(
+        "hide-timestamps",
+        !jetchatSettings.timestamps
+    );
+
+    body.classList.toggle(
+        "reduced-motion",
+        !!jetchatSettings.reducedMotion
+    );
+
+    body.classList.toggle(
+        "high-contrast",
+        !!jetchatSettings.highContrast
+    );
+
+    root.style.setProperty(
+        "--jetchat-accent",
+        jetchatSettings.accent
+    );
+
+    root.style.setProperty(
+        "--jetchat-message-size",
+        `${jetchatSettings.fontSize}px`
+    );
+
+    body.dataset.chatBackground =
+        jetchatSettings.chatBackground;
+
+    if (themeSelect) {
+        themeSelect.value = jetchatSettings.theme;
+    }
+
+    if (accentSelect) {
+        accentSelect.value = jetchatSettings.accent;
+    }
+
+    if (chatBackgroundSelect) {
+        chatBackgroundSelect.value =
+            jetchatSettings.chatBackground;
+    }
+
+    if (fontSizeSetting) {
+        fontSizeSetting.value = jetchatSettings.fontSize;
+    }
+
+    if (fontSizeValue) {
+        fontSizeValue.textContent =
+            `${jetchatSettings.fontSize}px`;
+    }
+
+    if (compactModeToggle) {
+        compactModeToggle.checked = !!jetchatSettings.compact;
+    }
+
+    if (timestampsToggle) {
+        timestampsToggle.checked = !!jetchatSettings.timestamps;
+    }
+
+    if (enterToSendToggle) {
+        enterToSendToggle.checked =
+            !!jetchatSettings.enterToSend;
+    }
+
+    if (soundToggle) {
+        soundToggle.checked = !!jetchatSettings.sound;
+    }
+
+    if (browserNotificationsToggle) {
+        browserNotificationsToggle.checked =
+            !!jetchatSettings.browserNotifications;
+    }
+
+    if (showOnlineToggle) {
+        showOnlineToggle.checked =
+            !!jetchatSettings.showOnline;
+    }
+
+    if (readReceiptsToggle) {
+        readReceiptsToggle.checked =
+            !!jetchatSettings.readReceipts;
+    }
+
+    if (typingStatusToggle) {
+        typingStatusToggle.checked =
+            !!jetchatSettings.typingStatus;
+    }
+
+    if (reducedMotionToggle) {
+        reducedMotionToggle.checked =
+            !!jetchatSettings.reducedMotion;
+    }
+
+    if (highContrastToggle) {
+        highContrastToggle.checked =
+            !!jetchatSettings.highContrast;
+    }
+}
+
+function saveJetchatSettings() {
+    try {
+        localStorage.setItem(
+            "jetchatSettings",
+            JSON.stringify(jetchatSettings)
+        );
+    } catch (error) {
+        console.warn("Could not save Jetchat settings:", error);
+    }
+
+    applyJetchatSettings();
+}
 
 function openSettings() {
+    if (!settingsPanel) return;
+
     settingsPanel.style.display = "flex";
+    settingsPanel.setAttribute("aria-hidden", "false");
 
     requestAnimationFrame(() => {
         settingsPanel.classList.add("open");
@@ -608,18 +796,21 @@ function openSettings() {
 }
 
 function hideSettings() {
-    settingsPanel.classList.remove("open");
+    if (!settingsPanel) return;
 
-    setTimeout(() => {
+    settingsPanel.classList.remove("open");
+    settingsPanel.setAttribute("aria-hidden", "true");
+
+    window.setTimeout(() => {
         if (!settingsPanel.classList.contains("open")) {
             settingsPanel.style.display = "none";
         }
-    }, 260);
+    }, 280);
 }
 
 if (settingsBtn && settingsPanel) {
-    settingsBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
+    settingsBtn.addEventListener("click", event => {
+        event.stopPropagation();
 
         if (settingsPanel.classList.contains("open")) {
             hideSettings();
@@ -633,49 +824,132 @@ if (closeSettings) {
     closeSettings.addEventListener("click", hideSettings);
 }
 
-// Close when clicking outside
-document.addEventListener("click", (e) => {
+document.addEventListener("keydown", event => {
     if (
-        settingsPanel &&
-        settingsPanel.classList.contains("open") &&
-        !settingsPanel.contains(e.target) &&
-        e.target !== settingsBtn
+        event.key === "Escape" &&
+        settingsPanel?.classList.contains("open")
     ) {
         hideSettings();
     }
 });
 
-// Close with Escape
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && settingsPanel.classList.contains("open")) {
+document.addEventListener("click", event => {
+    if (
+        settingsPanel?.classList.contains("open") &&
+        !settingsPanel.contains(event.target) &&
+        !settingsBtn?.contains(event.target)
+    ) {
         hideSettings();
     }
 });
 
-// DARK MODE
-if (darkModeToggle) {
-    darkModeToggle.addEventListener("change", () => {
-        if (darkModeToggle.checked) {
-            document.body.classList.add("dark-mode");
-            document.body.classList.remove("light-mode");
+const settingInputs = [
+    [themeSelect, "theme"],
+    [accentSelect, "accent"],
+    [chatBackgroundSelect, "chatBackground"],
 
-            lightModeToggle.checked = false;
+    [
+        fontSizeSetting,
+        "fontSize",
+        value => Math.min(20, Math.max(12, Number(value)))
+    ],
+
+    [compactModeToggle, "compact", null, true],
+    [timestampsToggle, "timestamps", null, true],
+    [enterToSendToggle, "enterToSend", null, true],
+    [soundToggle, "sound", null, true],
+    [browserNotificationsToggle, "browserNotifications", null, true],
+
+    [showOnlineToggle, "showOnline", null, true],
+    [readReceiptsToggle, "readReceipts", null, true],
+    [typingStatusToggle, "typingStatus", null, true],
+
+    [reducedMotionToggle, "reducedMotion", null, true],
+    [highContrastToggle, "highContrast", null, true]
+];
+
+settingInputs.forEach(([element, key, convert, isCheckbox]) => {
+    if (!element) return;
+
+    const updateSetting = () => {
+        jetchatSettings[key] = convert
+            ? convert(element.value)
+            : isCheckbox
+                ? element.checked
+                : element.value;
+
+        saveJetchatSettings();
+    };
+
+    element.addEventListener("input", updateSetting);
+    element.addEventListener("change", updateSetting);
+});
+
+if (browserNotificationsToggle) {
+    browserNotificationsToggle.addEventListener(
+        "change",
+        async () => {
+            if (!browserNotificationsToggle.checked) {
+                jetchatSettings.browserNotifications = false;
+                saveJetchatSettings();
+                return;
+            }
+
+            if (!("Notification" in window)) {
+                jetchatSettings.browserNotifications = false;
+                saveJetchatSettings();
+
+                alert(
+                    "Browser notifications are not supported by this browser."
+                );
+
+                return;
+            }
+
+            if (Notification.permission === "default") {
+                const permission =
+                    await Notification.requestPermission();
+
+                if (permission !== "granted") {
+                    jetchatSettings.browserNotifications = false;
+                    saveJetchatSettings();
+
+                    alert(
+                        "Browser notifications were not allowed."
+                    );
+                }
+            } else if (Notification.permission === "denied") {
+                jetchatSettings.browserNotifications = false;
+                saveJetchatSettings();
+
+                alert(
+                    "Notifications are blocked in your browser settings."
+                );
+            }
         }
+    );
+}
+
+if (resetSettings) {
+    resetSettings.addEventListener("click", () => {
+        jetchatSettings = { ...SETTINGS_DEFAULTS };
+        saveJetchatSettings();
     });
 }
 
-// LIGHT MODE
-if (lightModeToggle) {
-    lightModeToggle.addEventListener("change", () => {
-        if (lightModeToggle.checked) {
-            document.body.classList.add("light-mode");
-            document.body.classList.remove("dark-mode");
+applyJetchatSettings();
 
-            darkModeToggle.checked = false;
+if (window.matchMedia) {
+    const systemTheme = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+    );
+
+    systemTheme.addEventListener?.("change", () => {
+        if (jetchatSettings.theme === "system") {
+            applyJetchatSettings();
         }
     });
 }
-
 // =========================
 // EDIT PROFILE
 // =========================
