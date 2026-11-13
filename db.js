@@ -344,6 +344,12 @@ async function ensureLastSeenColumn() {
     );
 }
 
+async function ensureProfileColorColumn() {
+    await pool.query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT DEFAULT '#5865f2'"
+    );
+}
+
 async function updateLastSeen(username) {
     await ensureLastSeenColumn();
 
@@ -360,6 +366,7 @@ async function updateLastSeen(username) {
 // =========================
 async function getProfile(username) {
     await ensureLastSeenColumn();
+    await ensureProfileColorColumn();
 
     console.log("Searching for username:", username);
 
@@ -370,7 +377,8 @@ async function getProfile(username) {
             avatar,
             bio,
             join_date,
-            last_seen
+            last_seen,
+            profile_color
         FROM users
         WHERE username = $1
         `,
@@ -475,16 +483,18 @@ async function updateAvatar(username, avatar) {
 // =========================
 // UPDATE PROFILE
 // =========================
-async function updateProfile(oldUsername, newUsername, bio) {
+async function updateProfile(oldUsername, newUsername, bio, profileColor) {
+    await ensureProfileColorColumn();
 
     await pool.query(
         `
         UPDATE users
         SET username = $1,
-            bio = $2
-        WHERE username = $3
+            bio = $2,
+            profile_color = $3
+        WHERE username = $4
         `,
-        [newUsername, bio, oldUsername]
+        [newUsername, bio, profileColor, oldUsername]
     );
 
     return {
