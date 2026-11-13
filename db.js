@@ -287,9 +287,30 @@ function deleteMessage(id) {
 }
 
 // =========================
+// LAST SEEN
+// =========================
+async function ensureLastSeenColumn() {
+    await pool.query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ"
+    );
+}
+
+async function updateLastSeen(username) {
+    await ensureLastSeenColumn();
+
+    await pool.query(
+        "UPDATE users SET last_seen = NOW() WHERE username = $1",
+        [username]
+    );
+
+    return { success: true };
+}
+
+// =========================
 // GET PROFILE
 // =========================
 async function getProfile(username) {
+    await ensureLastSeenColumn();
 
     console.log("Searching for username:", username);
 
@@ -299,7 +320,8 @@ async function getProfile(username) {
             username,
             avatar,
             bio,
-            join_date
+            join_date,
+            last_seen
         FROM users
         WHERE username = $1
         `,
@@ -543,6 +565,7 @@ module.exports = {
     loginUser,
 
     getProfile,
+    updateLastSeen,
     updateBio,
     updateAvatar,
     updateProfile,
