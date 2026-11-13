@@ -531,7 +531,7 @@ module.exports = {
     
     editMessage,
     deleteMessage,
-    saveMessages
+    saveMessages,
 
     hasDismissedUpdate,
 dismissUpdate,
