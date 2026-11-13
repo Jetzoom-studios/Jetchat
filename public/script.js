@@ -10,6 +10,7 @@ const unreadByChat = Object.create(null);
 let username = "";
 let currentChat = "global";
 let onlineUsernames = new Set();
+let currentProfileColor = "#5865f2";
 
 // typing system
 let typingUsers = new Set();
@@ -54,6 +55,7 @@ const profileUsername = document.getElementById("profileUsername");
 const profileBio = document.getElementById("profileBio");
 const profileJoinDate = document.getElementById("profileJoinDate");
 const profileAvatar = document.getElementById("profileAvatar");
+const profileBanner = document.getElementById("profileBanner");
 const avatarInput = document.getElementById("avatarInput");
 const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
@@ -835,6 +837,9 @@ function openProfile(targetUsername) {
             profileStatus.textContent = "Last seen unknown";
         }
 
+        currentProfileColor = res.profile.profile_color || "#5865f2";
+        profileBanner.style.background = currentProfileColor;
+
         profileAvatar.src =
             res.profile.avatar || "/default-avatar.png";
 
@@ -1224,6 +1229,7 @@ const closeEditProfile = document.getElementById("closeEditProfile");
 const editAvatarPreview = document.getElementById("editAvatarPreview");
 const editUsername = document.getElementById("editUsername");
 const editBio = document.getElementById("editBio");
+const editBannerColor = document.getElementById("editBannerColor");
 const saveProfileBtn = document.getElementById("saveProfileBtn");
 const changeAvatarBtn = document.getElementById("changeAvatarBtn");
 
@@ -1231,6 +1237,7 @@ editProfileBtn.addEventListener("click", () => {
     editAvatarPreview.src = profileAvatar.src;
     editUsername.value = profileUsername.textContent;
     editBio.value = profileBio.textContent;
+    editBannerColor.value = currentProfileColor;
 
     profileModal.style.display = "none";
     editProfileModal.style.display = "flex";
@@ -1280,7 +1287,8 @@ avatarInput.addEventListener("change", async () => {
 saveProfileBtn.addEventListener("click", () => {
     socket.emit("update profile", {
         username: editUsername.value.trim(),
-        bio: editBio.value.trim()
+        bio: editBio.value.trim(),
+        profileColor: editBannerColor.value
     }, (res) => {
         if (!res.success) {
             return alert(res.message);
@@ -1288,6 +1296,8 @@ saveProfileBtn.addEventListener("click", () => {
 
         profileUsername.textContent = editUsername.value;
         profileBio.textContent = editBio.value;
+        currentProfileColor = editBannerColor.value;
+        profileBanner.style.background = currentProfileColor;
 
         editProfileModal.style.display = "none";
         profileModal.style.display = "flex";
