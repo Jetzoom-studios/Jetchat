@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +8,6 @@
 
     <!-- FAVICON -->
     <link rel="icon" href="/logo.png">
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,59 +16,146 @@
 <!-- LOADING OVERLAY -->
 <!-- ========================= -->
 <div id="loadingOverlay" class="loading-overlay" style="display:none;">
-
     <div class="loading-card">
-
-        <img
-            src="/logo.png"
-            alt="Jetchat Logo"
-            class="loading-logo"
-        >
-
-        <h2 id="loadingTitle">
-            Logging in...
-        </h2>
-
+        <img src="/logo.png" alt="Jetchat Logo" class="loading-logo">
+        <h2 id="loadingTitle">Logging in...</h2>
         <div class="spinner"></div>
-
     </div>
-
 </div>
 
 <!-- ========================= -->
-<!-- SETTINGS PANEL (ADDED ONLY, NOTHING REMOVED) -->
+<!-- SETTINGS PANEL -->
 <!-- ========================= -->
 <div id="settingsPanel" class="settings-panel" style="display:none;">
-
     <div class="settings-card">
 
-        <h2>⚙ Settings</h2>
-
-        <button id="closeSettings">Close</button>
-
-        <div class="setting-item">
-            <label>
-                <input type="checkbox" id="darkModeToggle">
-                Dark Mode
-            </label>
+        <div class="settings-header">
+            <h2>⚙ Settings</h2>
+            <button id="closeSettings" type="button">Close</button>
         </div>
 
-        <div class="setting-item">
-            <label>
-                <input type="checkbox" id="lightModeToggle">
-                Light Mode
-            </label>
+        <!-- APPEARANCE -->
+        <div class="settings-section">
+            <h3>Appearance</h3>
+
+            <div class="setting-item">
+                <label for="themeSelect">Theme</label>
+                <select id="themeSelect">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="system">System default</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <label for="accentSelect">Accent colour</label>
+                <select id="accentSelect">
+                    <option value="#5865f2">Jetchat Blue</option>
+                    <option value="#16a085">Emerald</option>
+                    <option value="#e67e22">Orange</option>
+                    <option value="#e84393">Pink</option>
+                    <option value="#8e44ad">Purple</option>
+                    <option value="#2471a3">Ocean Blue</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <label for="chatBackgroundSelect">Chat background</label>
+                <select id="chatBackgroundSelect">
+                    <option value="default">Default</option>
+                    <option value="plain">Plain</option>
+                    <option value="soft">Soft tint</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- CHAT -->
+        <div class="settings-section">
+            <h3>Chat</h3>
+
+            <div class="setting-item">
+                <label for="fontSizeSetting">Message text size</label>
+                <input id="fontSizeSetting" type="range" min="12" max="20" value="15">
+                <span id="fontSizeValue">15px</span>
+            </div>
+
+            <div class="setting-item">
+                <label for="compactModeToggle">Compact message spacing</label>
+                <input type="checkbox" id="compactModeToggle">
+            </div>
+
+            <div class="setting-item">
+                <label for="timestampsToggle">Show timestamps</label>
+                <input type="checkbox" id="timestampsToggle" checked>
+            </div>
+
+            <div class="setting-item">
+                <label for="enterToSendToggle">Enter to send messages</label>
+                <input type="checkbox" id="enterToSendToggle" checked>
+            </div>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div class="settings-section">
+            <h3>Notifications</h3>
+
+            <div class="setting-item">
+                <label for="soundToggle">Message sounds</label>
+                <input type="checkbox" id="soundToggle" checked>
+            </div>
+
+            <div class="setting-item">
+                <label for="browserNotificationsToggle">Browser notifications</label>
+                <input type="checkbox" id="browserNotificationsToggle">
+            </div>
+        </div>
+
+        <!-- PRIVACY -->
+        <div class="settings-section">
+            <h3>Privacy</h3>
+
+            <div class="setting-item">
+                <label for="showOnlineToggle">Show online status</label>
+                <input type="checkbox" id="showOnlineToggle" checked>
+            </div>
+
+            <div class="setting-item">
+                <label for="readReceiptsToggle">Read receipts</label>
+                <input type="checkbox" id="readReceiptsToggle" checked>
+            </div>
+
+            <div class="setting-item">
+                <label for="typingStatusToggle">Show typing status</label>
+                <input type="checkbox" id="typingStatusToggle" checked>
+            </div>
+        </div>
+
+        <!-- ACCESSIBILITY -->
+        <div class="settings-section">
+            <h3>Accessibility</h3>
+
+            <div class="setting-item">
+                <label for="reducedMotionToggle">Reduce animations</label>
+                <input type="checkbox" id="reducedMotionToggle">
+            </div>
+
+            <div class="setting-item">
+                <label for="highContrastToggle">High contrast</label>
+                <input type="checkbox" id="highContrastToggle">
+            </div>
+        </div>
+
+        <div class="settings-footer">
+            <button id="resetSettings" type="button">Reset settings</button>
         </div>
 
     </div>
-
 </div>
 
 <!-- ========================= -->
 <!-- LOGIN SCREEN -->
 <!-- ========================= -->
 <div id="loginScreen" class="login-screen">
-
     <div class="login-card">
 
         <h1>Jetchat</h1>
@@ -94,7 +181,6 @@
         <button id="signupButton">Sign Up</button>
 
     </div>
-
 </div>
 
 <!-- ========================= -->
@@ -102,7 +188,7 @@
 <!-- ========================= -->
 <div id="app" class="app" style="display:none;">
 
-    <!-- Sidebar -->
+    <!-- SIDEBAR -->
     <aside class="sidebar">
 
         <div class="logo">
@@ -110,63 +196,63 @@
         </div>
 
         <button id="globalChatBtn">
-    🌍 Global Chat
-</button>
+            🌍 Global Chat
+        </button>
 
         <div class="online-section">
-
             <div class="online-title">
                 <span class="dot"></span>
                 Online
             </div>
 
             <div id="onlineUsers"></div>
+        </div>
+
+        <!-- FRIEND REQUESTS -->
+        <div class="friend-requests-section">
+
+            <div class="online-title">
+                Friend Requests
+            </div>
+
+            <div id="friendRequests">
+                No requests
+            </div>
+
+            <!-- FRIENDS -->
+            <div class="friends-section">
+
+                <div class="online-title">
+                    Friends
+                </div>
+
+                <div id="friendsList">
+                    No friends
+                </div>
+
+            </div>
+
+            <!-- DIRECT MESSAGES -->
+            <div class="dm-section">
+
+                <div class="online-title">
+                    Direct Messages
+                </div>
+
+                <div id="dmList">
+                    No conversations
+                </div>
+
+            </div>
 
         </div>
 
-        <div class="friend-requests-section">
-
-    <div class="online-title">
-        Friend Requests
-    </div>
-
-    <div id="friendRequests">
-        No requests
-    </div>
-            <div class="friends-section">
-
-    <div class="online-title">
-        Friends
-    </div>
-
-    <div id="friendsList">
-    No friends
-</div>
-
-</div>
-
-<div class="dm-section">
-
-    <div class="online-title">
-        Direct Messages
-    </div>
-
-    <div id="dmList">
-        No conversations
-    </div>
-
-</div>
-
-</div>
-
     </aside>
 
-    <!-- ========================= -->
     <!-- MAIN -->
-    <!-- ========================= -->
     <main class="main">
 
-        <!-- Top Bar -->
+        <!-- TOP BAR -->
         <header class="topbar">
 
             <div class="chat-title">
@@ -178,9 +264,7 @@
 
         </header>
 
-        <!-- ========================= -->
         <!-- CHAT -->
-        <!-- ========================= -->
         <div id="chatContainer">
 
             <div id="messages">
@@ -195,14 +279,10 @@
 
         </div>
 
-        <!-- ========================= -->
         <!-- TYPING INDICATOR -->
-        <!-- ========================= -->
         <div id="typingIndicator" class="typing-indicator"></div>
 
-        <!-- ========================= -->
         <!-- REPLY PREVIEW -->
-        <!-- ========================= -->
         <div
             id="replyPreview"
             class="reply-preview"
@@ -227,9 +307,7 @@
 
         </div>
 
-        <!-- ========================= -->
         <!-- CHAT INPUT -->
-        <!-- ========================= -->
         <form id="chatForm">
 
             <button type="button" id="emojiButton">😊</button>
@@ -291,21 +369,21 @@
 
         <div class="profile-avatar">
 
-    <img
-        id="profileAvatar"
-        src="/default-avatar.png"
-        alt="Avatar"
-        title="Click to change avatar"
-    >
+            <img
+                id="profileAvatar"
+                src="/default-avatar.png"
+                alt="Avatar"
+                title="Click to change avatar"
+            >
 
-    <input
-        type="file"
-        id="avatarInput"
-        accept="image/*"
-        style="display:none;"
-    >
+            <input
+                type="file"
+                id="avatarInput"
+                accept="image/*"
+                style="display:none;"
+            >
 
-</div>
+        </div>
 
         <h2 id="profileUsername">Username</h2>
 
@@ -322,13 +400,13 @@
 
         </div>
 
-<button id="editProfileBtn">
-    Edit Profile
-</button>
+        <button id="editProfileBtn">
+            Edit Profile
+        </button>
 
-<button id="addFriendBtn">
-    Add Friend
-</button>
+        <button id="addFriendBtn">
+            Add Friend
+        </button>
 
     </div>
 </div>
@@ -376,11 +454,13 @@
         </button>
 
     </div>
-
 </div>
 
-<!-- Socket.IO -->
+<!-- SOCKET.IO -->
 <script src="/socket.io/socket.io.js"></script>
 
-<!-- Jetchat -->
+<!-- JETCHAT -->
 <script src="script.js"></script>
+
+</body>
+</html>
