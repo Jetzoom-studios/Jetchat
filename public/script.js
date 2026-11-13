@@ -6,6 +6,7 @@ const socket = io();
 // =========================
 let isTabActive = true;
 let unreadCount = 0;
+const unreadByChat = Object.create(null);
 let username = "";
 let currentChat = "global";
 let onlineUsernames = new Set();
@@ -41,6 +42,8 @@ const messages = document.getElementById("messages");
 const chatContainer = document.getElementById("chatContainer");
 const onlineCount = document.getElementById("onlineCount");
 const onlineUsersContainer = document.getElementById("onlineUsers");
+const notificationBadge = document.getElementById("notificationBadge");
+const notificationContainer = document.getElementById("notificationContainer");
 const typingIndicator = document.getElementById("typingIndicator");
 
 const emojiButton = document.getElementById("emojiButton");
@@ -233,6 +236,24 @@ signupButton.addEventListener("click", () => {
 });
 
 // =========================
+// CHAT NAVIGATION
+// =========================
+function openConversation(chat) {
+    currentChat = chat;
+
+    document.querySelector(".chat-title h2").textContent =
+        chat === "global" ? "Global Chat" : "DM with " + chat;
+
+    messages.innerHTML = "";
+    lastMessageUser = null;
+    lastMessageElement = null;
+    cancelReply();
+    clearUnreadForChat(chat);
+
+    socket.emit("load chat", chat);
+}
+
+// =========================
 // LOAD FRIENDS
 // =========================
 function loadFriends() {
@@ -254,19 +275,7 @@ function loadFriends() {
             div.style.cursor = "pointer";
 
             div.addEventListener("click", () => {
-                currentChat = friend.friend;
-
-                document.querySelector(".chat-title h2").textContent =
-                    "DM with " + friend.friend;
-
-                messages.innerHTML = "";
-
-                lastMessageUser = null;
-                lastMessageElement = null;
-
-                cancelReply();
-
-                socket.emit("load chat", currentChat);
+                openConversation(friend.friend);
             });
 
             container.appendChild(div);
@@ -320,7 +329,10 @@ chatForm.addEventListener("submit", (e) => {
     cancelReply();
 
     messageInput.value = "";
-    playSound(900);
+
+    if (jetchatSettings.sound) {
+        playSound(900);
+    }
 });
 
 // =========================
@@ -481,8 +493,122 @@ function displayMessage(data) {
     lastMessageElement = message;
 }
 
+function updateUnreadCount() {
+    unreadCount = Object.values(unreadByChat).reduce(
+        (total, count) => total + count,
+        0
+    );
+
+    if (notificationBadge) {
+        notificationBadge.textContent = unreadCount > 99
+            ? "99+"
+            : String(unreadCount);
+        notificationBadge.style.display = unreadCount ? "inline-flex" : "none";
+    }
+
+    document.title = unreadCount
+        ? `(${unreadCount}) Jetchat`
+        : "Jetchat";
+}
+
+function clearUnreadForChat(chat) {
+    const chatId = chat === "global"
+        ? "global"
+        : [username, chat].sort().join("|");
+
+    delete unreadByChat[chatId];
+    updateUnreadCount();
+}
+
+function showInAppNotification(title, body, chat) {
+    if (!notificationContainer) return;
+
+    const toast = document.createElement("button");
+    toast.type = "button";
+    toast.className = "jetchat-toast";
+
+    const heading = document.createElement("strong");
+    heading.textContent = title;
+
+    const preview = document.createElement("span");
+    preview.textContent = body;
+
+    toast.append(heading, preview);
+
+    toast.addEventListener("click", () => {
+        if (chat === "friends") {
+            loadFriendRequests();
+        } else {
+            openConversation(chat);
+        }
+        toast.remove();
+    });
+
+    notificationContainer.prepend(toast);
+
+    while (notificationContainer.children.length > 4) {
+        notificationContainer.lastElementChild.remove();
+    }
+
+    window.setTimeout(() => {
+        toast.classList.add("toast-dismiss");
+        window.setTimeout(() => toast.remove(), 250);
+    }, 6500);
+}
+
+function notifyIncomingMessage(data) {
+    if (!data || data.system || data.username === username) return;
+
+    const chatId = data.chat || "global";
+    const expectedChat = currentChat === "global"
+        ? "global"
+        : [username, currentChat].sort().join("|");
+    const isCurrentChat = chatId === expectedChat;
+    const isVisible = isTabActive && document.visibilityState === "visible";
+
+    if (isCurrentChat && isVisible) return;
+
+    unreadByChat[chatId] = (unreadByChat[chatId] || 0) + 1;
+    updateUnreadCount();
+
+    const chatName = chatId === "global"
+        ? "Global chat"
+        : data.username;
+
+    showInAppNotification(
+        `New message from ${chatName}`,
+        String(data.text || "").slice(0, 120),
+        chatId === "global" ? "global" : data.username
+    );
+
+    if (jetchatSettings.sound) {
+        try {
+            playSound(680);
+        } catch (error) {
+            console.warn("Notification sound could not play:", error);
+        }
+    }
+
+    if (
+        jetchatSettings.browserNotifications &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+    ) {
+        try {
+            new Notification(`New message from ${chatName}`, {
+                body: String(data.text || "").slice(0, 140),
+                icon: "/logo.png",
+                tag: `jetchat-${chatId}`
+            });
+        } catch (error) {
+            console.warn("Browser notification could not be shown:", error);
+        }
+    }
+}
+
 function handleIncomingMessage(data) {
     displayMessage(data);
+    notifyIncomingMessage(data);
 
     if (
         data &&
@@ -491,11 +617,27 @@ function handleIncomingMessage(data) {
         data.username === currentChat &&
         data.chat === [username, currentChat].sort().join("|") &&
         jetchatSettings.readReceipts &&
+        isTabActive &&
         document.visibilityState === "visible"
     ) {
         socket.emit("mark chat read", currentChat);
     }
 }
+
+document.addEventListener("visibilitychange", () => {
+    isTabActive = document.visibilityState === "visible";
+
+    if (isTabActive) {
+        clearUnreadForChat(currentChat);
+
+        if (
+            currentChat !== "global" &&
+            jetchatSettings.readReceipts
+        ) {
+            socket.emit("mark chat read", currentChat);
+        }
+    }
+});
 
 socket.on("chat message", handleIncomingMessage);
 socket.on("chat message received", handleIncomingMessage);
@@ -634,6 +776,8 @@ socket.on("chat history", (history) => {
     history.forEach(msg => {
         displayMessage(msg);
     });
+
+    clearUnreadForChat(currentChat);
 
     if (
         currentChat !== "global" &&
@@ -1220,23 +1364,42 @@ socket.on("friends updated", () => {
     loadFriends();
 });
 
+socket.on("new friend request", data => {
+    loadFriendRequests();
+
+    const sender = data?.sender || "Someone";
+    showInAppNotification(
+        "New friend request",
+        `${sender} sent you a friend request.`,
+        "friends"
+    );
+
+    if (jetchatSettings.sound) {
+        try {
+            playSound(560);
+        } catch (error) {
+            console.warn("Notification sound could not play:", error);
+        }
+    }
+
+    if (
+        jetchatSettings.browserNotifications &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+    ) {
+        new Notification("New friend request", {
+            body: `${sender} sent you a friend request.`,
+            icon: "/logo.png",
+            tag: "jetchat-friend-request"
+        });
+    }
+});
+
 // =========================
 // GLOBAL CHAT BUTTON
 // =========================
 globalChatBtn.addEventListener("click", () => {
-    currentChat = "global";
-
-    document.querySelector(".chat-title h2").textContent =
-        "Global Chat";
-
-    messages.innerHTML = "";
-
-    lastMessageUser = null;
-    lastMessageElement = null;
-
-    cancelReply();
-
-    socket.emit("load chat", "global");
+    openConversation("global");
 });
 
 // =========================
