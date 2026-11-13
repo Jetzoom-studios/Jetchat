@@ -367,7 +367,7 @@
 
         <button id="closeProfile" class="close-profile">✕</button>
 
-        <div class="profile-banner"></div>
+        <div id="profileBanner" class="profile-banner"></div>
 
         <div class="profile-avatar">
 
@@ -455,6 +455,15 @@
             placeholder="Tell people about yourself..."
             maxlength="200"
         ></textarea>
+
+        <label for="editBannerColor" class="profile-color-label">
+            Profile banner colour
+        </label>
+        <input
+            type="color"
+            id="editBannerColor"
+            value="#5865f2"
+        >
 
         <button id="saveProfileBtn">
             Save Changes
