@@ -373,10 +373,17 @@ socket.on("dismiss update", async (updateId, callback) => {
         }
 
         try {
+            const profileColor =
+                typeof data.profileColor === "string" &&
+                /^#[0-9a-fA-F]{6}$/.test(data.profileColor)
+                    ? data.profileColor
+                    : "#5865f2";
+
             const result = await db.updateProfile(
                 socket.username,
                 data.username,
-                data.bio
+                data.bio,
+                profileColor
             );
 
             if (result.success) {
