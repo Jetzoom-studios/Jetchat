@@ -589,7 +589,9 @@ closeProfile.addEventListener("click", () => {
 
 /* =========================
    SETTINGS + THEME SYSTEM
+   FIXED
 ========================= */
+
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettings = document.getElementById("closeSettings");
@@ -597,45 +599,79 @@ const closeSettings = document.getElementById("closeSettings");
 const darkModeToggle = document.getElementById("darkModeToggle");
 const lightModeToggle = document.getElementById("lightModeToggle");
 
+function openSettings() {
+    settingsPanel.style.display = "flex";
+
+    requestAnimationFrame(() => {
+        settingsPanel.classList.add("open");
+    });
+}
+
+function hideSettings() {
+    settingsPanel.classList.remove("open");
+
+    setTimeout(() => {
+        if (!settingsPanel.classList.contains("open")) {
+            settingsPanel.style.display = "none";
+        }
+    }, 260);
+}
+
 if (settingsBtn && settingsPanel) {
-    settingsBtn.addEventListener("click", () => {
-        settingsPanel.style.display =
-            settingsPanel.style.display === "block" ? "none" : "block";
+    settingsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+
+        if (settingsPanel.classList.contains("open")) {
+            hideSettings();
+        } else {
+            openSettings();
+        }
     });
 }
 
 if (closeSettings) {
-    closeSettings.addEventListener("click", () => {
-        settingsPanel.style.display = "none";
-    });
+    closeSettings.addEventListener("click", hideSettings);
 }
 
+// Close when clicking outside
+document.addEventListener("click", (e) => {
+    if (
+        settingsPanel &&
+        settingsPanel.classList.contains("open") &&
+        !settingsPanel.contains(e.target) &&
+        e.target !== settingsBtn
+    ) {
+        hideSettings();
+    }
+});
+
+// Close with Escape
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && settingsPanel.classList.contains("open")) {
+        hideSettings();
+    }
+});
+
+// DARK MODE
 if (darkModeToggle) {
     darkModeToggle.addEventListener("change", () => {
         if (darkModeToggle.checked) {
             document.body.classList.add("dark-mode");
             document.body.classList.remove("light-mode");
 
-            if (lightModeToggle) {
-                lightModeToggle.checked = false;
-            }
-        } else {
-            document.body.classList.remove("dark-mode");
+            lightModeToggle.checked = false;
         }
     });
 }
 
+// LIGHT MODE
 if (lightModeToggle) {
     lightModeToggle.addEventListener("change", () => {
         if (lightModeToggle.checked) {
             document.body.classList.add("light-mode");
             document.body.classList.remove("dark-mode");
 
-            if (darkModeToggle) {
-                darkModeToggle.checked = false;
-            }
-        } else {
-            document.body.classList.remove("light-mode");
+            darkModeToggle.checked = false;
         }
     });
 }
