@@ -236,9 +236,19 @@
             <!-- DIRECT MESSAGES -->
             <div class="dm-section">
 
-                <div class="online-title">
-                    Direct Messages
+                <div class="online-title dm-heading">
+                    <span>Direct Messages</span>
+                    <span id="dmConversationCount">0</span>
                 </div>
+
+                <input
+                    id="dmSearchInput"
+                    class="dm-search-input"
+                    type="search"
+                    placeholder="Search conversations..."
+                    autocomplete="off"
+                    aria-label="Search conversations"
+                >
 
                 <div id="dmList">
                     No conversations
@@ -260,6 +270,15 @@
                 <h2>Global Chat</h2>
                 <span id="onlineCount">• 0 online</span>
             </div>
+
+            <input
+                id="messageSearchInput"
+                class="message-search-input"
+                type="search"
+                placeholder="Search messages..."
+                autocomplete="off"
+                aria-label="Search messages in this conversation"
+            >
 
             <span id="notificationBadge" class="notification-badge" style="display:none;" aria-live="polite">0</span>
             <button id="settingsBtn">⚙</button>
@@ -389,6 +408,10 @@
 
         <h2 id="profileUsername">Username</h2>
 
+        <p id="profileCustomStatus" class="profile-custom-status" data-status="">
+            No custom status
+        </p>
+
         <p id="profileBio">
             No bio yet.
         </p>
@@ -455,6 +478,17 @@
             placeholder="Tell people about yourself..."
             maxlength="200"
         ></textarea>
+
+        <label for="editCustomStatus" class="profile-color-label">
+            Custom status
+        </label>
+        <input
+            type="text"
+            id="editCustomStatus"
+            placeholder="What are you up to?"
+            maxlength="60"
+            autocomplete="off"
+        >
 
         <label for="editBannerColor" class="profile-color-label">
             Profile banner colour

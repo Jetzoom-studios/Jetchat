@@ -65,15 +65,9 @@ app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
             return res.status(400).json({ success: false });
         }
 
-        const username = req.body.username;
-
-        if (!username) {
-            return res.status(400).json({ success: false });
-        }
-
+        // The authenticated Socket.IO event saves the returned path to the
+        // currently logged-in account. Do not trust a username from this upload.
         const avatar = "/uploads/" + req.file.filename;
-
-        await db.updateAvatar(username, avatar);
 
         res.json({
             success: true,
@@ -347,15 +341,60 @@ socket.on("dismiss update", async (updateId, callback) => {
     // GET PROFILE
     // =========================
     socket.on("get profile", async (username, callback) => {
-        console.log("GET PROFILE EVENT:", username);
+        if (typeof username !== "string" || !username.trim()) {
+            return callback({ success: false });
+        }
 
         try {
-            const result = await db.getProfile(username);
+            const result = await db.getProfile(username.trim());
             callback(result);
         } catch (err) {
-            console.error(err);
-
+            console.error("Get profile error:", err);
             callback({ success: false });
+        }
+    });
+
+    // =========================
+    // LOAD DM CONVERSATIONS
+    // =========================
+    socket.on("get dm conversations", async (callback) => {
+        if (!socket.username) {
+            return callback({ success: false, conversations: [] });
+        }
+
+        try {
+            const conversations = await db.getDMConversations(socket.username);
+            callback({ success: true, conversations });
+        } catch (err) {
+            console.error("Load DM conversations error:", err);
+            callback({ success: false, conversations: [] });
+        }
+    });
+
+    // =========================
+    // PIN / UNPIN DM CONVERSATION
+    // =========================
+    socket.on("set dm pin", async (data, callback) => {
+        const respond = result => {
+            if (typeof callback === "function") callback(result);
+        };
+
+        if (!socket.username || !data || typeof data.peer !== "string") {
+            return respond({ success: false, message: "Invalid conversation." });
+        }
+
+        try {
+            const peer = data.peer.trim();
+
+            if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
+                return respond({ success: false, message: "You can only pin an existing friend's conversation." });
+            }
+
+            await db.setDMPin(socket.username, peer, data.pinned === true);
+            respond({ success: true });
+        } catch (err) {
+            console.error("Set DM pin error:", err);
+            respond({ success: false, message: "Couldn't update pinned conversation." });
         }
     });
 
@@ -405,6 +444,15 @@ socket.on("dismiss update", async (updateId, callback) => {
         }
 
         try {
+            if (!data || typeof data.username !== "string" || !data.username.trim()) {
+                return callback({ success: false, message: "Enter a valid username." });
+            }
+
+            const newUsername = data.username.trim();
+            const bio = typeof data.bio === "string" ? data.bio.trim().slice(0, 200) : "";
+            const customStatus = typeof data.customStatus === "string"
+                ? data.customStatus.trim().slice(0, 60)
+                : "";
             const profileColor =
                 typeof data.profileColor === "string" &&
                 /^#[0-9a-fA-F]{6}$/.test(data.profileColor)
@@ -413,14 +461,15 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             const result = await db.updateProfile(
                 socket.username,
-                data.username,
-                data.bio,
-                profileColor
+                newUsername,
+                bio,
+                profileColor,
+                customStatus
             );
 
             if (result.success) {
                 const oldUsername = socket.username;
-                const newUsername = data.username;
+                const newUsername = data.username.trim();
 
                 // Keep every active tab for this account in sync after a rename.
                 for (const activeSocket of io.sockets.sockets.values()) {

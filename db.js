@@ -319,6 +319,100 @@ async function loadChat(chat, username, peer) {
 
 
 // =========================
+// DIRECT MESSAGE CONVERSATIONS + PINS
+// =========================
+async function ensureDMPinsTable() {
+    await runSchemaMigration(
+        "dm_pins.table",
+        `CREATE TABLE IF NOT EXISTS dm_pins (
+            owner_username TEXT NOT NULL,
+            peer_username TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (owner_username, peer_username)
+        )`
+    );
+}
+
+async function getDMConversations(username) {
+    await ensureDMPinsTable();
+    await ensureDMStatusColumns();
+
+    const result = await pool.query(
+        `
+        WITH conversation_messages AS (
+            SELECT
+                CASE
+                    WHEN username = $1 THEN recipient
+                    ELSE username
+                END AS peer,
+                id,
+                username AS last_sender,
+                text AS last_message,
+                time AS last_message_time,
+                COUNT(*) FILTER (
+                    WHERE recipient = $1 AND read_at IS NULL
+                ) OVER (
+                    PARTITION BY CASE
+                        WHEN username = $1 THEN recipient
+                        ELSE username
+                    END
+                ) AS unread_count
+            FROM messages
+            WHERE (username = $1 OR recipient = $1)
+              AND recipient IS NOT NULL
+        ),
+        latest_conversations AS (
+            SELECT DISTINCT ON (peer)
+                peer,
+                id AS last_message_id,
+                last_sender,
+                last_message,
+                last_message_time,
+                unread_count
+            FROM conversation_messages
+            WHERE peer IS NOT NULL AND peer <> ''
+            ORDER BY peer, id DESC
+        )
+        SELECT
+            latest_conversations.*,
+            (dm_pins.peer_username IS NOT NULL) AS pinned
+        FROM latest_conversations
+        LEFT JOIN dm_pins
+            ON dm_pins.owner_username = $1
+           AND dm_pins.peer_username = latest_conversations.peer
+        ORDER BY
+            (dm_pins.peer_username IS NOT NULL) DESC,
+            latest_conversations.last_message_id DESC
+        `,
+        [username]
+    );
+
+    return result.rows;
+}
+
+async function setDMPin(username, peer, pinned) {
+    await ensureDMPinsTable();
+
+    if (pinned) {
+        await pool.query(
+            `
+            INSERT INTO dm_pins (owner_username, peer_username)
+            VALUES ($1, $2)
+            ON CONFLICT (owner_username, peer_username) DO NOTHING
+            `,
+            [username, peer]
+        );
+    } else {
+        await pool.query(
+            "DELETE FROM dm_pins WHERE owner_username = $1 AND peer_username = $2",
+            [username, peer]
+        );
+    }
+
+    return { success: true };
+}
+
+// =========================
 // EDIT MESSAGE
 // =========================
 function editMessage(id, newText) {
@@ -394,10 +488,18 @@ async function updateLastSeen(username) {
 // =========================
 // GET PROFILE
 // =========================
+async function ensureCustomStatusColumn() {
+    await runSchemaMigration(
+        "users.custom_status",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status TEXT NOT NULL DEFAULT ''"
+    );
+}
+
 async function getProfile(username) {
     await ensureLastSeenColumn();
     await ensureProfileColorColumn();
     await ensureShowOnlineColumn();
+    await ensureCustomStatusColumn();
 
     console.log("Searching for username:", username);
 
@@ -410,7 +512,8 @@ async function getProfile(username) {
             join_date,
             last_seen,
             profile_color,
-            show_online
+            show_online,
+            custom_status
         FROM users
         WHERE username = $1
         `,
@@ -529,18 +632,20 @@ async function updateAvatar(username, avatar) {
 // =========================
 // UPDATE PROFILE
 // =========================
-async function updateProfile(oldUsername, newUsername, bio, profileColor) {
+async function updateProfile(oldUsername, newUsername, bio, profileColor, customStatus) {
     await ensureProfileColorColumn();
+    await ensureCustomStatusColumn();
 
     await pool.query(
         `
         UPDATE users
         SET username = $1,
             bio = $2,
-            profile_color = $3
-        WHERE username = $4
+            profile_color = $3,
+            custom_status = $4
+        WHERE username = $5
         `,
-        [newUsername, bio, profileColor, oldUsername]
+        [newUsername, bio, profileColor, customStatus, oldUsername]
     );
 
     return {
@@ -670,6 +775,8 @@ module.exports = {
     loginUser,
 
     getProfile,
+    getDMConversations,
+    setDMPin,
     updateLastSeen,
     updateShowOnline,
     updateBio,
