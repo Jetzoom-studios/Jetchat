@@ -1360,3 +1360,40 @@ body {
         bottom: 96px;
     }
 }
+
+/* =========================
+   JETCHAT SETTINGS FIX
+========================= */
+
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+
+    width: 320px;
+    height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+
+    transform: translateX(100%);
+    visibility: hidden;
+    pointer-events: none;
+
+    transition:
+        transform 0.25s ease,
+        visibility 0.25s ease;
+
+    z-index: 999999;
+}
+
+.settings-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.settings-card {
+    width: 100%;
+    padding: 24px;
+}
