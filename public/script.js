@@ -219,6 +219,9 @@ loginButton.addEventListener("click", () => {
 
     socket.emit("login", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
+
+        jetchatSettings.showOnline = res.user.show_online !== false;
+        saveJetchatSettings();
         startChat(user);
     });
 });
@@ -812,7 +815,9 @@ function openProfile(targetUsername) {
 
         const profileStatus = document.getElementById("profileStatus");
 
-        if (onlineUsernames.has(res.profile.username)) {
+        if (res.profile.show_online === false) {
+            profileStatus.textContent = "Status hidden";
+        } else if (onlineUsernames.has(res.profile.username)) {
             profileStatus.textContent = "Online now";
         } else if (res.profile.last_seen) {
             const lastSeenDate = new Date(res.profile.last_seen);
@@ -1149,6 +1154,10 @@ settingInputs.forEach(([element, key, convert, isCheckbox]) => {
                 : element.value;
 
         saveJetchatSettings();
+
+        if (key === "showOnline" && username) {
+            socket.emit("set presence visibility", jetchatSettings.showOnline);
+        }
     };
 
     element.addEventListener("input", updateSetting);
