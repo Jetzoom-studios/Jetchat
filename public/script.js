@@ -1,3 +1,4 @@
+
 const socket = io();
 
 // =========================
@@ -132,6 +133,16 @@ function findMessageElement(text, username) {
     });
 }
 
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
 // =========================
 // REPLY SYSTEM
 // =========================
@@ -155,8 +166,8 @@ function startReply(data) {
     replyingTo = data;
 
     replyPreview.innerHTML = `
-        <strong>Replying to ${data.username}</strong><br>
-        ${data.text}
+        <strong>Replying to ${escapeHTML(data.username)}</strong><br>
+        ${escapeHTML(data.text)}
         <button id="cancelReply" type="button" style="float:right;cursor:pointer;">✕</button>
     `;
 
@@ -290,15 +301,15 @@ chatForm.addEventListener("submit", (e) => {
     if (!text) return;
 
     socket.emit("chat message", {
-    username,
-    text,
-    chat: currentChat,
-    replyTo: replyingTo,
-    time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-    })
-});
+        username,
+        text,
+        chat: currentChat,
+        replyTo: replyingTo,
+        time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        })
+    });
 
     replyingTo = null;
     replyPreview.style.display = "none";
@@ -313,18 +324,18 @@ chatForm.addEventListener("submit", (e) => {
 function displayMessage(data) {
 
     if (
-    currentChat === "global"
-        ? data.chat !== "global"
-        : !data.chat.includes(currentChat)
-) {
-    return;
-}
+        currentChat === "global"
+            ? data.chat !== "global"
+            : !data.chat.includes(currentChat)
+    ) {
+        return;
+    }
 
     const message = document.createElement("div");
 
     if (data.system) {
         message.className = "system-wrapper";
-        message.innerHTML = `<div class="system-message">${data.text}</div>`;
+        message.innerHTML = `<div class="system-message">${escapeHTML(data.text)}</div>`;
 
         messages.appendChild(message);
         scrollChatToBottom(true);
@@ -342,11 +353,18 @@ function displayMessage(data) {
         !lastMessageElement.classList.contains("system-wrapper");
 
     message.innerHTML = `
-        ${isGrouped ? "" : `<div class="username clickable">${data.username}</div>`}
+        ${isGrouped ? "" : `<div class="username clickable">${escapeHTML(data.username)}</div>`}
 
         <div class="message-body">
-            <div class="text">${data.text}</div>
-            <div class="time">${data.time}</div>
+            ${data.replyTo ? `
+                <div class="reply-reference" style="border-left:3px solid #5865F2;padding:4px 8px;margin-bottom:6px;background:rgba(88,101,242,0.10);border-radius:4px;font-size:12px;">
+                    <strong>Replying to ${escapeHTML(data.replyTo.username || "Unknown")}</strong>
+                    <div>${escapeHTML(data.replyTo.text || "Original message unavailable")}</div>
+                </div>
+            ` : ""}
+
+            <div class="text">${escapeHTML(data.text)}</div>
+            <div class="time">${escapeHTML(data.time)}</div>
         </div>
 
         <div class="message-toolbar">
@@ -359,18 +377,22 @@ function displayMessage(data) {
 
     const usernameElement = message.querySelector(".username");
 
-if (usernameElement) {
-    usernameElement.style.cursor = "pointer";
+    if (usernameElement) {
+        usernameElement.style.cursor = "pointer";
 
-    usernameElement.onclick = () => {
-        console.log("CLICKED:", data.username);
-        alert("Clicked " + data.username);
-        openProfile(data.username);
-    };
-}
+        usernameElement.onclick = () => {
+            console.log("CLICKED:", data.username);
+            alert("Clicked " + data.username);
+            openProfile(data.username);
+        };
+    }
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
-        startReply({ username: data.username, text: data.text });
+        startReply({
+            id: data.id,
+            username: data.username,
+            text: data.text
+        });
     });
 
     message.querySelector(".edit-btn").addEventListener("click", () => {
@@ -407,7 +429,7 @@ if (usernameElement) {
     }
 
     lastMessageUser = data.username;
-lastMessageElement = message;
+    lastMessageElement = message;
 }
 
 socket.on("chat message", displayMessage);
@@ -484,7 +506,6 @@ socket.on("chat history", (history) => {
 
 function openProfile(targetUsername) {
 
-
     console.log("Opening profile:", targetUsername);
 
     socket.emit("get profile", targetUsername, (res) => {
@@ -504,10 +525,10 @@ function openProfile(targetUsername) {
             res.profile.avatar || "/default-avatar.png";
 
         if (res.profile.username === username) {
-    addFriendBtn.style.display = "none";
-} else {
-    addFriendBtn.style.display = "block";
-}
+            addFriendBtn.style.display = "none";
+        } else {
+            addFriendBtn.style.display = "block";
+        }
 
         profileModal.style.display = "flex";
 
@@ -713,52 +734,49 @@ function loadFriendRequests() {
 
         requests.forEach(request => {
 
-    const div = document.createElement("div");
+            const div = document.createElement("div");
 
-    div.innerHTML = `
-        ${request.sender}
-        <button class="acceptFriendBtn">
-            Accept
-        </button>
-    `;
+            div.innerHTML = `
+                ${escapeHTML(request.sender)}
+                <button class="acceptFriendBtn">
+                    Accept
+                </button>
+            `;
 
-    const button =
-        div.querySelector(".acceptFriendBtn");
+            const button =
+                div.querySelector(".acceptFriendBtn");
 
-    button.addEventListener("click", () => {
+            button.addEventListener("click", () => {
 
-        socket.emit(
-            "accept friend request",
-            request.sender,
-            (res) => {
+                socket.emit(
+                    "accept friend request",
+                    request.sender,
+                    (res) => {
 
-                if (!res.success) {
-                    return alert("Couldn't accept request.");
-                }
+                        if (!res.success) {
+                            return alert("Couldn't accept request.");
+                        }
 
-                alert("Friend request accepted!");
+                        alert("Friend request accepted!");
 
-                loadFriendRequests();
+                        loadFriendRequests();
 
-            }
-        );
+                    }
+                );
 
-    });
+            });
 
-    container.appendChild(div);
+            container.appendChild(div);
 
-});
+        });
 
     });
 
 }
 
-
-
 // =========================
 // LIVE FRIEND UPDATES
 // ========================
-
 socket.on("friends updated", () => {
 
     loadFriendRequests();
