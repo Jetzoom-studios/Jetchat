@@ -2661,3 +2661,25 @@ body.light-mode .emoji-picker {
         scroll-behavior: auto !important;
     }
 }
+
+
+/* Phase 2: account presence and profile last-seen status */
+#onlineUsers .user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 11px;
+    color: inherit;
+    cursor: pointer;
+}
+
+#onlineUsers .user:focus-visible {
+    outline: 2px solid var(--jc-accent, #7185ff);
+    outline-offset: 2px;
+}
+
+#profileStatus {
+    color: var(--jc-muted, #91a0b8);
+    font-size: 13px;
+}
