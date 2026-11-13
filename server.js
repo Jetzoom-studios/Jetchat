@@ -201,6 +201,8 @@ io.on("connection", (socket) => {
             users[socket.id] = result.user.username;
             socket.accountId = result.user.id;
             onlineUsers[result.user.username] = socket.id;
+            // A username room delivers DMs to every active session for this account.
+            socket.join(`user:${result.user.username}`);
 
             io.emit("online count", Object.keys(users).length);
 
@@ -360,7 +362,18 @@ socket.on("dismiss update", async (updateId, callback) => {
             );
 
             if (result.success) {
-                socket.username = data.username;
+                const oldUsername = socket.username;
+                const newUsername = data.username;
+
+                socket.leave(`user:${oldUsername}`);
+                socket.join(`user:${newUsername}`);
+
+                if (onlineUsers[oldUsername] === socket.id) {
+                    delete onlineUsers[oldUsername];
+                }
+
+                socket.username = newUsername;
+                onlineUsers[newUsername] = socket.id;
             }
 
             callback(result);
@@ -556,9 +569,9 @@ socket.on("dismiss update", async (updateId, callback) => {
             // Deliver to the sender and the actual recipient, not the chat ID.
             socket.emit("chat message", msg);
 
-            if (onlineUsers[peer]) {
-                io.to(onlineUsers[peer]).emit("chat message", msg);
-            }
+            // Send to the recipient's account room, not a single socket ID.
+            // This also supports multiple tabs/devices logged into the same account.
+            io.to(`user:${peer}`).emit("chat message", msg);
         } catch (err) {
             console.error("Direct message error:", err);
         }
@@ -732,8 +745,19 @@ socket.on("dismiss update", async (updateId, callback) => {
                 text: `🔴 ${username} left the chat`
             });
 
-            if (socket.username) {
-                delete onlineUsers[socket.username];
+            if (socket.username && onlineUsers[socket.username] === socket.id) {
+                // Do not mark the account offline if another tab is still connected.
+                const remainingSocket = [...io.sockets.sockets.values()]
+                    .find(activeSocket =>
+                        activeSocket.id !== socket.id &&
+                        activeSocket.username === socket.username
+                    );
+
+                if (remainingSocket) {
+                    onlineUsers[socket.username] = remainingSocket.id;
+                } else {
+                    delete onlineUsers[socket.username];
+                }
             }
 
             delete users[socket.id];
