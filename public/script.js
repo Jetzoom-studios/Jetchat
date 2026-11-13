@@ -197,6 +197,7 @@ function startChat(user) {
 
     loadFriendRequests();
     loadFriends();
+    loadUpdateNotice();
 
     messageInput.focus();
 }
@@ -1117,3 +1118,75 @@ globalChatBtn.addEventListener("click", () => {
 
     socket.emit("load chat", "global");
 });
+
+// =========================
+// WHAT'S NEW UPDATE SYSTEM
+// =========================
+
+const updateModal = document.getElementById("updateModal");
+const updateTitle = document.getElementById("updateTitle");
+const updateVersion = document.getElementById("updateVersion");
+const updateDate = document.getElementById("updateDate");
+const updateItems = document.getElementById("updateItems");
+
+const updateOk = document.getElementById("updateOk");
+const updateClose = document.getElementById("updateClose");
+
+let currentUpdateId = null;
+let dismissingUpdate = false;
+
+function loadUpdateNotice() {
+    socket.emit("get current update", (res) => {
+        if (!res || !res.success || !res.update) return;
+
+        const update = res.update;
+
+        currentUpdateId = update.id;
+
+        updateTitle.textContent = update.title;
+        updateVersion.textContent = "Version " + update.version;
+        updateDate.textContent = update.date;
+
+        updateItems.innerHTML = "";
+
+        update.items.forEach(item => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            updateItems.appendChild(li);
+        });
+
+        updateModal.style.display = "flex";
+    });
+}
+
+function dismissCurrentUpdate() {
+    if (!currentUpdateId || dismissingUpdate) return;
+
+    dismissingUpdate = true;
+
+    updateOk.disabled = true;
+    updateClose.disabled = true;
+
+    socket.emit("dismiss update", currentUpdateId, (res) => {
+        dismissingUpdate = false;
+
+        updateOk.disabled = false;
+        updateClose.disabled = false;
+
+        if (!res || !res.success) {
+            alert("Couldn't save your update preference. Please try again.");
+            return;
+        }
+
+        updateModal.style.display = "none";
+        currentUpdateId = null;
+    });
+}
+
+if (updateOk) {
+    updateOk.addEventListener("click", dismissCurrentUpdate);
+}
+
+if (updateClose) {
+    updateClose.addEventListener("click", dismissCurrentUpdate);
+}
