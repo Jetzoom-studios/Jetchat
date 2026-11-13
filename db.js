@@ -364,6 +364,7 @@ async function getDMConversations(username) {
         latest_conversations AS (
             SELECT DISTINCT ON (peer)
                 peer,
+                id AS last_message_id,
                 last_sender,
                 last_message,
                 last_message_time,
@@ -381,8 +382,7 @@ async function getDMConversations(username) {
            AND dm_pins.peer_username = latest_conversations.peer
         ORDER BY
             (dm_pins.peer_username IS NOT NULL) DESC,
-            latest_conversations.last_message_time DESC NULLS LAST,
-            latest_conversations.peer ASC
+            latest_conversations.last_message_id DESC
         `,
         [username]
     );
