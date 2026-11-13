@@ -2683,3 +2683,14 @@ body.light-mode .emoji-picker {
     color: var(--jc-muted, #91a0b8);
     font-size: 13px;
 }
+
+
+/* Phase 2: compact sent / delivered / read indicators */
+.message-status {
+    margin-top: 3px;
+    color: var(--jc-muted, #91a0b8);
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: right;
+    user-select: none;
+}
