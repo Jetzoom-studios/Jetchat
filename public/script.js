@@ -1,215 +1,274 @@
-```javascript
-        messageInput.value += e.textContent;
-        messageInput.focus();
-    });
-});
-
-document.addEventListener("click", (e) => {
-    if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
-        emojiPicker.style.display = "none";
-    }
-});
+const socket = io();
 
 // =========================
-// SEND MESSAGE
+// STATE
 // =========================
-chatForm.addEventListener("submit", (e) => {
-    e.preventDefault();
+let isTabActive = true;
+let unreadCount = 0;
+let username = "";
+let currentChat = "global";
 
-    const text = messageInput.value.trim();
-    if (!text) return;
+// typing system
+let typingUsers = new Set();
+let typingTimeout;
+let typingSent = false;
 
-    socket.emit("chat message", {
-        username,
-        text,
-        chat: currentChat,
-        replyTo: replyingTo,
-        time: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-        })
-    });
+// reply system
+let replyingTo = null;
+let replyPreview;
 
-    replyingTo = null;
-    replyPreview.style.display = "none";
-
-    messageInput.value = "";
-    playSound(900);
-});
+// Discord grouping
+let lastMessageUser = null;
+let lastMessageElement = null;
 
 // =========================
-// RECEIVE MESSAGES
+// DOM ELEMENTS
 // =========================
-function displayMessage(data) {
+const loginScreen = document.getElementById("loginScreen");
+const app = document.getElementById("app");
 
-    const wasNearBottom = chatContainer
-        ? chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 140
-        : true;
+const usernameInput = document.getElementById("usernameInput");
+const passwordInput = document.getElementById("passwordInput");
 
-    if (
-        currentChat === "global"
-            ? data.chat !== "global"
-            : !data.chat.includes(currentChat)
-    ) {
-        return;
-    }
+const loginButton = document.getElementById("loginButton");
+const signupButton = document.getElementById("signupButton");
 
-    const message = document.createElement("div");
+const chatForm = document.getElementById("chatForm");
+const messageInput = document.getElementById("messageInput");
+const messages = document.getElementById("messages");
+const chatContainer = document.getElementById("chatContainer");
+const onlineCount = document.getElementById("onlineCount");
+const typingIndicator = document.getElementById("typingIndicator");
 
-    if (data.system) {
-        message.className = "system-wrapper";
-        message.innerHTML = `<div class="system-message">${data.text}</div>`;
+const emojiButton = document.getElementById("emojiButton");
+const emojiPicker = document.getElementById("emojiPicker");
 
-        messages.appendChild(message);
+const profileModal = document.getElementById("profileModal");
+const profileUsername = document.getElementById("profileUsername");
+const profileBio = document.getElementById("profileBio");
+const profileJoinDate = document.getElementById("profileJoinDate");
+const profileAvatar = document.getElementById("profileAvatar");
+const avatarInput = document.getElementById("avatarInput");
+const closeProfile = document.getElementById("closeProfile");
+const editProfileBtn = document.getElementById("editProfileBtn");
 
-        if (wasNearBottom) {
-            scrollChatToBottom(true);
-        }
+const globalChatBtn =
+    document.getElementById("globalChatBtn");
 
-        lastMessageUser = null;
-        lastMessageElement = null;
-        return;
-    }
+// =========================
+// CHAT SCROLL CONTROLS
+// =========================
+function scrollChatToBottom(smooth = true) {
+    if (!chatContainer) return;
 
-    message.className = "message";
-
-    const isGrouped =
-        data.username === lastMessageUser &&
-        lastMessageElement &&
-        !lastMessageElement.classList.contains("system-wrapper");
-
-    message.innerHTML = `
-        ${isGrouped ? "" : `<div class="username clickable">${data.username}</div>`}
-
-        <div class="message-body">
-            <div class="text">${data.text}</div>
-            <div class="time">${data.time}</div>
-        </div>
-
-        <div class="message-toolbar">
-            <button class="reply-btn">↩️</button>
-            <button class="edit-btn">✏️</button>
-            <button class="delete-btn">🗑️</button>
-        </div>
-    `;
-
-    const usernameElement = message.querySelector(".username");
-
-    if (usernameElement) {
-        usernameElement.style.cursor = "pointer";
-
-        usernameElement.onclick = () => {
-            console.log("CLICKED:", data.username);
-            alert("Clicked " + data.username);
-            openProfile(data.username);
-        };
-    }
-
-    message.querySelector(".reply-btn").addEventListener("click", () => {
-        startReply({ username: data.username, text: data.text });
+    chatContainer.scrollTo({
+        top: chatContainer.scrollHeight,
+        behavior: smooth ? "smooth" : "auto"
     });
-
-    message.querySelector(".edit-btn").addEventListener("click", () => {
-        const oldText = data.text;
-        const newText = prompt("Edit message:", oldText);
-
-        if (!newText || newText === oldText) return;
-
-        socket.emit("edit message", { oldText, newText });
-
-        const el = findMessageElement(oldText, data.username);
-        if (el) el.querySelector(".text").textContent = newText;
-    });
-
-    message.querySelector(".delete-btn").addEventListener("click", () => {
-        if (!confirm("Delete this message?")) return;
-
-        socket.emit("delete message", data.text);
-
-        const el = findMessageElement(data.text, data.username);
-        if (el) el.remove();
-    });
-
-    messages.appendChild(message);
-
-    if (wasNearBottom || data.username === username) {
-        scrollChatToBottom(true);
-    }
-
-    lastMessageUser = data.username;
-    lastMessageElement = message;
 }
 
-socket.on("chat message", displayMessage);
+function scrollChatToTop() {
+    if (!chatContainer) return;
 
-socket.on("chat message received", displayMessage);
+    chatContainer.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+// Add the up/down controls inside the scrollable chat area.
+if (chatContainer) {
+    const scrollControls = document.createElement("div");
+    scrollControls.className = "chat-scroll-controls";
+    scrollControls.innerHTML = `
+        <button type="button" class="chat-scroll-up" aria-label="Scroll to top" title="Scroll to top">↑</button>
+        <button type="button" class="chat-scroll-down" aria-label="Scroll to bottom" title="Scroll to bottom">↓</button>
+    `;
+
+    chatContainer.appendChild(scrollControls);
+
+    scrollControls.querySelector(".chat-scroll-up").addEventListener("click", scrollChatToTop);
+    scrollControls.querySelector(".chat-scroll-down").addEventListener("click", () => scrollChatToBottom(true));
+}
+
 
 // =========================
-// SOCKET EVENTS
+// SOUND
 // =========================
-socket.on("chat message edited", (data) => {
-    const el = findMessageElement(data.oldText, data.username);
-    if (el) el.querySelector(".text").textContent = data.newText;
-});
+let audioCtx;
 
-socket.on("chat message deleted", (data) => {
-    const el = findMessageElement(data.text, data.username);
-    if (el) el.remove();
-});
-
-// =========================
-// TYPING
-// =========================
-messageInput.addEventListener("input", () => {
-    if (!typingSent) {
-        socket.emit("typing", username);
-        typingSent = true;
-        setTimeout(() => typingSent = false, 1000);
+function playSound(freq = 800) {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+}
+
+// =========================
+// HELPERS
+// =========================
+function findMessageElement(text, username) {
+    return [...document.querySelectorAll(".message")].reverse().find(msg => {
+        const textEl = msg.querySelector(".text");
+        const userEl = msg.querySelector(".username");
+
+        if (!textEl) return false;
+
+        return textEl.textContent === text &&
+            (!username || userEl?.textContent === username);
+    });
+}
+
+// =========================
+// REPLY SYSTEM
+// =========================
+function createReplyPreview() {
+    replyPreview = document.createElement("div");
+    replyPreview.id = "replyPreview";
+    replyPreview.style.display = "none";
+    replyPreview.style.padding = "6px 10px";
+    replyPreview.style.background = "#2b2d31";
+    replyPreview.style.borderLeft = "3px solid #5865F2";
+    replyPreview.style.fontSize = "13px";
+    replyPreview.style.marginBottom = "6px";
+    replyPreview.style.borderRadius = "6px";
+
+    chatForm.parentNode.insertBefore(replyPreview, chatForm);
+}
+
+createReplyPreview();
+
+function startReply(data) {
+    replyingTo = data;
+
+    replyPreview.innerHTML = `
+        <strong>Replying to ${data.username}</strong><br>
+        ${data.text}
+        <button id="cancelReply" type="button" style="float:right;cursor:pointer;">✕</button>
+    `;
+
+    replyPreview.style.display = "block";
+
+    document.getElementById("cancelReply").onclick = () => {
+        replyingTo = null;
+        replyPreview.style.display = "none";
+    };
+
+    messageInput.focus();
+}
+
+// =========================
+// LOGIN
+// =========================
+function startChat(user) {
+
+    username = user;
+
+    loginScreen.style.display = "none";
+    app.style.display = "flex";
+
+    socket.emit("join", username);
+
+    loadFriendRequests();
+    loadFriends();
+
+    messageInput.focus();
+}
+loginButton.addEventListener("click", () => {
+    const user = usernameInput.value.trim();
+    const pass = passwordInput.value.trim();
+
+    if (!user || !pass) return alert("Enter username and password");
+
+    socket.emit("login", { username: user, password: pass }, (res) => {
+        if (!res.success) return alert(res.message);
+        startChat(user);
+    });
 });
 
-socket.on("typing users", (users) => {
-    typingUsers = new Set(users);
+signupButton.addEventListener("click", () => {
+    const user = usernameInput.value.trim();
+    const pass = passwordInput.value.trim();
 
-    const list = [...typingUsers];
+    if (!user || !pass) return alert("Enter username and password");
 
-    typingIndicator.innerHTML =
-        list.length ? `${list.join(", ")} is typing...` : "";
-
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        typingIndicator.innerHTML = "";
-    }, 2000);
+    socket.emit("signup", { username: user, password: pass }, (res) => {
+        if (!res.success) return alert(res.message);
+        alert("Account created! Now log in.");
+    });
 });
 
 // =========================
-// ONLINE COUNT
+// LOAD FRIENDS
 // =========================
-socket.on("online count", (count) => {
-    onlineCount.textContent = `• ${count} online`;
-});
+function loadFriends() {
 
-// =========================
-// CHAT HISTORY
-// =========================
-socket.on("chat history", (history) => {
+    const container = document.getElementById("friendsList");
 
-    messages.innerHTML = "";
+    socket.emit("get friends", (friends) => {
 
-    lastMessageUser = null;
-    lastMessageElement = null;
+        container.innerHTML = "";
 
-    history.forEach(msg => {
-        displayMessage(msg);
+        if (!friends.length) {
+            container.textContent = "No friends";
+            return;
+        }
+
+        friends.forEach(friend => {
+
+            const div = document.createElement("div");
+
+            div.className = "friend-item";
+            div.textContent = friend.friend;
+            div.style.cursor = "pointer";
+
+            div.addEventListener("click", () => {
+
+                currentChat = `${username}|${friend.friend}`;
+
+                document.querySelector(".chat-title h2").textContent =
+                    "DM with " + friend.friend;
+
+                messages.innerHTML = "";
+
+                lastMessageUser = null;
+                lastMessageElement = null;
+
+                socket.emit("load chat", currentChat);
+
+            });
+
+            container.appendChild(div);
+
+        });
+
     });
 
-    scrollChatToBottom(false);
+}
+// =========================
+// EMOJI
+// =========================
+emojiButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    emojiPicker.style.display =
+        emojiPicker.style.display === "flex" ? "none" : "flex";
 });
 
-// =========================
-// PROFILE SYSTEM
-// =========================
-
+emojiPicker.querySelectorAll("span").forEach(e => {
+    e.addEventListener("click", () => {
         messageInput.value += e.textContent;
         messageInput.focus();
     });
@@ -231,15 +290,15 @@ chatForm.addEventListener("submit", (e) => {
     if (!text) return;
 
     socket.emit("chat message", {
-        username,
-        text,
-        chat: currentChat,
-        replyTo: replyingTo,
-        time: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-        })
-    });
+    username,
+    text,
+    chat: currentChat,
+    replyTo: replyingTo,
+    time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    })
+});
 
     replyingTo = null;
     replyPreview.style.display = "none";
@@ -253,17 +312,13 @@ chatForm.addEventListener("submit", (e) => {
 // =========================
 function displayMessage(data) {
 
-    const wasNearBottom = chatContainer
-        ? chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 140
-        : true;
-
     if (
-        currentChat === "global"
-            ? data.chat !== "global"
-            : !data.chat.includes(currentChat)
-    ) {
-        return;
-    }
+    currentChat === "global"
+        ? data.chat !== "global"
+        : !data.chat.includes(currentChat)
+) {
+    return;
+}
 
     const message = document.createElement("div");
 
@@ -272,10 +327,7 @@ function displayMessage(data) {
         message.innerHTML = `<div class="system-message">${data.text}</div>`;
 
         messages.appendChild(message);
-
-        if (wasNearBottom) {
-            scrollChatToBottom(true);
-        }
+        scrollChatToBottom(true);
 
         lastMessageUser = null;
         lastMessageElement = null;
@@ -307,15 +359,15 @@ function displayMessage(data) {
 
     const usernameElement = message.querySelector(".username");
 
-    if (usernameElement) {
-        usernameElement.style.cursor = "pointer";
+if (usernameElement) {
+    usernameElement.style.cursor = "pointer";
 
-        usernameElement.onclick = () => {
-            console.log("CLICKED:", data.username);
-            alert("Clicked " + data.username);
-            openProfile(data.username);
-        };
-    }
+    usernameElement.onclick = () => {
+        console.log("CLICKED:", data.username);
+        alert("Clicked " + data.username);
+        openProfile(data.username);
+    };
+}
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
         startReply({ username: data.username, text: data.text });
@@ -344,12 +396,18 @@ function displayMessage(data) {
 
     messages.appendChild(message);
 
-    if (wasNearBottom || data.username === username) {
+    // Keep the view pinned only if the user was already near the bottom.
+    // New messages won't drag someone away from older messages they're reading.
+    const distanceFromBottom = chatContainer
+        ? chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight
+        : 0;
+
+    if (distanceFromBottom < 140 || data.username === username) {
         scrollChatToBottom(true);
     }
 
     lastMessageUser = data.username;
-    lastMessageElement = message;
+lastMessageElement = message;
 }
 
 socket.on("chat message", displayMessage);
@@ -415,7 +473,9 @@ socket.on("chat history", (history) => {
         displayMessage(msg);
     });
 
+    // History is rendered into #messages; #chatContainer owns scrolling.
     scrollChatToBottom(false);
+
 });
 
 // =========================
@@ -423,6 +483,7 @@ socket.on("chat history", (history) => {
 // =========================
 
 function openProfile(targetUsername) {
+
 
     console.log("Opening profile:", targetUsername);
 
@@ -443,10 +504,10 @@ function openProfile(targetUsername) {
             res.profile.avatar || "/default-avatar.png";
 
         if (res.profile.username === username) {
-            addFriendBtn.style.display = "none";
-        } else {
-            addFriendBtn.style.display = "block";
-        }
+    addFriendBtn.style.display = "none";
+} else {
+    addFriendBtn.style.display = "block";
+}
 
         profileModal.style.display = "flex";
 
@@ -652,45 +713,47 @@ function loadFriendRequests() {
 
         requests.forEach(request => {
 
-            const div = document.createElement("div");
+    const div = document.createElement("div");
 
-            div.innerHTML = `
-                ${request.sender}
-                <button class="acceptFriendBtn">
-                    Accept
-                </button>
-            `;
+    div.innerHTML = `
+        ${request.sender}
+        <button class="acceptFriendBtn">
+            Accept
+        </button>
+    `;
 
-            const button =
-                div.querySelector(".acceptFriendBtn");
+    const button =
+        div.querySelector(".acceptFriendBtn");
 
-            button.addEventListener("click", () => {
+    button.addEventListener("click", () => {
 
-                socket.emit(
-                    "accept friend request",
-                    request.sender,
-                    (res) => {
+        socket.emit(
+            "accept friend request",
+            request.sender,
+            (res) => {
 
-                        if (!res.success) {
-                            return alert("Couldn't accept request.");
-                        }
+                if (!res.success) {
+                    return alert("Couldn't accept request.");
+                }
 
-                        alert("Friend request accepted!");
+                alert("Friend request accepted!");
 
-                        loadFriendRequests();
+                loadFriendRequests();
 
-                    }
-                );
+            }
+        );
 
-            });
+    });
 
-            container.appendChild(div);
+    container.appendChild(div);
 
-        });
+});
 
     });
 
 }
+
+
 
 // =========================
 // LIVE FRIEND UPDATES
