@@ -39,6 +39,7 @@ const messageInput = document.getElementById("messageInput");
 const messages = document.getElementById("messages");
 const chatContainer = document.getElementById("chatContainer");
 const onlineCount = document.getElementById("onlineCount");
+const onlineUsersContainer = document.getElementById("onlineUsers");
 const typingIndicator = document.getElementById("typingIndicator");
 
 const emojiButton = document.getElementById("emojiButton");
@@ -531,10 +532,44 @@ socket.on("typing users", (users) => {
 });
 
 // =========================
-// ONLINE COUNT
+// ACCOUNT-LEVEL PRESENCE
 // =========================
-socket.on("online count", (count) => {
-    onlineCount.textContent = `• ${count} online`;
+socket.on("presence update", (presence) => {
+    const online = Array.isArray(presence?.users)
+        ? presence.users
+        : [];
+
+    onlineCount.textContent = `• ${online.length} online`;
+
+    if (!onlineUsersContainer) return;
+
+    onlineUsersContainer.innerHTML = "";
+
+    if (online.length === 0) {
+        onlineUsersContainer.textContent = "Nobody online";
+        return;
+    }
+
+    online.forEach(onlineUsername => {
+        const item = document.createElement("div");
+        item.className = "user clickable";
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.innerHTML = `
+            <span class="dot"></span>
+            <span>${escapeHTML(onlineUsername)}</span>
+        `;
+
+        item.addEventListener("click", () => openProfile(onlineUsername));
+        item.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openProfile(onlineUsername);
+            }
+        });
+
+        onlineUsersContainer.appendChild(item);
+    });
 });
 
 // =========================
