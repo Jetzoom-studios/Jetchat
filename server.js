@@ -89,15 +89,16 @@ app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
 // Connected users
 const users = {};
 const onlineUsers = {};
+const presenceVisibility = new Map();
 
 // Typing users
 const typingUsers = new Map();
 
 // Build account-level presence: multiple tabs count as one online user.
 function getPresenceSnapshot() {
-    const usernames = [...new Set(Object.values(users))].sort((a, b) =>
-        a.localeCompare(b)
-    );
+    const usernames = [...new Set(Object.values(users))]
+        .filter(username => presenceVisibility.get(username) !== false)
+        .sort((a, b) => a.localeCompare(b));
 
     return {
         users: usernames,
@@ -218,6 +219,10 @@ io.on("connection", (socket) => {
             socket.username = result.user.username;
             users[socket.id] = result.user.username;
             socket.accountId = result.user.id;
+            presenceVisibility.set(
+                result.user.username,
+                result.user.show_online !== false
+            );
             onlineUsers[result.user.username] = socket.id;
             // A username room delivers DMs to every active session for this account.
             socket.join(`user:${result.user.username}`);
@@ -312,6 +317,33 @@ socket.on("dismiss update", async (updateId, callback) => {
 });
     
     // =========================
+    // UPDATE PRESENCE VISIBILITY
+    // =========================
+    socket.on("set presence visibility", async (showOnline, callback) => {
+        if (!socket.username) {
+            if (typeof callback === "function") callback({ success: false });
+            return;
+        }
+
+        try {
+            const visible = showOnline !== false;
+            await db.updateShowOnline(socket.username, visible);
+            presenceVisibility.set(socket.username, visible);
+            broadcastPresence();
+
+            if (typeof callback === "function") {
+                callback({ success: true, showOnline: visible });
+            }
+        } catch (err) {
+            console.error("Presence privacy update error:", err);
+
+            if (typeof callback === "function") {
+                callback({ success: false });
+            }
+        }
+    });
+
+    // =========================
     // GET PROFILE
     // =========================
     socket.on("get profile", async (username, callback) => {
@@ -401,6 +433,9 @@ socket.on("dismiss update", async (updateId, callback) => {
                 }
 
                 delete onlineUsers[oldUsername];
+                const wasVisible = presenceVisibility.get(oldUsername) !== false;
+                presenceVisibility.delete(oldUsername);
+                presenceVisibility.set(newUsername, wasVisible);
                 onlineUsers[newUsername] = socket.id;
                 broadcastPresence();
             }
@@ -852,6 +887,7 @@ socket.on("dismiss update", async (updateId, callback) => {
                     onlineUsers[socket.username] = remainingSocket.id;
                 } else {
                     delete onlineUsers[socket.username];
+                    presenceVisibility.delete(socket.username);
 
                     try {
                         await db.updateLastSeen(username);
