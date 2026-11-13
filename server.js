@@ -102,6 +102,53 @@ function findMessageIndexById(messages, id) {
     );
 }
 
+function getDMPartner(chatValue, currentUsername) {
+    if (
+        typeof chatValue !== "string" ||
+        typeof currentUsername !== "string" ||
+        !currentUsername
+    ) {
+        return null;
+    }
+
+    const value = chatValue.trim();
+
+    if (!value || value === "global") {
+        return null;
+    }
+
+    // Backward compatibility: older clients sent "username|friend".
+    if (value.includes("|")) {
+        const parts = value.split("|").map(part => part.trim());
+
+        if (
+            parts.length !== 2 ||
+            !parts.includes(currentUsername) ||
+            parts[0] === parts[1]
+        ) {
+            return null;
+        }
+
+        return parts[0] === currentUsername ? parts[1] : parts[0];
+    }
+
+    return value === currentUsername ? null : value;
+}
+
+async function isAcceptedFriend(username, peer) {
+    if (!username || !peer || username === peer) {
+        return false;
+    }
+
+    const friends = await db.getFriends(username);
+
+    return friends.some(friend => friend.friend === peer);
+}
+
+function makeDMChatId(username, peer) {
+    return [username, peer].sort().join("|");
+}
+
 // =========================
 // SOCKET.IO
 // =========================
@@ -154,6 +201,8 @@ io.on("connection", (socket) => {
             users[socket.id] = result.user.username;
             socket.accountId = result.user.id;
             onlineUsers[result.user.username] = socket.id;
+            // A username room delivers DMs to every active session for this account.
+            socket.join(`user:${result.user.username}`);
 
             io.emit("online count", Object.keys(users).length);
 
@@ -313,7 +362,18 @@ socket.on("dismiss update", async (updateId, callback) => {
             );
 
             if (result.success) {
-                socket.username = data.username;
+                const oldUsername = socket.username;
+                const newUsername = data.username;
+
+                socket.leave(`user:${oldUsername}`);
+                socket.join(`user:${newUsername}`);
+
+                if (onlineUsers[oldUsername] === socket.id) {
+                    delete onlineUsers[oldUsername];
+                }
+
+                socket.username = newUsername;
+                onlineUsers[newUsername] = socket.id;
             }
 
             callback(result);
@@ -397,23 +457,37 @@ socket.on("dismiss update", async (updateId, callback) => {
     // LOAD CHAT
     // =========================
     socket.on("load chat", async (chat) => {
+        if (!socket.username) {
+            socket.emit("chat history", []);
+            return;
+        }
+
         try {
             let history;
 
             if (chat === "global") {
                 history = db.loadMessages();
             } else {
-                const chatUsers = [
-                    socket.username,
-                    chat
-                ].sort().join("|");
+                const peer = getDMPartner(chat, socket.username);
 
-                history = await db.loadChat(chatUsers);
+                if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
+                    socket.emit("chat history", []);
+                    return;
+                }
+
+                const chatId = makeDMChatId(socket.username, peer);
+
+                history = await db.loadChat(
+                    chatId,
+                    socket.username,
+                    peer
+                );
             }
 
             socket.emit("chat history", history);
         } catch (err) {
-            console.error(err);
+            console.error("Load chat error:", err);
+            socket.emit("chat history", []);
         }
     });
 
@@ -450,12 +524,16 @@ socket.on("dismiss update", async (updateId, callback) => {
     // CHAT MESSAGE
     // =========================
     socket.on("chat message", async (data) => {
-        if (!socket.username || !data || !data.text) return;
+        if (!socket.username || !data || typeof data.text !== "string") return;
+
+        const messageText = data.text.trim();
+
+        if (!messageText) return;
 
         const msg = {
             id: Date.now() + Math.random(),
             username: socket.username,
-            text: data.text,
+            text: messageText,
             replyTo: data.replyTo || null,
             time: data.time || Date.now()
         };
@@ -466,22 +544,36 @@ socket.on("dismiss update", async (updateId, callback) => {
             db.addMessage(msg);
 
             io.emit("chat message", msg);
-        } else {
-            const chatId = [
-                socket.username,
-                data.chat
-            ].sort().join("|");
+            return;
+        }
+
+        try {
+            const peer = getDMPartner(data.chat, socket.username);
+
+            if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
+                return;
+            }
+
+            const chatId = makeDMChatId(socket.username, peer);
 
             msg.chat = chatId;
-            msg.recipient = data.chat;
+            msg.recipient = peer;
 
-            await db.saveDM(msg);
+            const savedMessage = await db.saveDM(msg);
 
+            // Use the database ID so the live message and loaded history agree.
+            if (savedMessage && savedMessage.id !== undefined) {
+                msg.id = savedMessage.id;
+            }
+
+            // Deliver to the sender and the actual recipient, not the chat ID.
             socket.emit("chat message", msg);
 
-            if (onlineUsers[data.chat]) {
-                io.to(onlineUsers[data.chat]).emit("chat message", msg);
-            }
+            // Send to the recipient's account room, not a single socket ID.
+            // This also supports multiple tabs/devices logged into the same account.
+            io.to(`user:${peer}`).emit("chat message", msg);
+        } catch (err) {
+            console.error("Direct message error:", err);
         }
     });
 
@@ -653,8 +745,19 @@ socket.on("dismiss update", async (updateId, callback) => {
                 text: `🔴 ${username} left the chat`
             });
 
-            if (socket.username) {
-                delete onlineUsers[socket.username];
+            if (socket.username && onlineUsers[socket.username] === socket.id) {
+                // Do not mark the account offline if another tab is still connected.
+                const remainingSocket = [...io.sockets.sockets.values()]
+                    .find(activeSocket =>
+                        activeSocket.id !== socket.id &&
+                        activeSocket.username === socket.username
+                    );
+
+                if (remainingSocket) {
+                    onlineUsers[socket.username] = remainingSocket.id;
+                } else {
+                    delete onlineUsers[socket.username];
+                }
             }
 
             delete users[socket.id];

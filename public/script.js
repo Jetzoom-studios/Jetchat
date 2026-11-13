@@ -252,7 +252,7 @@ function loadFriends() {
             div.style.cursor = "pointer";
 
             div.addEventListener("click", () => {
-                currentChat = `${username}|${friend.friend}`;
+                currentChat = friend.friend;
 
                 document.querySelector(".chat-title h2").textContent =
                     "DM with " + friend.friend;
@@ -325,11 +325,11 @@ chatForm.addEventListener("submit", (e) => {
 // RECEIVE MESSAGES
 // =========================
 function displayMessage(data) {
-    if (
-        currentChat === "global"
-            ? data.chat !== "global"
-            : !data.chat || !data.chat.includes(currentChat)
-    ) {
+    const expectedChat = currentChat === "global"
+        ? "global"
+        : [username, currentChat].sort().join("|");
+
+    if (!data || data.chat !== expectedChat) {
         return;
     }
 

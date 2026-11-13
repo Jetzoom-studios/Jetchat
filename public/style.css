@@ -1992,3 +1992,672 @@ body.reduced-motion *::after {
         transform: translateY(0) scale(1);
     }
 }
+
+
+/* =========================================================
+   JETCHAT VISUAL REFRESH — 3.3
+   Modern surfaces, refined depth, and lightweight motion.
+   App behaviour and existing theme/settings hooks are unchanged.
+========================================================= */
+
+:root {
+    --jc-accent: var(--jetchat-accent, #7185ff);
+    --jc-accent-soft: color-mix(in srgb, var(--jc-accent) 18%, transparent);
+    --jc-panel: #111827;
+    --jc-panel-raised: #172235;
+    --jc-border: rgba(157, 177, 215, .13);
+    --jc-muted: #91a0b8;
+    --jc-radius: 18px;
+    --jc-ease: cubic-bezier(.2, .75, .25, 1);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background:
+        radial-gradient(ellipse at 12% 0%, rgba(83, 104, 220, .16), transparent 34%),
+        radial-gradient(ellipse at 92% 100%, rgba(24, 155, 185, .09), transparent 38%),
+        #080d18;
+    color: #edf2ff;
+    letter-spacing: .01em;
+    -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea {
+    font: inherit;
+}
+
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.clickable:focus-visible {
+    outline: 2px solid var(--jc-accent);
+    outline-offset: 3px;
+}
+
+/* Login / entry */
+.login-screen {
+    overflow: hidden;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 18% 22%, rgba(94, 113, 255, .25), transparent 30%),
+        radial-gradient(circle at 82% 78%, rgba(28, 180, 190, .15), transparent 32%),
+        linear-gradient(145deg, #070c17 0%, #101a30 52%, #0a1020 100%);
+}
+
+.login-screen::before,
+.login-screen::after {
+    content: "";
+    position: absolute;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: -1;
+    border: 1px solid rgba(255,255,255,.055);
+    box-shadow: 0 0 100px rgba(105, 124, 255, .08) inset;
+    animation: jc-orbit 18s ease-in-out infinite alternate;
+}
+
+.login-screen::before {
+    top: -190px;
+    left: -130px;
+}
+
+.login-screen::after {
+    width: 480px;
+    height: 480px;
+    right: -230px;
+    bottom: -270px;
+    animation-delay: -7s;
+}
+
+.login-card {
+    width: min(420px, calc(100vw - 32px));
+    padding: 44px 40px;
+    border-radius: 26px;
+    background: linear-gradient(145deg, rgba(25, 38, 63, .88), rgba(13, 21, 37, .91));
+    border: 1px solid rgba(184, 199, 255, .17);
+    box-shadow: 0 32px 100px rgba(0,0,0,.48), 0 1px 0 rgba(255,255,255,.06) inset;
+    backdrop-filter: blur(24px) saturate(135%);
+    animation: jc-card-enter .7s var(--jc-ease) both;
+}
+
+.login-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 38px 110px rgba(0,0,0,.52), 0 1px 0 rgba(255,255,255,.08) inset;
+}
+
+.login-card h1 {
+    letter-spacing: -.045em;
+    font-size: clamp(30px, 5vw, 38px);
+    font-weight: 800;
+}
+
+.login-card p {
+    color: #aab8d2;
+    line-height: 1.6;
+}
+
+#usernameInput,
+#passwordInput,
+#messageInput {
+    transition: border-color .22s ease, background .22s ease, box-shadow .22s ease, transform .22s ease;
+}
+
+#usernameInput,
+#passwordInput {
+    border: 1px solid rgba(169, 188, 226, .18);
+    border-radius: 12px;
+    background: rgba(5, 11, 22, .42);
+    color: #f3f6ff;
+}
+
+#usernameInput:focus,
+#passwordInput:focus {
+    border-color: var(--jc-accent);
+    box-shadow: 0 0 0 4px var(--jc-accent-soft);
+}
+
+#joinButton,
+#sendButton,
+#updateOk,
+#editProfileBtn {
+    border-radius: 12px;
+    font-weight: 750;
+    letter-spacing: .01em;
+    box-shadow: 0 8px 22px rgba(76, 96, 220, .22);
+    transition: transform .2s var(--jc-ease), box-shadow .2s ease, filter .2s ease;
+}
+
+#joinButton:hover,
+#sendButton:hover,
+#updateOk:hover,
+#editProfileBtn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.09);
+    box-shadow: 0 12px 28px rgba(76, 96, 220, .3);
+}
+
+#joinButton:active,
+#sendButton:active,
+#updateOk:active,
+#editProfileBtn:active {
+    transform: translateY(0) scale(.98);
+}
+
+/* Main application frame */
+.app {
+    background: transparent;
+    gap: 0;
+}
+
+.sidebar {
+    background: rgba(12, 19, 33, .92);
+    border-right: 1px solid var(--jc-border);
+    box-shadow: 12px 0 40px rgba(0,0,0,.12);
+    backdrop-filter: blur(22px);
+}
+
+.logo {
+    border-bottom: 1px solid var(--jc-border);
+    padding-top: 22px;
+    padding-bottom: 22px;
+}
+
+.logo h1 {
+    letter-spacing: -.045em;
+    font-weight: 850;
+}
+
+.online-title {
+    color: #8494b2;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .13em;
+}
+
+.user,
+.friend-item {
+    border: 1px solid transparent;
+    border-radius: 11px;
+    transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s var(--jc-ease);
+}
+
+.user:hover,
+.friend-item:hover {
+    transform: translateX(3px);
+    background: rgba(119, 143, 255, .11);
+    border-color: rgba(119, 143, 255, .14);
+}
+
+.dot {
+    box-shadow: 0 0 0 4px rgba(63, 211, 145, .09), 0 0 12px rgba(63, 211, 145, .42);
+}
+
+/* Header and chat workspace */
+.main {
+    background: transparent;
+    min-width: 0;
+}
+
+.topbar {
+    min-height: 76px;
+    background: rgba(13, 20, 34, .84);
+    border-bottom: 1px solid var(--jc-border);
+    backdrop-filter: blur(22px);
+}
+
+.chat-title h2 {
+    font-size: clamp(17px, 2vw, 20px);
+    font-weight: 780;
+    letter-spacing: -.025em;
+}
+
+#onlineCount {
+    color: #91a2bf;
+    font-size: 12px;
+}
+
+#settingsBtn,
+#emojiButton {
+    border: 1px solid var(--jc-border);
+    border-radius: 12px;
+    background: rgba(128, 148, 190, .09);
+    transition: transform .2s var(--jc-ease), background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+#settingsBtn:hover,
+#emojiButton:hover {
+    transform: translateY(-2px);
+    background: var(--jc-accent-soft);
+    border-color: rgba(130, 151, 255, .35);
+    box-shadow: 0 8px 20px rgba(0,0,0,.16);
+}
+
+#chatContainer {
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(73, 91, 164, .07), transparent 52%),
+        #0a101d;
+}
+
+#messages {
+    padding: 24px clamp(14px, 3vw, 34px);
+}
+
+/* Message cards and grouping */
+.message {
+    position: relative;
+    border: 1px solid transparent;
+    border-radius: 13px;
+    padding: 9px 12px;
+    margin: 2px 0;
+    transition: background .18s ease, border-color .18s ease, transform .18s var(--jc-ease);
+    animation: jc-message-in .28s var(--jc-ease) both;
+}
+
+.message:hover {
+    background: rgba(133, 154, 204, .075);
+    border-color: rgba(150, 170, 220, .09);
+    transform: translateX(2px);
+}
+
+.username {
+    color: #9eafff;
+    font-weight: 750;
+    letter-spacing: -.01em;
+    transition: color .18s ease;
+}
+
+.username:hover {
+    color: #c4ceff;
+}
+
+.text {
+    color: #e4eaf8;
+    line-height: 1.58;
+    overflow-wrap: anywhere;
+}
+
+.time {
+    color: #75849e;
+    font-size: 10px;
+    letter-spacing: .025em;
+}
+
+.system-message {
+    border: 1px solid rgba(145, 164, 210, .12);
+    border-radius: 999px;
+    background: rgba(119, 140, 190, .08);
+    padding: 7px 14px;
+    color: #9baac4;
+}
+
+.reply-reference {
+    border-radius: 9px !important;
+    border-left-width: 3px !important;
+    padding: 8px 11px !important;
+    background: rgba(111, 132, 255, .09) !important;
+}
+
+.message-toolbar {
+    border: 1px solid var(--jc-border);
+    border-radius: 11px;
+    background: rgba(24, 34, 54, .96);
+    box-shadow: 0 12px 30px rgba(0,0,0,.28);
+    backdrop-filter: blur(16px);
+}
+
+.message-toolbar button,
+.message .actions button {
+    border-radius: 8px;
+    transition: background .16s ease, color .16s ease, transform .16s ease;
+}
+
+.message-toolbar button:hover,
+.message .actions button:hover {
+    transform: translateY(-1px);
+    background: var(--jc-accent-soft);
+}
+
+/* Composer */
+#chatForm {
+    border-top: 1px solid var(--jc-border);
+    background: rgba(13, 20, 34, .9);
+    padding: 16px clamp(14px, 3vw, 30px);
+    backdrop-filter: blur(20px);
+}
+
+#messageInput {
+    min-height: 46px;
+    border: 1px solid rgba(157, 177, 215, .16);
+    border-radius: 14px;
+    background: rgba(4, 9, 18, .48);
+    color: #f2f5ff;
+    padding: 12px 15px;
+}
+
+#messageInput:hover {
+    border-color: rgba(157, 177, 215, .28);
+}
+
+#messageInput:focus {
+    border-color: var(--jc-accent);
+    background: rgba(8, 14, 27, .82);
+    box-shadow: 0 0 0 4px var(--jc-accent-soft), 0 8px 24px rgba(0,0,0,.12);
+}
+
+#messageInput::placeholder {
+    color: #75839b;
+}
+
+#sendButton {
+    min-height: 44px;
+    border-radius: 12px;
+}
+
+.emoji-picker {
+    border: 1px solid var(--jc-border);
+    border-radius: 16px;
+    background: rgba(20, 30, 49, .97);
+    box-shadow: 0 18px 55px rgba(0,0,0,.4);
+    backdrop-filter: blur(18px);
+    animation: jc-pop-in .18s var(--jc-ease) both;
+}
+
+.emoji-picker span {
+    border-radius: 8px;
+    transition: transform .15s ease, background .15s ease;
+}
+
+.emoji-picker span:hover {
+    transform: scale(1.18);
+}
+
+/* Reply strip and floating controls */
+.reply-preview,
+.reply-bar {
+    border-radius: 12px;
+    border: 1px solid rgba(126, 146, 255, .2);
+    background: rgba(91, 112, 220, .1);
+}
+
+.chat-scroll-controls button {
+    border: 1px solid var(--jc-border);
+    border-radius: 12px;
+    backdrop-filter: blur(14px);
+    transition: transform .18s ease, background .18s ease;
+}
+
+.chat-scroll-controls button:hover {
+    transform: translateY(-3px);
+}
+
+/* Settings drawer and profile/update overlays */
+.settings-panel {
+    background: rgba(7, 12, 22, .58);
+    backdrop-filter: blur(12px);
+}
+
+.settings-panel.open {
+    animation: jc-fade-in .2s ease both;
+}
+
+.settings-card,
+.profile-card,
+.update-card {
+    border: 1px solid rgba(165, 184, 226, .16);
+    border-radius: 22px;
+    box-shadow: 0 30px 90px rgba(0,0,0,.42), 0 1px 0 rgba(255,255,255,.05) inset;
+}
+
+.settings-card {
+    background: linear-gradient(150deg, #182338, #111a2a);
+    animation: jc-drawer-in .35s var(--jc-ease) both;
+}
+
+.settings-card h2,
+.settings-card h3 {
+    letter-spacing: -.025em;
+}
+
+.setting-item {
+    border-bottom: 1px solid rgba(150, 170, 210, .09);
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.setting-item select {
+    border: 1px solid var(--jc-border);
+    border-radius: 10px;
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.setting-item select:focus {
+    border-color: var(--jc-accent);
+    box-shadow: 0 0 0 3px var(--jc-accent-soft);
+}
+
+.profile-modal,
+.update-modal {
+    backdrop-filter: blur(12px);
+    animation: jc-fade-in .2s ease both;
+}
+
+.profile-card {
+    overflow: hidden;
+    animation: jc-card-enter .32s var(--jc-ease) both;
+}
+
+.profile-avatar {
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+
+.update-card {
+    background: linear-gradient(150deg, #1a2740, #111a2b);
+}
+
+.update-close {
+    border-radius: 10px;
+    transition: transform .18s ease, background .18s ease;
+}
+
+.update-close:hover {
+    transform: rotate(90deg);
+}
+
+/* Loading */
+.loading-card {
+    border: 1px solid var(--jc-border);
+    border-radius: 22px;
+    background: rgba(20, 31, 51, .92);
+    box-shadow: 0 25px 80px rgba(0,0,0,.42);
+    backdrop-filter: blur(20px);
+}
+
+.loading-logo {
+    animation: jc-float 2.8s ease-in-out infinite;
+}
+
+/* Scrollbars */
+#chatContainer::-webkit-scrollbar,
+#messages::-webkit-scrollbar,
+.settings-card::-webkit-scrollbar {
+    width: 9px;
+}
+
+#chatContainer::-webkit-scrollbar-thumb,
+#messages::-webkit-scrollbar-thumb,
+.settings-card::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background: rgba(139, 158, 201, .3);
+    background-clip: padding-box;
+}
+
+/* Light theme gets its own coordinated surfaces */
+body.light-mode {
+    background:
+        radial-gradient(ellipse at 10% 0%, rgba(98, 119, 245, .10), transparent 36%),
+        radial-gradient(ellipse at 100% 100%, rgba(39, 165, 180, .07), transparent 38%),
+        #eef1f7;
+    color: #202a3b;
+}
+
+body.light-mode .sidebar {
+    background: rgba(255,255,255,.9) !important;
+    border-right-color: rgba(38, 54, 85, .1);
+    box-shadow: 10px 0 35px rgba(34, 48, 78, .05);
+}
+
+body.light-mode .topbar,
+body.light-mode #chatForm {
+    background: rgba(255,255,255,.88) !important;
+    border-color: rgba(38, 54, 85, .1);
+}
+
+body.light-mode #chatContainer {
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(98, 119, 245, .045), transparent 55%),
+        #f4f6fa !important;
+}
+
+body.light-mode .message:hover {
+    background: rgba(79, 100, 160, .055);
+    border-color: rgba(79, 100, 160, .09);
+}
+
+body.light-mode .text {
+    color: #263247;
+}
+
+body.light-mode .username {
+    color: #4c5fca;
+}
+
+body.light-mode .time {
+    color: #8993a4;
+}
+
+body.light-mode #messageInput {
+    background: #f7f8fb;
+    border-color: rgba(48, 65, 100, .14);
+    color: #202a3b;
+}
+
+body.light-mode #messageInput:focus {
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(88, 101, 242, .11);
+}
+
+body.light-mode .settings-panel {
+    background: rgba(35, 46, 67, .24);
+}
+
+body.light-mode .settings-card,
+body.light-mode .profile-card,
+body.light-mode .update-card {
+    background: linear-gradient(150deg, #fff, #f4f6fb);
+    color: #202a3b;
+    border-color: rgba(38, 54, 85, .12);
+}
+
+body.light-mode .update-card li,
+body.light-mode .update-version {
+    color: #647087;
+}
+
+body.light-mode .message-toolbar,
+body.light-mode .emoji-picker {
+    background: rgba(255,255,255,.97);
+    border-color: rgba(38, 54, 85, .12);
+    box-shadow: 0 14px 36px rgba(34,48,78,.15);
+}
+
+/* Small-screen polish */
+@media (max-width: 600px) {
+    .topbar {
+        min-height: 64px;
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    #messages {
+        padding: 16px 10px;
+    }
+
+    .message {
+        padding: 8px 9px;
+        border-radius: 10px;
+    }
+
+    #chatForm {
+        padding: 11px 10px;
+        gap: 8px;
+    }
+
+    .login-card {
+        padding: 34px 25px;
+        border-radius: 22px;
+    }
+
+    .settings-card {
+        border-radius: 18px;
+    }
+}
+
+/* Motion system */
+@keyframes jc-card-enter {
+    from { opacity: 0; transform: translateY(18px) scale(.975); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes jc-message-in {
+    from { opacity: 0; transform: translateY(7px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes jc-pop-in {
+    from { opacity: 0; transform: translateY(7px) scale(.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes jc-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes jc-drawer-in {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes jc-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@keyframes jc-orbit {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(28px, 18px, 0) scale(1.08); }
+}
+
+/* Respect both the app's motion setting and the OS preference */
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
