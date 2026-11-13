@@ -1857,3 +1857,138 @@ body.reduced-motion *::after {
         padding: 20px;
     }
 }
+
+/* =========================
+   WHAT'S NEW UPDATE MODAL
+========================= */
+
+.update-modal {
+    position: fixed;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(9px);
+
+    z-index: 1000000;
+}
+
+.update-card {
+    position: relative;
+
+    width: 100%;
+    max-width: 460px;
+
+    padding: 32px;
+
+    border-radius: 18px;
+
+    background: #151d2d;
+    border: 1px solid rgba(255,255,255,0.1);
+
+    color: #f3f5fb;
+
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+
+    animation: updatePop 0.22s ease;
+}
+
+.update-close {
+    position: absolute;
+    top: 13px;
+    right: 15px;
+
+    width: 34px;
+    height: 34px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: rgba(255,255,255,0.07);
+    color: #b8c3d9;
+
+    font-size: 23px;
+    cursor: pointer;
+}
+
+.update-close:hover {
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+.update-label {
+    color: #7899ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+
+    margin-bottom: 12px;
+}
+
+.update-card h2 {
+    font-size: 25px;
+    margin-bottom: 10px;
+}
+
+.update-version {
+    display: flex;
+    gap: 12px;
+
+    color: #8492aa;
+    font-size: 12px;
+}
+
+.update-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.09);
+    margin: 22px 0;
+}
+
+.update-card ul {
+    padding-left: 20px;
+    margin-bottom: 25px;
+}
+
+.update-card li {
+    color: #c5cee0;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+#updateOk {
+    width: 100%;
+    padding: 12px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: #5865f2;
+    color: white;
+
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+#updateOk:hover {
+    background: #7180ff;
+}
+
+@keyframes updatePop {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
