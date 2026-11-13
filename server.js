@@ -15,6 +15,22 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
 // =========================
+// CURRENT RELEASE UPDATE
+// =========================
+
+const CURRENT_UPDATE = {
+    id: "jetchat-3.3",
+    version: "3.3",
+    title: "What's New in Jetchat",
+    date: "November 2026",
+    items: [
+        "Introducing the Jetchat update log.",
+        "Update notifications are remembered per account.",
+        "Dismiss the announcement with OK or X."
+    ]
+};
+
+// =========================
 // UPLOADS
 // =========================
 const uploadsFolder = path.join(__dirname, "public", "uploads");
@@ -136,6 +152,7 @@ io.on("connection", (socket) => {
 
             socket.username = result.user.username;
             users[socket.id] = result.user.username;
+            socket.accountId = result.user.id;
             onlineUsers[result.user.username] = socket.id;
 
             io.emit("online count", Object.keys(users).length);
@@ -161,6 +178,72 @@ io.on("connection", (socket) => {
         }
     });
 
+// =========================
+// GET CURRENT UPDATE
+// =========================
+
+socket.on("get current update", async (callback) => {
+    if (!socket.username || !socket.accountId) {
+        return callback({
+            success: false
+        });
+    }
+
+    try {
+        const dismissed = await db.hasDismissedUpdate(
+            socket.accountId,
+            CURRENT_UPDATE.id
+        );
+
+        callback({
+            success: true,
+            update: dismissed ? null : CURRENT_UPDATE
+        });
+    } catch (err) {
+        console.error("Get update error:", err);
+
+        callback({
+            success: false
+        });
+    }
+});
+
+// =========================
+// DISMISS CURRENT UPDATE
+// =========================
+
+socket.on("dismiss update", async (updateId, callback) => {
+    if (!socket.username || !socket.accountId) {
+        return callback({
+            success: false,
+            message: "Not logged in."
+        });
+    }
+
+    if (updateId !== CURRENT_UPDATE.id) {
+        return callback({
+            success: false,
+            message: "Invalid update."
+        });
+    }
+
+    try {
+        const result = await db.dismissUpdate(
+            socket.accountId,
+            updateId
+        );
+
+        callback(result);
+    } catch (err) {
+        console.error("Dismiss update error:", err);
+
+        callback({
+            success: false,
+            message: "Couldn't save your preference."
+        });
+    }
+});
+    
     // =========================
     // GET PROFILE
     // =========================
