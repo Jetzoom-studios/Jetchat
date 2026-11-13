@@ -9,6 +9,22 @@ const pool = new Pool({
     }
 });
 
+// Run each additive schema migration once per server process.
+const schemaMigrations = new Map();
+
+async function runSchemaMigration(key, sql) {
+    if (!schemaMigrations.has(key)) {
+        const migration = pool.query(sql).catch(error => {
+            schemaMigrations.delete(key);
+            throw error;
+        });
+
+        schemaMigrations.set(key, migration);
+    }
+
+    await schemaMigrations.get(key);
+}
+
 // =========================
 // FILE PATHS
 // =========================
@@ -94,7 +110,15 @@ async function createUser(username, password) {
 // =========================
 // LOGIN
 // =========================
+async function ensureShowOnlineColumn() {
+    await runSchemaMigration(
+        "users.show_online",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS show_online BOOLEAN NOT NULL DEFAULT TRUE"
+    );
+}
+
 async function loginUser(username, password) {
+    await ensureShowOnlineColumn();
 
     const result = await pool.query(
         `
@@ -195,6 +219,59 @@ async function saveDM(message) {
 
 
 // =========================
+// DIRECT MESSAGE DELIVERY / READ STATUS
+// =========================
+async function ensureDMStatusColumns() {
+    await Promise.all([
+        runSchemaMigration(
+            "messages.delivered_at",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ"
+        ),
+        runSchemaMigration(
+            "messages.read_at",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ"
+        )
+    ]);
+}
+
+async function markDMDelivered(chat, recipient) {
+    await ensureDMStatusColumns();
+
+    const result = await pool.query(
+        `
+        UPDATE messages
+        SET delivered_at = NOW()
+        WHERE chat = $1
+          AND recipient = $2
+          AND delivered_at IS NULL
+        RETURNING id
+        `,
+        [chat, recipient]
+    );
+
+    return result.rows.map(row => row.id);
+}
+
+async function markDMRead(chat, reader) {
+    await ensureDMStatusColumns();
+
+    const result = await pool.query(
+        `
+        UPDATE messages
+        SET delivered_at = COALESCE(delivered_at, NOW()),
+            read_at = NOW()
+        WHERE chat = $1
+          AND recipient = $2
+          AND read_at IS NULL
+        RETURNING id
+        `,
+        [chat, reader]
+    );
+
+    return result.rows.map(row => row.id);
+}
+
+// =========================
 // LOAD CHAT
 // =========================
 async function loadChat(chat, username, peer) {
@@ -287,9 +364,40 @@ function deleteMessage(id) {
 }
 
 // =========================
+// LAST SEEN
+// =========================
+async function ensureLastSeenColumn() {
+    await runSchemaMigration(
+        "users.last_seen",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ"
+    );
+}
+
+async function ensureProfileColorColumn() {
+    await runSchemaMigration(
+        "users.profile_color",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT DEFAULT '#5865f2'"
+    );
+}
+
+async function updateLastSeen(username) {
+    await ensureLastSeenColumn();
+
+    await pool.query(
+        "UPDATE users SET last_seen = NOW() WHERE username = $1",
+        [username]
+    );
+
+    return { success: true };
+}
+
+// =========================
 // GET PROFILE
 // =========================
 async function getProfile(username) {
+    await ensureLastSeenColumn();
+    await ensureProfileColorColumn();
+    await ensureShowOnlineColumn();
 
     console.log("Searching for username:", username);
 
@@ -299,7 +407,10 @@ async function getProfile(username) {
             username,
             avatar,
             bio,
-            join_date
+            join_date,
+            last_seen,
+            profile_color,
+            show_online
         FROM users
         WHERE username = $1
         `,
@@ -363,6 +474,20 @@ async function sendFriendRequest(sender, receiver) {
     };
 }
 // =========================
+// UPDATE PRESENCE PRIVACY
+// =========================
+async function updateShowOnline(username, showOnline) {
+    await ensureShowOnlineColumn();
+
+    await pool.query(
+        "UPDATE users SET show_online = $1 WHERE username = $2",
+        [!!showOnline, username]
+    );
+
+    return { success: true };
+}
+
+// =========================
 // UPDATE BIO
 // =========================
 async function updateBio(username, bio) {
@@ -404,16 +529,18 @@ async function updateAvatar(username, avatar) {
 // =========================
 // UPDATE PROFILE
 // =========================
-async function updateProfile(oldUsername, newUsername, bio) {
+async function updateProfile(oldUsername, newUsername, bio, profileColor) {
+    await ensureProfileColorColumn();
 
     await pool.query(
         `
         UPDATE users
         SET username = $1,
-            bio = $2
-        WHERE username = $3
+            bio = $2,
+            profile_color = $3
+        WHERE username = $4
         `,
-        [newUsername, bio, oldUsername]
+        [newUsername, bio, profileColor, oldUsername]
     );
 
     return {
@@ -543,6 +670,8 @@ module.exports = {
     loginUser,
 
     getProfile,
+    updateLastSeen,
+    updateShowOnline,
     updateBio,
     updateAvatar,
     updateProfile,
@@ -556,6 +685,8 @@ module.exports = {
      loadChat,
      addMessage,
       saveDM,
+    markDMDelivered,
+    markDMRead,
     
     editMessage,
     deleteMessage,

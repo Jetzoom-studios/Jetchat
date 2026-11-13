@@ -89,9 +89,28 @@ app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
 // Connected users
 const users = {};
 const onlineUsers = {};
+const presenceVisibility = new Map();
 
 // Typing users
 const typingUsers = new Map();
+
+// Build account-level presence: multiple tabs count as one online user.
+function getPresenceSnapshot() {
+    const usernames = [...new Set(Object.values(users))]
+        .filter(username => presenceVisibility.get(username) !== false)
+        .sort((a, b) => a.localeCompare(b));
+
+    return {
+        users: usernames,
+        count: usernames.length
+    };
+}
+
+function broadcastPresence() {
+    const presence = getPresenceSnapshot();
+    io.emit("presence update", presence);
+    io.emit("online count", presence.count);
+}
 
 // =========================
 // HELPERS
@@ -200,11 +219,15 @@ io.on("connection", (socket) => {
             socket.username = result.user.username;
             users[socket.id] = result.user.username;
             socket.accountId = result.user.id;
+            presenceVisibility.set(
+                result.user.username,
+                result.user.show_online !== false
+            );
             onlineUsers[result.user.username] = socket.id;
             // A username room delivers DMs to every active session for this account.
             socket.join(`user:${result.user.username}`);
 
-            io.emit("online count", Object.keys(users).length);
+            broadcastPresence();
 
             io.emit("chat message", {
                 system: true,
@@ -294,6 +317,33 @@ socket.on("dismiss update", async (updateId, callback) => {
 });
     
     // =========================
+    // UPDATE PRESENCE VISIBILITY
+    // =========================
+    socket.on("set presence visibility", async (showOnline, callback) => {
+        if (!socket.username) {
+            if (typeof callback === "function") callback({ success: false });
+            return;
+        }
+
+        try {
+            const visible = showOnline !== false;
+            await db.updateShowOnline(socket.username, visible);
+            presenceVisibility.set(socket.username, visible);
+            broadcastPresence();
+
+            if (typeof callback === "function") {
+                callback({ success: true, showOnline: visible });
+            }
+        } catch (err) {
+            console.error("Presence privacy update error:", err);
+
+            if (typeof callback === "function") {
+                callback({ success: false });
+            }
+        }
+    });
+
+    // =========================
     // GET PROFILE
     // =========================
     socket.on("get profile", async (username, callback) => {
@@ -355,25 +405,39 @@ socket.on("dismiss update", async (updateId, callback) => {
         }
 
         try {
+            const profileColor =
+                typeof data.profileColor === "string" &&
+                /^#[0-9a-fA-F]{6}$/.test(data.profileColor)
+                    ? data.profileColor
+                    : "#5865f2";
+
             const result = await db.updateProfile(
                 socket.username,
                 data.username,
-                data.bio
+                data.bio,
+                profileColor
             );
 
             if (result.success) {
                 const oldUsername = socket.username;
                 const newUsername = data.username;
 
-                socket.leave(`user:${oldUsername}`);
-                socket.join(`user:${newUsername}`);
-
-                if (onlineUsers[oldUsername] === socket.id) {
-                    delete onlineUsers[oldUsername];
+                // Keep every active tab for this account in sync after a rename.
+                for (const activeSocket of io.sockets.sockets.values()) {
+                    if (activeSocket.accountId === socket.accountId) {
+                        activeSocket.leave(`user:${oldUsername}`);
+                        activeSocket.join(`user:${newUsername}`);
+                        activeSocket.username = newUsername;
+                        users[activeSocket.id] = newUsername;
+                    }
                 }
 
-                socket.username = newUsername;
+                delete onlineUsers[oldUsername];
+                const wasVisible = presenceVisibility.get(oldUsername) !== false;
+                presenceVisibility.delete(oldUsername);
+                presenceVisibility.set(newUsername, wasVisible);
                 onlineUsers[newUsername] = socket.id;
+                broadcastPresence();
             }
 
             callback(result);
@@ -406,8 +470,10 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             callback(result);
 
-            if (result.success && onlineUsers[receiver]) {
-                io.to(onlineUsers[receiver]).emit("new friend request");
+            if (result.success) {
+                io.to(`user:${receiver}`).emit("new friend request", {
+                    sender: socket.username
+                });
             }
         } catch (err) {
             console.error(err);
@@ -477,6 +543,18 @@ socket.on("dismiss update", async (updateId, callback) => {
 
                 const chatId = makeDMChatId(socket.username, peer);
 
+                const deliveredIds = await db.markDMDelivered(
+                    chatId,
+                    socket.username
+                );
+
+                if (deliveredIds.length) {
+                    io.to(`user:${peer}`).emit("messages delivered", {
+                        chat: chatId,
+                        ids: deliveredIds
+                    });
+                }
+
                 history = await db.loadChat(
                     chatId,
                     socket.username,
@@ -488,6 +566,43 @@ socket.on("dismiss update", async (updateId, callback) => {
         } catch (err) {
             console.error("Load chat error:", err);
             socket.emit("chat history", []);
+        }
+    });
+
+    // =========================
+    // MARK DIRECT MESSAGES AS READ
+    // =========================
+    socket.on("mark chat read", async (peer, callback) => {
+        const respond = result => {
+            if (typeof callback === "function") callback(result);
+        };
+
+        if (!socket.username) {
+            return respond({ success: false, ids: [] });
+        }
+
+        try {
+            const partner = getDMPartner(peer, socket.username);
+
+            if (!partner || !(await isAcceptedFriend(socket.username, partner))) {
+                return respond({ success: false, ids: [] });
+            }
+
+            const chatId = makeDMChatId(socket.username, partner);
+            const ids = await db.markDMRead(chatId, socket.username);
+
+            if (ids.length) {
+                io.to(`user:${partner}`).emit("messages read", {
+                    chat: chatId,
+                    reader: socket.username,
+                    ids
+                });
+            }
+
+            respond({ success: true, ids });
+        } catch (err) {
+            console.error("Mark messages read error:", err);
+            respond({ success: false, ids: [] });
         }
     });
 
@@ -571,7 +686,22 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             // Send to the recipient's account room, not a single socket ID.
             // This also supports multiple tabs/devices logged into the same account.
-            io.to(`user:${peer}`).emit("chat message", msg);
+            const recipientRoom = `user:${peer}`;
+            const recipientOnline =
+                (io.sockets.adapter.rooms.get(recipientRoom)?.size || 0) > 0;
+
+            io.to(recipientRoom).emit("chat message", msg);
+
+            if (recipientOnline) {
+                const deliveredIds = await db.markDMDelivered(chatId, peer);
+
+                if (deliveredIds.length) {
+                    io.to(`user:${socket.username}`).emit("messages delivered", {
+                        chat: chatId,
+                        ids: deliveredIds
+                    });
+                }
+            }
         } catch (err) {
             console.error("Direct message error:", err);
         }
@@ -736,7 +866,7 @@ socket.on("dismiss update", async (updateId, callback) => {
     // =========================
     // DISCONNECT
     // =========================
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
         const username = users[socket.id];
 
         if (username) {
@@ -757,12 +887,19 @@ socket.on("dismiss update", async (updateId, callback) => {
                     onlineUsers[socket.username] = remainingSocket.id;
                 } else {
                     delete onlineUsers[socket.username];
+                    presenceVisibility.delete(socket.username);
+
+                    try {
+                        await db.updateLastSeen(username);
+                    } catch (err) {
+                        console.error("Last seen update error:", err);
+                    }
                 }
             }
 
             delete users[socket.id];
 
-            io.emit("online count", Object.keys(users).length);
+            broadcastPresence();
         }
 
         typingUsers.delete(socket.id);

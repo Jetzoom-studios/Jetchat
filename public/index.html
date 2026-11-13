@@ -187,6 +187,7 @@
 <!-- CHAT APP -->
 <!-- ========================= -->
 <div id="app" class="app" style="display:none;">
+    <div id="notificationContainer" class="notification-container" aria-live="polite"></div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -260,6 +261,7 @@
                 <span id="onlineCount">• 0 online</span>
             </div>
 
+            <span id="notificationBadge" class="notification-badge" style="display:none;" aria-live="polite">0</span>
             <button id="settingsBtn">⚙</button>
 
         </header>
@@ -365,7 +367,7 @@
 
         <button id="closeProfile" class="close-profile">✕</button>
 
-        <div class="profile-banner"></div>
+        <div id="profileBanner" class="profile-banner"></div>
 
         <div class="profile-avatar">
 
@@ -396,6 +398,11 @@
             <div>
                 <strong>Joined</strong><br>
                 <span id="profileJoinDate">Unknown</span>
+            </div>
+
+            <div>
+                <strong>Status</strong><br>
+                <span id="profileStatus">Last seen unknown</span>
             </div>
 
         </div>
@@ -448,6 +455,15 @@
             placeholder="Tell people about yourself..."
             maxlength="200"
         ></textarea>
+
+        <label for="editBannerColor" class="profile-color-label">
+            Profile banner colour
+        </label>
+        <input
+            type="color"
+            id="editBannerColor"
+            value="#5865f2"
+        >
 
         <button id="saveProfileBtn">
             Save Changes

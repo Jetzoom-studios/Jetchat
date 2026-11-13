@@ -6,8 +6,11 @@ const socket = io();
 // =========================
 let isTabActive = true;
 let unreadCount = 0;
+const unreadByChat = Object.create(null);
 let username = "";
 let currentChat = "global";
+let onlineUsernames = new Set();
+let currentProfileColor = "#5865f2";
 
 // typing system
 let typingUsers = new Set();
@@ -39,6 +42,9 @@ const messageInput = document.getElementById("messageInput");
 const messages = document.getElementById("messages");
 const chatContainer = document.getElementById("chatContainer");
 const onlineCount = document.getElementById("onlineCount");
+const onlineUsersContainer = document.getElementById("onlineUsers");
+const notificationBadge = document.getElementById("notificationBadge");
+const notificationContainer = document.getElementById("notificationContainer");
 const typingIndicator = document.getElementById("typingIndicator");
 
 const emojiButton = document.getElementById("emojiButton");
@@ -49,6 +55,7 @@ const profileUsername = document.getElementById("profileUsername");
 const profileBio = document.getElementById("profileBio");
 const profileJoinDate = document.getElementById("profileJoinDate");
 const profileAvatar = document.getElementById("profileAvatar");
+const profileBanner = document.getElementById("profileBanner");
 const avatarInput = document.getElementById("avatarInput");
 const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
@@ -212,6 +219,9 @@ loginButton.addEventListener("click", () => {
 
     socket.emit("login", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
+
+        jetchatSettings.showOnline = res.user.show_online !== false;
+        saveJetchatSettings();
         startChat(user);
     });
 });
@@ -231,6 +241,24 @@ signupButton.addEventListener("click", () => {
 });
 
 // =========================
+// CHAT NAVIGATION
+// =========================
+function openConversation(chat) {
+    currentChat = chat;
+
+    document.querySelector(".chat-title h2").textContent =
+        chat === "global" ? "Global Chat" : "DM with " + chat;
+
+    messages.innerHTML = "";
+    lastMessageUser = null;
+    lastMessageElement = null;
+    cancelReply();
+    clearUnreadForChat(chat);
+
+    socket.emit("load chat", chat);
+}
+
+// =========================
 // LOAD FRIENDS
 // =========================
 function loadFriends() {
@@ -248,27 +276,21 @@ function loadFriends() {
             const div = document.createElement("div");
 
             div.className = "friend-item";
-            div.textContent = friend.friend;
+            div.dataset.friend = friend.friend;
             div.style.cursor = "pointer";
 
+            const friendName = document.createElement("span");
+            friendName.textContent = friend.friend;
+            div.appendChild(friendName);
+
             div.addEventListener("click", () => {
-                currentChat = friend.friend;
-
-                document.querySelector(".chat-title h2").textContent =
-                    "DM with " + friend.friend;
-
-                messages.innerHTML = "";
-
-                lastMessageUser = null;
-                lastMessageElement = null;
-
-                cancelReply();
-
-                socket.emit("load chat", currentChat);
+                openConversation(friend.friend);
             });
 
             container.appendChild(div);
         });
+
+        updateUnreadCount();
     });
 }
 
@@ -318,7 +340,10 @@ chatForm.addEventListener("submit", (e) => {
     cancelReply();
 
     messageInput.value = "";
-    playSound(900);
+
+    if (jetchatSettings.sound) {
+        playSound(900);
+    }
 });
 
 // =========================
@@ -377,6 +402,9 @@ function displayMessage(data) {
 
             <div class="text">${escapeHTML(data.text)}</div>
             <div class="time">${escapeHTML(data.time)}</div>
+            ${!isGlobalMessage && data.username === username ? `
+                <div class="message-status">${data.read_at ? "Read" : data.delivered_at ? "Delivered" : "Sent"}</div>
+            ` : ""}
         </div>
 
         <div class="message-toolbar">
@@ -476,8 +504,214 @@ function displayMessage(data) {
     lastMessageElement = message;
 }
 
-socket.on("chat message", displayMessage);
-socket.on("chat message received", displayMessage);
+function updateUnreadCount() {
+    unreadCount = Object.values(unreadByChat).reduce(
+        (total, count) => total + count,
+        0
+    );
+
+    if (notificationBadge) {
+        notificationBadge.textContent = unreadCount > 99
+            ? "99+"
+            : String(unreadCount);
+        notificationBadge.style.display = unreadCount ? "inline-flex" : "none";
+    }
+
+    document.title = unreadCount
+        ? `(${unreadCount}) Jetchat`
+        : "Jetchat";
+
+    document.querySelectorAll(".friend-item[data-friend]").forEach(item => {
+        const chatId = [username, item.dataset.friend].sort().join("|");
+        const count = unreadByChat[chatId] || 0;
+        let badge = item.querySelector(".friend-unread-badge");
+
+        if (count > 0) {
+            if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "friend-unread-badge";
+                item.appendChild(badge);
+            }
+
+            badge.textContent = count > 99 ? "99+" : String(count);
+        } else if (badge) {
+            badge.remove();
+        }
+    });
+}
+
+function clearUnreadForChat(chat) {
+    const chatId = chat === "global"
+        ? "global"
+        : [username, chat].sort().join("|");
+
+    delete unreadByChat[chatId];
+    updateUnreadCount();
+}
+
+function showInAppNotification(title, body, chat) {
+    if (!notificationContainer) return;
+
+    const toast = document.createElement("button");
+    toast.type = "button";
+    toast.className = "jetchat-toast";
+
+    const heading = document.createElement("strong");
+    heading.textContent = title;
+
+    const preview = document.createElement("span");
+    preview.textContent = body;
+
+    toast.append(heading, preview);
+
+    toast.addEventListener("click", () => {
+        if (chat === "friends") {
+            loadFriendRequests();
+        } else {
+            openConversation(chat);
+        }
+        toast.remove();
+    });
+
+    notificationContainer.prepend(toast);
+
+    while (notificationContainer.children.length > 4) {
+        notificationContainer.lastElementChild.remove();
+    }
+
+    window.setTimeout(() => {
+        toast.classList.add("toast-dismiss");
+        window.setTimeout(() => toast.remove(), 250);
+    }, 6500);
+}
+
+function notifyIncomingMessage(data) {
+    if (!data || data.system || data.username === username) return;
+
+    const chatId = data.chat || "global";
+    const expectedChat = currentChat === "global"
+        ? "global"
+        : [username, currentChat].sort().join("|");
+    const isCurrentChat = chatId === expectedChat;
+    const isVisible = isTabActive && document.visibilityState === "visible";
+
+    if (isCurrentChat && isVisible) return;
+
+    unreadByChat[chatId] = (unreadByChat[chatId] || 0) + 1;
+    updateUnreadCount();
+
+    const chatName = chatId === "global"
+        ? "Global chat"
+        : data.username;
+
+    showInAppNotification(
+        `New message from ${chatName}`,
+        String(data.text || "").slice(0, 120),
+        chatId === "global" ? "global" : data.username
+    );
+
+    if (jetchatSettings.sound) {
+        try {
+            playSound(680);
+        } catch (error) {
+            console.warn("Notification sound could not play:", error);
+        }
+    }
+
+    if (
+        jetchatSettings.browserNotifications &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+    ) {
+        try {
+            new Notification(`New message from ${chatName}`, {
+                body: String(data.text || "").slice(0, 140),
+                icon: "/logo.png",
+                tag: `jetchat-${chatId}`
+            });
+        } catch (error) {
+            console.warn("Browser notification could not be shown:", error);
+        }
+    }
+}
+
+function handleIncomingMessage(data) {
+    displayMessage(data);
+    notifyIncomingMessage(data);
+
+    if (
+        data &&
+        !data.system &&
+        currentChat !== "global" &&
+        data.username === currentChat &&
+        data.chat === [username, currentChat].sort().join("|") &&
+        jetchatSettings.readReceipts &&
+        isTabActive &&
+        document.visibilityState === "visible"
+    ) {
+        socket.emit("mark chat read", currentChat);
+    }
+}
+
+document.addEventListener("visibilitychange", () => {
+    isTabActive = document.visibilityState === "visible";
+
+    if (isTabActive) {
+        clearUnreadForChat(currentChat);
+
+        if (
+            currentChat !== "global" &&
+            jetchatSettings.readReceipts
+        ) {
+            socket.emit("mark chat read", currentChat);
+        }
+    }
+});
+
+window.addEventListener("focus", () => {
+    isTabActive = true;
+    clearUnreadForChat(currentChat);
+
+    if (currentChat !== "global" && jetchatSettings.readReceipts) {
+        socket.emit("mark chat read", currentChat);
+    }
+});
+
+window.addEventListener("blur", () => {
+    isTabActive = false;
+});
+
+socket.on("chat message", handleIncomingMessage);
+socket.on("chat message received", handleIncomingMessage);
+
+function updateVisibleMessageStatuses(data, status) {
+    if (!data || !Array.isArray(data.ids)) return;
+
+    const expectedChat = currentChat === "global"
+        ? "global"
+        : [username, currentChat].sort().join("|");
+
+    if (data.chat !== expectedChat) return;
+
+    data.ids.forEach(id => {
+        const message = findMessageElementById(id);
+        const statusElement = message?.querySelector(".message-status");
+
+        if (statusElement) {
+            statusElement.textContent = status;
+        }
+    });
+}
+
+socket.on("messages delivered", data => {
+    updateVisibleMessageStatuses(data, "Delivered");
+});
+
+socket.on("messages read", data => {
+    if (jetchatSettings.readReceipts) {
+        updateVisibleMessageStatuses(data, "Read");
+    }
+});
 
 // =========================
 // SOCKET EVENTS: EDIT / DELETE
@@ -531,10 +765,45 @@ socket.on("typing users", (users) => {
 });
 
 // =========================
-// ONLINE COUNT
+// ACCOUNT-LEVEL PRESENCE
 // =========================
-socket.on("online count", (count) => {
-    onlineCount.textContent = `• ${count} online`;
+socket.on("presence update", (presence) => {
+    const online = Array.isArray(presence?.users)
+        ? presence.users
+        : [];
+
+    onlineUsernames = new Set(online);
+    onlineCount.textContent = `• ${online.length} online`;
+
+    if (!onlineUsersContainer) return;
+
+    onlineUsersContainer.innerHTML = "";
+
+    if (online.length === 0) {
+        onlineUsersContainer.textContent = "Nobody online";
+        return;
+    }
+
+    online.forEach(onlineUsername => {
+        const item = document.createElement("div");
+        item.className = "user clickable";
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.innerHTML = `
+            <span class="dot"></span>
+            <span>${escapeHTML(onlineUsername)}</span>
+        `;
+
+        item.addEventListener("click", () => openProfile(onlineUsername));
+        item.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openProfile(onlineUsername);
+            }
+        });
+
+        onlineUsersContainer.appendChild(item);
+    });
 });
 
 // =========================
@@ -549,6 +818,16 @@ socket.on("chat history", (history) => {
     history.forEach(msg => {
         displayMessage(msg);
     });
+
+    clearUnreadForChat(currentChat);
+
+    if (
+        currentChat !== "global" &&
+        jetchatSettings.readReceipts &&
+        document.visibilityState === "visible"
+    ) {
+        socket.emit("mark chat read", currentChat);
+    }
 
     scrollChatToBottom(false);
 });
@@ -571,13 +850,47 @@ function openProfile(targetUsername) {
         profileJoinDate.textContent =
             new Date(res.profile.join_date).toLocaleDateString();
 
+        const profileStatus = document.getElementById("profileStatus");
+
+        if (res.profile.show_online === false) {
+            profileStatus.textContent = "Status hidden";
+        } else if (onlineUsernames.has(res.profile.username)) {
+            profileStatus.textContent = "Online now";
+        } else if (res.profile.last_seen) {
+            const lastSeenDate = new Date(res.profile.last_seen);
+            const elapsedSeconds = Math.max(
+                0,
+                Math.floor((Date.now() - lastSeenDate.getTime()) / 1000)
+            );
+
+            let elapsed;
+            if (elapsedSeconds < 60) {
+                elapsed = "just now";
+            } else if (elapsedSeconds < 3600) {
+                elapsed = `${Math.floor(elapsedSeconds / 60)} minute(s) ago`;
+            } else if (elapsedSeconds < 86400) {
+                elapsed = `${Math.floor(elapsedSeconds / 3600)} hour(s) ago`;
+            } else {
+                elapsed = `${Math.floor(elapsedSeconds / 86400)} day(s) ago`;
+            }
+
+            profileStatus.textContent = `Last seen ${elapsed}`;
+        } else {
+            profileStatus.textContent = "Last seen unknown";
+        }
+
+        currentProfileColor = res.profile.profile_color || "#5865f2";
+        profileBanner.style.background = currentProfileColor;
+
         profileAvatar.src =
             res.profile.avatar || "/default-avatar.png";
 
         if (res.profile.username === username) {
             addFriendBtn.style.display = "none";
+            editProfileBtn.style.display = "block";
         } else {
             addFriendBtn.style.display = "block";
+            editProfileBtn.style.display = "none";
         }
 
         profileModal.style.display = "flex";
@@ -880,6 +1193,10 @@ settingInputs.forEach(([element, key, convert, isCheckbox]) => {
                 : element.value;
 
         saveJetchatSettings();
+
+        if (key === "showOnline" && username) {
+            socket.emit("set presence visibility", jetchatSettings.showOnline);
+        }
     };
 
     element.addEventListener("input", updateSetting);
@@ -960,6 +1277,7 @@ const closeEditProfile = document.getElementById("closeEditProfile");
 const editAvatarPreview = document.getElementById("editAvatarPreview");
 const editUsername = document.getElementById("editUsername");
 const editBio = document.getElementById("editBio");
+const editBannerColor = document.getElementById("editBannerColor");
 const saveProfileBtn = document.getElementById("saveProfileBtn");
 const changeAvatarBtn = document.getElementById("changeAvatarBtn");
 
@@ -967,6 +1285,7 @@ editProfileBtn.addEventListener("click", () => {
     editAvatarPreview.src = profileAvatar.src;
     editUsername.value = profileUsername.textContent;
     editBio.value = profileBio.textContent;
+    editBannerColor.value = currentProfileColor;
 
     profileModal.style.display = "none";
     editProfileModal.style.display = "flex";
@@ -1016,7 +1335,8 @@ avatarInput.addEventListener("change", async () => {
 saveProfileBtn.addEventListener("click", () => {
     socket.emit("update profile", {
         username: editUsername.value.trim(),
-        bio: editBio.value.trim()
+        bio: editBio.value.trim(),
+        profileColor: editBannerColor.value
     }, (res) => {
         if (!res.success) {
             return alert(res.message);
@@ -1024,6 +1344,8 @@ saveProfileBtn.addEventListener("click", () => {
 
         profileUsername.textContent = editUsername.value;
         profileBio.textContent = editBio.value;
+        currentProfileColor = editBannerColor.value;
+        profileBanner.style.background = currentProfileColor;
 
         editProfileModal.style.display = "none";
         profileModal.style.display = "flex";
@@ -1100,23 +1422,46 @@ socket.on("friends updated", () => {
     loadFriends();
 });
 
+socket.on("new friend request", data => {
+    loadFriendRequests();
+
+    const sender = data?.sender || "Someone";
+    showInAppNotification(
+        "New friend request",
+        `${sender} sent you a friend request.`,
+        "friends"
+    );
+
+    if (jetchatSettings.sound) {
+        try {
+            playSound(560);
+        } catch (error) {
+            console.warn("Notification sound could not play:", error);
+        }
+    }
+
+    if (
+        jetchatSettings.browserNotifications &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+    ) {
+        try {
+            new Notification("New friend request", {
+                body: `${sender} sent you a friend request.`,
+                icon: "/logo.png",
+                tag: "jetchat-friend-request"
+            });
+        } catch (error) {
+            console.warn("Friend request notification could not be shown:", error);
+        }
+    }
+});
+
 // =========================
 // GLOBAL CHAT BUTTON
 // =========================
 globalChatBtn.addEventListener("click", () => {
-    currentChat = "global";
-
-    document.querySelector(".chat-title h2").textContent =
-        "Global Chat";
-
-    messages.innerHTML = "";
-
-    lastMessageUser = null;
-    lastMessageElement = null;
-
-    cancelReply();
-
-    socket.emit("load chat", "global");
+    openConversation("global");
 });
 
 // =========================

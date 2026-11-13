@@ -2661,3 +2661,160 @@ body.light-mode .emoji-picker {
         scroll-behavior: auto !important;
     }
 }
+
+
+/* Phase 2: account presence and profile last-seen status */
+#onlineUsers .user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 11px;
+    color: inherit;
+    cursor: pointer;
+}
+
+#onlineUsers .user:focus-visible {
+    outline: 2px solid var(--jc-accent, #7185ff);
+    outline-offset: 2px;
+}
+
+#profileStatus {
+    color: var(--jc-muted, #91a0b8);
+    font-size: 13px;
+}
+
+
+/* Phase 2: compact sent / delivered / read indicators */
+.message-status {
+    margin-top: 3px;
+    color: var(--jc-muted, #91a0b8);
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: right;
+    user-select: none;
+}
+
+
+/* Phase 2: notification badge and in-app toast stack */
+.notification-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #e05262;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 3px 12px rgba(224, 82, 98, .28);
+}
+
+.notification-container {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 2000000;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    width: min(340px, calc(100vw - 28px));
+    pointer-events: none;
+}
+
+.jetchat-toast {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    padding: 13px 15px;
+    border: 1px solid rgba(157, 177, 215, .2);
+    border-radius: 14px;
+    background: rgba(20, 30, 49, .97);
+    color: #edf2ff;
+    text-align: left;
+    box-shadow: 0 16px 42px rgba(0,0,0,.32);
+    backdrop-filter: blur(18px);
+    pointer-events: auto;
+    cursor: pointer;
+    animation: jc-pop-in .2s ease both;
+}
+
+.jetchat-toast strong {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.jetchat-toast span {
+    color: #aebbd2;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.jetchat-toast:hover {
+    border-color: rgba(130, 151, 255, .45);
+    transform: translateY(-2px);
+}
+
+.jetchat-toast.toast-dismiss {
+    opacity: 0;
+    transform: translateX(12px);
+    transition: opacity .22s ease, transform .22s ease;
+}
+
+body.light-mode .jetchat-toast {
+    background: rgba(255,255,255,.98);
+    color: #202a3b;
+    border-color: rgba(38, 54, 85, .13);
+}
+
+body.light-mode .jetchat-toast span {
+    color: #647087;
+}
+
+
+/* Phase 2: profile banner customization */
+.profile-color-label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 7px;
+    color: var(--jc-muted, #91a0b8);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#editBannerColor {
+    width: 100%;
+    height: 42px;
+    padding: 4px;
+    border: 1px solid var(--jc-border, rgba(157,177,215,.2));
+    border-radius: 10px;
+    background: rgba(128,148,190,.08);
+    cursor: pointer;
+}
+
+
+.friend-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.friend-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #e05262;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+}
