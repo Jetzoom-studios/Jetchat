@@ -428,8 +428,10 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             callback(result);
 
-            if (result.success && onlineUsers[receiver]) {
-                io.to(onlineUsers[receiver]).emit("new friend request");
+            if (result.success) {
+                io.to(`user:${receiver}`).emit("new friend request", {
+                    sender: socket.username
+                });
             }
         } catch (err) {
             console.error(err);
