@@ -94,7 +94,14 @@ async function createUser(username, password) {
 // =========================
 // LOGIN
 // =========================
+async function ensureShowOnlineColumn() {
+    await pool.query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS show_online BOOLEAN NOT NULL DEFAULT TRUE"
+    );
+}
+
 async function loginUser(username, password) {
+    await ensureShowOnlineColumn();
 
     const result = await pool.query(
         `
@@ -367,6 +374,7 @@ async function updateLastSeen(username) {
 async function getProfile(username) {
     await ensureLastSeenColumn();
     await ensureProfileColorColumn();
+    await ensureShowOnlineColumn();
 
     console.log("Searching for username:", username);
 
@@ -378,7 +386,8 @@ async function getProfile(username) {
             bio,
             join_date,
             last_seen,
-            profile_color
+            profile_color,
+            show_online
         FROM users
         WHERE username = $1
         `,
@@ -441,6 +450,20 @@ async function sendFriendRequest(sender, receiver) {
         success: true
     };
 }
+// =========================
+// UPDATE PRESENCE PRIVACY
+// =========================
+async function updateShowOnline(username, showOnline) {
+    await ensureShowOnlineColumn();
+
+    await pool.query(
+        "UPDATE users SET show_online = $1 WHERE username = $2",
+        [!!showOnline, username]
+    );
+
+    return { success: true };
+}
+
 // =========================
 // UPDATE BIO
 // =========================
@@ -625,6 +648,7 @@ module.exports = {
 
     getProfile,
     updateLastSeen,
+    updateShowOnline,
     updateBio,
     updateAvatar,
     updateProfile,
