@@ -8,6 +8,7 @@ let isTabActive = true;
 let unreadCount = 0;
 let username = "";
 let currentChat = "global";
+let onlineUsernames = new Set();
 
 // typing system
 let typingUsers = new Set();
@@ -539,6 +540,7 @@ socket.on("presence update", (presence) => {
         ? presence.users
         : [];
 
+    onlineUsernames = new Set(online);
     onlineCount.textContent = `• ${online.length} online`;
 
     if (!onlineUsersContainer) return;
@@ -605,6 +607,33 @@ function openProfile(targetUsername) {
         profileBio.textContent = res.profile.bio || "No bio yet.";
         profileJoinDate.textContent =
             new Date(res.profile.join_date).toLocaleDateString();
+
+        const profileStatus = document.getElementById("profileStatus");
+
+        if (onlineUsernames.has(res.profile.username)) {
+            profileStatus.textContent = "Online now";
+        } else if (res.profile.last_seen) {
+            const lastSeenDate = new Date(res.profile.last_seen);
+            const elapsedSeconds = Math.max(
+                0,
+                Math.floor((Date.now() - lastSeenDate.getTime()) / 1000)
+            );
+
+            let elapsed;
+            if (elapsedSeconds < 60) {
+                elapsed = "just now";
+            } else if (elapsedSeconds < 3600) {
+                elapsed = `${Math.floor(elapsedSeconds / 60)} minute(s) ago`;
+            } else if (elapsedSeconds < 86400) {
+                elapsed = `${Math.floor(elapsedSeconds / 3600)} hour(s) ago`;
+            } else {
+                elapsed = `${Math.floor(elapsedSeconds / 86400)} day(s) ago`;
+            }
+
+            profileStatus.textContent = `Last seen ${elapsed}`;
+        } else {
+            profileStatus.textContent = "Last seen unknown";
+        }
 
         profileAvatar.src =
             res.profile.avatar || "/default-avatar.png";
