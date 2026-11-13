@@ -499,6 +499,18 @@ socket.on("dismiss update", async (updateId, callback) => {
 
                 const chatId = makeDMChatId(socket.username, peer);
 
+                const deliveredIds = await db.markDMDelivered(
+                    chatId,
+                    socket.username
+                );
+
+                if (deliveredIds.length) {
+                    io.to(`user:${peer}`).emit("messages delivered", {
+                        chat: chatId,
+                        ids: deliveredIds
+                    });
+                }
+
                 history = await db.loadChat(
                     chatId,
                     socket.username,
@@ -510,6 +522,43 @@ socket.on("dismiss update", async (updateId, callback) => {
         } catch (err) {
             console.error("Load chat error:", err);
             socket.emit("chat history", []);
+        }
+    });
+
+    // =========================
+    // MARK DIRECT MESSAGES AS READ
+    // =========================
+    socket.on("mark chat read", async (peer, callback) => {
+        const respond = result => {
+            if (typeof callback === "function") callback(result);
+        };
+
+        if (!socket.username) {
+            return respond({ success: false, ids: [] });
+        }
+
+        try {
+            const partner = getDMPartner(peer, socket.username);
+
+            if (!partner || !(await isAcceptedFriend(socket.username, partner))) {
+                return respond({ success: false, ids: [] });
+            }
+
+            const chatId = makeDMChatId(socket.username, partner);
+            const ids = await db.markDMRead(chatId, socket.username);
+
+            if (ids.length) {
+                io.to(`user:${partner}`).emit("messages read", {
+                    chat: chatId,
+                    reader: socket.username,
+                    ids
+                });
+            }
+
+            respond({ success: true, ids });
+        } catch (err) {
+            console.error("Mark messages read error:", err);
+            respond({ success: false, ids: [] });
         }
     });
 
@@ -593,7 +642,22 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             // Send to the recipient's account room, not a single socket ID.
             // This also supports multiple tabs/devices logged into the same account.
-            io.to(`user:${peer}`).emit("chat message", msg);
+            const recipientRoom = `user:${peer}`;
+            const recipientOnline =
+                (io.sockets.adapter.rooms.get(recipientRoom)?.size || 0) > 0;
+
+            io.to(recipientRoom).emit("chat message", msg);
+
+            if (recipientOnline) {
+                const deliveredIds = await db.markDMDelivered(chatId, peer);
+
+                if (deliveredIds.length) {
+                    io.to(`user:${socket.username}`).emit("messages delivered", {
+                        chat: chatId,
+                        ids: deliveredIds
+                    });
+                }
+            }
         } catch (err) {
             console.error("Direct message error:", err);
         }
