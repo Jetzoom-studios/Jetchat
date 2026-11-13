@@ -161,7 +161,7 @@ function addMessage(message) {
 // =========================
 async function saveDM(message) {
 
-    await pool.query(
+    const result = await pool.query(
         `
         INSERT INTO messages
         (
@@ -179,6 +179,7 @@ async function saveDM(message) {
             $4,
             $5
         )
+        RETURNING id
         `,
         [
             message.username,
@@ -189,25 +190,52 @@ async function saveDM(message) {
         ]
     );
 
+    return result.rows[0] || null;
 }
 
 
 // =========================
 // LOAD CHAT
 // =========================
-async function loadChat(chat) {
+async function loadChat(chat, username, peer) {
 
-    const result = await pool.query(
-        `
+    let query = `
         SELECT *
         FROM messages
         WHERE chat = $1
         ORDER BY id ASC
-        `,
-        [chat]
-    );
+    `;
 
-    return result.rows;
+    let params = [chat];
+
+    if (username && peer) {
+        query = `
+            SELECT *
+            FROM messages
+            WHERE
+                chat = $1
+                OR (username = $2 AND recipient = $3)
+                OR (username = $3 AND recipient = $2)
+                OR recipient IN ($4, $5)
+            ORDER BY id ASC
+        `;
+
+        params = [
+            chat,
+            username,
+            peer,
+            `${username}|${peer}`,
+            `${peer}|${username}`
+        ];
+    }
+
+    const result = await pool.query(query, params);
+
+    // Normalize legacy rows to the single canonical chat ID used by the client.
+    return result.rows.map(message => ({
+        ...message,
+        chat
+    }));
 
 }
 
