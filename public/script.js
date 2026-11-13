@@ -379,6 +379,9 @@ function displayMessage(data) {
 
             <div class="text">${escapeHTML(data.text)}</div>
             <div class="time">${escapeHTML(data.time)}</div>
+            ${!isGlobalMessage && data.username === username ? `
+                <div class="message-status">${data.read_at ? "Read" : data.delivered_at ? "Delivered" : "Sent"}</div>
+            ` : ""}
         </div>
 
         <div class="message-toolbar">
@@ -478,8 +481,53 @@ function displayMessage(data) {
     lastMessageElement = message;
 }
 
-socket.on("chat message", displayMessage);
-socket.on("chat message received", displayMessage);
+function handleIncomingMessage(data) {
+    displayMessage(data);
+
+    if (
+        data &&
+        !data.system &&
+        currentChat !== "global" &&
+        data.username === currentChat &&
+        data.chat === [username, currentChat].sort().join("|") &&
+        jetchatSettings.readReceipts &&
+        document.visibilityState === "visible"
+    ) {
+        socket.emit("mark chat read", currentChat);
+    }
+}
+
+socket.on("chat message", handleIncomingMessage);
+socket.on("chat message received", handleIncomingMessage);
+
+function updateVisibleMessageStatuses(data, status) {
+    if (!data || !Array.isArray(data.ids)) return;
+
+    const expectedChat = currentChat === "global"
+        ? "global"
+        : [username, currentChat].sort().join("|");
+
+    if (data.chat !== expectedChat) return;
+
+    data.ids.forEach(id => {
+        const message = findMessageElementById(id);
+        const statusElement = message?.querySelector(".message-status");
+
+        if (statusElement) {
+            statusElement.textContent = status;
+        }
+    });
+}
+
+socket.on("messages delivered", data => {
+    updateVisibleMessageStatuses(data, "Delivered");
+});
+
+socket.on("messages read", data => {
+    if (jetchatSettings.readReceipts) {
+        updateVisibleMessageStatuses(data, "Read");
+    }
+});
 
 // =========================
 // SOCKET EVENTS: EDIT / DELETE
@@ -586,6 +634,14 @@ socket.on("chat history", (history) => {
     history.forEach(msg => {
         displayMessage(msg);
     });
+
+    if (
+        currentChat !== "global" &&
+        jetchatSettings.readReceipts &&
+        document.visibilityState === "visible"
+    ) {
+        socket.emit("mark chat read", currentChat);
+    }
 
     scrollChatToBottom(false);
 });
