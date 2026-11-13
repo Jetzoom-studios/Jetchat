@@ -887,8 +887,10 @@ function openProfile(targetUsername) {
 
         if (res.profile.username === username) {
             addFriendBtn.style.display = "none";
+            editProfileBtn.style.display = "block";
         } else {
             addFriendBtn.style.display = "block";
+            editProfileBtn.style.display = "none";
         }
 
         profileModal.style.display = "flex";
@@ -1443,11 +1445,15 @@ socket.on("new friend request", data => {
         "Notification" in window &&
         Notification.permission === "granted"
     ) {
-        new Notification("New friend request", {
-            body: `${sender} sent you a friend request.`,
-            icon: "/logo.png",
-            tag: "jetchat-friend-request"
-        });
+        try {
+            new Notification("New friend request", {
+                body: `${sender} sent you a friend request.`,
+                icon: "/logo.png",
+                tag: "jetchat-friend-request"
+            });
+        } catch (error) {
+            console.warn("Friend request notification could not be shown:", error);
+        }
     }
 });
 
