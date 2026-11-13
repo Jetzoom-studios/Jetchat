@@ -93,6 +93,24 @@ const onlineUsers = {};
 // Typing users
 const typingUsers = new Map();
 
+// Build account-level presence: multiple tabs count as one online user.
+function getPresenceSnapshot() {
+    const usernames = [...new Set(Object.values(users))].sort((a, b) =>
+        a.localeCompare(b)
+    );
+
+    return {
+        users: usernames,
+        count: usernames.length
+    };
+}
+
+function broadcastPresence() {
+    const presence = getPresenceSnapshot();
+    io.emit("presence update", presence);
+    io.emit("online count", presence.count);
+}
+
 // =========================
 // HELPERS
 // =========================
@@ -204,7 +222,7 @@ io.on("connection", (socket) => {
             // A username room delivers DMs to every active session for this account.
             socket.join(`user:${result.user.username}`);
 
-            io.emit("online count", Object.keys(users).length);
+            broadcastPresence();
 
             io.emit("chat message", {
                 system: true,
@@ -365,15 +383,19 @@ socket.on("dismiss update", async (updateId, callback) => {
                 const oldUsername = socket.username;
                 const newUsername = data.username;
 
-                socket.leave(`user:${oldUsername}`);
-                socket.join(`user:${newUsername}`);
-
-                if (onlineUsers[oldUsername] === socket.id) {
-                    delete onlineUsers[oldUsername];
+                // Keep every active tab for this account in sync after a rename.
+                for (const activeSocket of io.sockets.sockets.values()) {
+                    if (activeSocket.accountId === socket.accountId) {
+                        activeSocket.leave(`user:${oldUsername}`);
+                        activeSocket.join(`user:${newUsername}`);
+                        activeSocket.username = newUsername;
+                        users[activeSocket.id] = newUsername;
+                    }
                 }
 
-                socket.username = newUsername;
+                delete onlineUsers[oldUsername];
                 onlineUsers[newUsername] = socket.id;
+                broadcastPresence();
             }
 
             callback(result);
@@ -762,7 +784,7 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             delete users[socket.id];
 
-            io.emit("online count", Object.keys(users).length);
+            broadcastPresence();
         }
 
         typingUsers.delete(socket.id);
