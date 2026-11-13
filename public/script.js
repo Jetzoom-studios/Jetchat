@@ -53,8 +53,7 @@ const avatarInput = document.getElementById("avatarInput");
 const closeProfile = document.getElementById("closeProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
 
-const globalChatBtn =
-    document.getElementById("globalChatBtn");
+const globalChatBtn = document.getElementById("globalChatBtn");
 
 // =========================
 // CHAT SCROLL CONTROLS
@@ -77,7 +76,6 @@ function scrollChatToTop() {
     });
 }
 
-// Add the up/down controls inside the scrollable chat area.
 if (chatContainer) {
     const scrollControls = document.createElement("div");
     scrollControls.className = "chat-scroll-controls";
@@ -88,10 +86,12 @@ if (chatContainer) {
 
     chatContainer.appendChild(scrollControls);
 
-    scrollControls.querySelector(".chat-scroll-up").addEventListener("click", scrollChatToTop);
-    scrollControls.querySelector(".chat-scroll-down").addEventListener("click", () => scrollChatToBottom(true));
-}
+    scrollControls.querySelector(".chat-scroll-up")
+        .addEventListener("click", scrollChatToTop);
 
+    scrollControls.querySelector(".chat-scroll-down")
+        .addEventListener("click", () => scrollChatToBottom(true));
+}
 
 // =========================
 // SOUND
@@ -121,18 +121,6 @@ function playSound(freq = 800) {
 // =========================
 // HELPERS
 // =========================
-function findMessageElement(text, username) {
-    return [...document.querySelectorAll(".message")].reverse().find(msg => {
-        const textEl = msg.querySelector(".text");
-        const userEl = msg.querySelector(".username");
-
-        if (!textEl) return false;
-
-        return textEl.textContent === text &&
-            (!username || userEl?.textContent === username);
-    });
-}
-
 function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, character => ({
         "&": "&amp;",
@@ -141,6 +129,14 @@ function escapeHTML(value) {
         '"': "&quot;",
         "'": "&#39;"
     })[character]);
+}
+
+function findMessageElementById(id) {
+    if (id === undefined || id === null) return null;
+
+    return [...messages.querySelectorAll(".message")].find(message => {
+        return String(message.dataset.messageId) === String(id);
+    }) || null;
 }
 
 // =========================
@@ -162,8 +158,18 @@ function createReplyPreview() {
 
 createReplyPreview();
 
+function cancelReply() {
+    replyingTo = null;
+    replyPreview.style.display = "none";
+    replyPreview.innerHTML = "";
+}
+
 function startReply(data) {
-    replyingTo = data;
+    replyingTo = {
+        id: data.id,
+        username: data.username,
+        text: data.text
+    };
 
     replyPreview.innerHTML = `
         <strong>Replying to ${escapeHTML(data.username)}</strong><br>
@@ -173,10 +179,7 @@ function startReply(data) {
 
     replyPreview.style.display = "block";
 
-    document.getElementById("cancelReply").onclick = () => {
-        replyingTo = null;
-        replyPreview.style.display = "none";
-    };
+    document.getElementById("cancelReply").onclick = cancelReply;
 
     messageInput.focus();
 }
@@ -185,7 +188,6 @@ function startReply(data) {
 // LOGIN
 // =========================
 function startChat(user) {
-
     username = user;
 
     loginScreen.style.display = "none";
@@ -198,11 +200,14 @@ function startChat(user) {
 
     messageInput.focus();
 }
+
 loginButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
-    if (!user || !pass) return alert("Enter username and password");
+    if (!user || !pass) {
+        return alert("Enter username and password");
+    }
 
     socket.emit("login", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
@@ -214,7 +219,9 @@ signupButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
 
-    if (!user || !pass) return alert("Enter username and password");
+    if (!user || !pass) {
+        return alert("Enter username and password");
+    }
 
     socket.emit("signup", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
@@ -226,11 +233,9 @@ signupButton.addEventListener("click", () => {
 // LOAD FRIENDS
 // =========================
 function loadFriends() {
-
     const container = document.getElementById("friendsList");
 
     socket.emit("get friends", (friends) => {
-
         container.innerHTML = "";
 
         if (!friends.length) {
@@ -239,7 +244,6 @@ function loadFriends() {
         }
 
         friends.forEach(friend => {
-
             const div = document.createElement("div");
 
             div.className = "friend-item";
@@ -247,7 +251,6 @@ function loadFriends() {
             div.style.cursor = "pointer";
 
             div.addEventListener("click", () => {
-
                 currentChat = `${username}|${friend.friend}`;
 
                 document.querySelector(".chat-title h2").textContent =
@@ -258,22 +261,22 @@ function loadFriends() {
                 lastMessageUser = null;
                 lastMessageElement = null;
 
-                socket.emit("load chat", currentChat);
+                cancelReply();
 
+                socket.emit("load chat", currentChat);
             });
 
             container.appendChild(div);
-
         });
-
     });
-
 }
+
 // =========================
 // EMOJI
 // =========================
 emojiButton.addEventListener("click", (e) => {
     e.preventDefault();
+
     emojiPicker.style.display =
         emojiPicker.style.display === "flex" ? "none" : "flex";
 });
@@ -311,8 +314,7 @@ chatForm.addEventListener("submit", (e) => {
         })
     });
 
-    replyingTo = null;
-    replyPreview.style.display = "none";
+    cancelReply();
 
     messageInput.value = "";
     playSound(900);
@@ -322,11 +324,10 @@ chatForm.addEventListener("submit", (e) => {
 // RECEIVE MESSAGES
 // =========================
 function displayMessage(data) {
-
     if (
         currentChat === "global"
             ? data.chat !== "global"
-            : !data.chat.includes(currentChat)
+            : !data.chat || !data.chat.includes(currentChat)
     ) {
         return;
     }
@@ -335,7 +336,9 @@ function displayMessage(data) {
 
     if (data.system) {
         message.className = "system-wrapper";
-        message.innerHTML = `<div class="system-message">${escapeHTML(data.text)}</div>`;
+        message.innerHTML = `
+            <div class="system-message">${escapeHTML(data.text)}</div>
+        `;
 
         messages.appendChild(message);
         scrollChatToBottom(true);
@@ -347,13 +350,21 @@ function displayMessage(data) {
 
     message.className = "message";
 
+    if (data.id !== undefined && data.id !== null) {
+        message.dataset.messageId = String(data.id);
+    }
+
     const isGrouped =
         data.username === lastMessageUser &&
         lastMessageElement &&
         !lastMessageElement.classList.contains("system-wrapper");
 
+    const isGlobalMessage = data.chat === "global";
+
     message.innerHTML = `
-        ${isGrouped ? "" : `<div class="username clickable">${escapeHTML(data.username)}</div>`}
+        ${isGrouped ? "" : `
+            <div class="username clickable">${escapeHTML(data.username)}</div>
+        `}
 
         <div class="message-body">
             ${data.replyTo ? `
@@ -368,10 +379,12 @@ function displayMessage(data) {
         </div>
 
         <div class="message-toolbar">
-            <button class="react-btn">😊</button>
-            <button class="reply-btn">↩</button>
-            <button class="edit-btn">✏️</button>
-            <button class="delete-btn">🗑️</button>
+            <button class="react-btn" type="button">😊</button>
+            <button class="reply-btn" type="button">↩</button>
+            ${isGlobalMessage ? `
+                <button class="edit-btn" type="button">✏️</button>
+                <button class="delete-btn" type="button">🗑️</button>
+            ` : ""}
         </div>
     `;
 
@@ -382,7 +395,6 @@ function displayMessage(data) {
 
         usernameElement.onclick = () => {
             console.log("CLICKED:", data.username);
-            alert("Clicked " + data.username);
             openProfile(data.username);
         };
     }
@@ -395,31 +407,62 @@ function displayMessage(data) {
         });
     });
 
-    message.querySelector(".edit-btn").addEventListener("click", () => {
-        const oldText = data.text;
-        const newText = prompt("Edit message:", oldText);
+    const editButton = message.querySelector(".edit-btn");
 
-        if (!newText || newText === oldText) return;
+    if (editButton) {
+        editButton.addEventListener("click", () => {
+            if (data.username !== username) {
+                return alert("You can only edit your own messages.");
+            }
 
-        socket.emit("edit message", { oldText, newText });
+            if (data.id === undefined || data.id === null) {
+                return alert("This message has no ID and cannot be edited.");
+            }
 
-        const el = findMessageElement(oldText, data.username);
-        if (el) el.querySelector(".text").textContent = newText;
-    });
+            const oldText = message.querySelector(".text").textContent;
+            const newText = prompt("Edit message:", oldText);
 
-    message.querySelector(".delete-btn").addEventListener("click", () => {
-        if (!confirm("Delete this message?")) return;
+            if (newText === null) return;
 
-        socket.emit("delete message", data.text);
+            const trimmedText = newText.trim();
 
-        const el = findMessageElement(data.text, data.username);
-        if (el) el.remove();
-    });
+            if (!trimmedText || trimmedText === oldText) return;
+
+            socket.emit("edit message", {
+                id: data.id,
+                newText: trimmedText
+            }, (res) => {
+                if (!res || !res.success) {
+                    alert(res?.message || "Couldn't edit message.");
+                }
+            });
+        });
+    }
+
+    const deleteButton = message.querySelector(".delete-btn");
+
+    if (deleteButton) {
+        deleteButton.addEventListener("click", () => {
+            if (data.username !== username) {
+                return alert("You can only delete your own messages.");
+            }
+
+            if (data.id === undefined || data.id === null) {
+                return alert("This message has no ID and cannot be deleted.");
+            }
+
+            if (!confirm("Delete this message?")) return;
+
+            socket.emit("delete message", data.id, (res) => {
+                if (!res || !res.success) {
+                    alert(res?.message || "Couldn't delete message.");
+                }
+            });
+        });
+    }
 
     messages.appendChild(message);
 
-    // Keep the view pinned only if the user was already near the bottom.
-    // New messages won't drag someone away from older messages they're reading.
     const distanceFromBottom = chatContainer
         ? chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight
         : 0;
@@ -433,20 +476,28 @@ function displayMessage(data) {
 }
 
 socket.on("chat message", displayMessage);
-
 socket.on("chat message received", displayMessage);
 
 // =========================
-// SOCKET EVENTS
+// SOCKET EVENTS: EDIT / DELETE
 // =========================
 socket.on("chat message edited", (data) => {
-    const el = findMessageElement(data.oldText, data.username);
-    if (el) el.querySelector(".text").textContent = data.newText;
+    const message = findMessageElementById(data.id);
+    if (!message) return;
+
+    const textElement = message.querySelector(".text");
+    if (textElement) {
+        textElement.textContent = data.newText;
+    }
+
+    message.dataset.edited = "true";
 });
 
 socket.on("chat message deleted", (data) => {
-    const el = findMessageElement(data.text, data.username);
-    if (el) el.remove();
+    const message = findMessageElementById(data.id);
+    if (message) {
+        message.remove();
+    }
 });
 
 // =========================
@@ -456,7 +507,10 @@ messageInput.addEventListener("input", () => {
     if (!typingSent) {
         socket.emit("typing", username);
         typingSent = true;
-        setTimeout(() => typingSent = false, 1000);
+
+        setTimeout(() => {
+            typingSent = false;
+        }, 1000);
     }
 });
 
@@ -465,12 +519,13 @@ socket.on("typing users", (users) => {
 
     const list = [...typingUsers];
 
-    typingIndicator.innerHTML =
+    typingIndicator.textContent =
         list.length ? `${list.join(", ")} is typing...` : "";
 
     clearTimeout(typingTimeout);
+
     typingTimeout = setTimeout(() => {
-        typingIndicator.innerHTML = "";
+        typingIndicator.textContent = "";
     }, 2000);
 });
 
@@ -485,7 +540,6 @@ socket.on("online count", (count) => {
 // CHAT HISTORY
 // =========================
 socket.on("chat history", (history) => {
-
     messages.innerHTML = "";
 
     lastMessageUser = null;
@@ -495,21 +549,16 @@ socket.on("chat history", (history) => {
         displayMessage(msg);
     });
 
-    // History is rendered into #messages; #chatContainer owns scrolling.
     scrollChatToBottom(false);
-
 });
 
 // =========================
 // PROFILE SYSTEM
 // =========================
-
 function openProfile(targetUsername) {
-
     console.log("Opening profile:", targetUsername);
 
     socket.emit("get profile", targetUsername, (res) => {
-
         console.log("PROFILE RESPONSE:", res);
 
         if (!res.success) {
@@ -531,9 +580,7 @@ function openProfile(targetUsername) {
         }
 
         profileModal.style.display = "flex";
-
     });
-
 }
 
 closeProfile.addEventListener("click", () => {
@@ -541,9 +588,8 @@ closeProfile.addEventListener("click", () => {
 });
 
 /* =========================
-   ⚙ SETTINGS + THEME SYSTEM (ADDED)
+   SETTINGS + THEME SYSTEM
 ========================= */
-
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettings = document.getElementById("closeSettings");
@@ -551,7 +597,6 @@ const closeSettings = document.getElementById("closeSettings");
 const darkModeToggle = document.getElementById("darkModeToggle");
 const lightModeToggle = document.getElementById("lightModeToggle");
 
-// open settings
 if (settingsBtn && settingsPanel) {
     settingsBtn.addEventListener("click", () => {
         settingsPanel.style.display =
@@ -559,39 +604,45 @@ if (settingsBtn && settingsPanel) {
     });
 }
 
-// close settings
 if (closeSettings) {
     closeSettings.addEventListener("click", () => {
         settingsPanel.style.display = "none";
     });
 }
 
-// DARK MODE
 if (darkModeToggle) {
     darkModeToggle.addEventListener("change", () => {
         if (darkModeToggle.checked) {
             document.body.classList.add("dark-mode");
             document.body.classList.remove("light-mode");
-            if (lightModeToggle) lightModeToggle.checked = false;
+
+            if (lightModeToggle) {
+                lightModeToggle.checked = false;
+            }
         } else {
             document.body.classList.remove("dark-mode");
         }
     });
 }
 
-// LIGHT MODE
 if (lightModeToggle) {
     lightModeToggle.addEventListener("change", () => {
         if (lightModeToggle.checked) {
             document.body.classList.add("light-mode");
             document.body.classList.remove("dark-mode");
-            if (darkModeToggle) darkModeToggle.checked = false;
+
+            if (darkModeToggle) {
+                darkModeToggle.checked = false;
+            }
         } else {
             document.body.classList.remove("light-mode");
         }
     });
 }
 
+// =========================
+// EDIT PROFILE
+// =========================
 const editProfileModal = document.getElementById("editProfileModal");
 const closeEditProfile = document.getElementById("closeEditProfile");
 
@@ -602,45 +653,33 @@ const saveProfileBtn = document.getElementById("saveProfileBtn");
 const changeAvatarBtn = document.getElementById("changeAvatarBtn");
 
 editProfileBtn.addEventListener("click", () => {
-
     editAvatarPreview.src = profileAvatar.src;
     editUsername.value = profileUsername.textContent;
     editBio.value = profileBio.textContent;
 
     profileModal.style.display = "none";
     editProfileModal.style.display = "flex";
-
 });
 
 closeEditProfile.addEventListener("click", () => {
-
     editProfileModal.style.display = "none";
     profileModal.style.display = "flex";
-
 });
 
 changeAvatarBtn.addEventListener("click", () => {
-
     avatarInput.click();
-
 });
 
 avatarInput.addEventListener("change", async () => {
-
     if (!avatarInput.files.length) return;
 
     const formData = new FormData();
-
     formData.append("avatar", avatarInput.files[0]);
 
     try {
-
         const upload = await fetch("/upload-avatar", {
-
             method: "POST",
-
             body: formData
-
         });
 
         const data = await upload.json();
@@ -650,34 +689,24 @@ avatarInput.addEventListener("change", async () => {
         }
 
         socket.emit("update avatar", data.avatar, (res) => {
-
             if (!res.success) {
                 return alert("Couldn't save avatar.");
             }
 
             profileAvatar.src = data.avatar;
-
             alert("Avatar updated!");
-
         });
-
     } catch (err) {
-
         console.error(err);
-
         alert("Upload failed.");
-
     }
-
 });
 
 saveProfileBtn.addEventListener("click", () => {
-
     socket.emit("update profile", {
         username: editUsername.value.trim(),
         bio: editBio.value.trim()
     }, (res) => {
-
         if (!res.success) {
             return alert(res.message);
         }
@@ -689,9 +718,7 @@ saveProfileBtn.addEventListener("click", () => {
         profileModal.style.display = "flex";
 
         alert("Profile updated!");
-
     });
-
 });
 
 // =========================
@@ -700,31 +727,24 @@ saveProfileBtn.addEventListener("click", () => {
 const addFriendBtn = document.getElementById("addFriendBtn");
 
 addFriendBtn.addEventListener("click", () => {
-
     const target = profileUsername.textContent;
 
     socket.emit("send friend request", target, (res) => {
-
         if (!res.success) {
             return alert(res.message);
         }
 
         alert("Friend request sent!");
-
     });
-
 });
 
 // =========================
 // LOAD FRIEND REQUESTS
 // =========================
 function loadFriendRequests() {
-
-    const container =
-        document.getElementById("friendRequests");
+    const container = document.getElementById("friendRequests");
 
     socket.emit("get friend requests", (requests) => {
-
         container.innerHTML = "";
 
         if (!requests.length) {
@@ -733,62 +753,46 @@ function loadFriendRequests() {
         }
 
         requests.forEach(request => {
-
             const div = document.createElement("div");
 
             div.innerHTML = `
                 ${escapeHTML(request.sender)}
-                <button class="acceptFriendBtn">
+                <button class="acceptFriendBtn" type="button">
                     Accept
                 </button>
             `;
 
-            const button =
-                div.querySelector(".acceptFriendBtn");
+            const button = div.querySelector(".acceptFriendBtn");
 
             button.addEventListener("click", () => {
-
-                socket.emit(
-                    "accept friend request",
-                    request.sender,
-                    (res) => {
-
-                        if (!res.success) {
-                            return alert("Couldn't accept request.");
-                        }
-
-                        alert("Friend request accepted!");
-
-                        loadFriendRequests();
-
+                socket.emit("accept friend request", request.sender, (res) => {
+                    if (!res.success) {
+                        return alert("Couldn't accept request.");
                     }
-                );
 
+                    alert("Friend request accepted!");
+
+                    loadFriendRequests();
+                });
             });
 
             container.appendChild(div);
-
         });
-
     });
-
 }
 
 // =========================
 // LIVE FRIEND UPDATES
-// ========================
+// =========================
 socket.on("friends updated", () => {
-
     loadFriendRequests();
     loadFriends();
-
 });
 
 // =========================
 // GLOBAL CHAT BUTTON
 // =========================
 globalChatBtn.addEventListener("click", () => {
-
     currentChat = "global";
 
     document.querySelector(".chat-title h2").textContent =
@@ -796,6 +800,10 @@ globalChatBtn.addEventListener("click", () => {
 
     messages.innerHTML = "";
 
-    socket.emit("load chat", "global");
+    lastMessageUser = null;
+    lastMessageElement = null;
 
+    cancelReply();
+
+    socket.emit("load chat", "global");
 });
