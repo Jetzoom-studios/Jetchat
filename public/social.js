@@ -23,6 +23,7 @@
       <button class="social-nav" data-view="trending"><span>#</span> Trending</button>
       <button class="social-nav" data-view="create"><span>＋</span> Create</button>
       <button class="social-nav" data-view="chats"><span>▤</span> Chat</button>
+      <button class="social-nav" data-view="settings"><span>⚙</span> Settings</button>
       <div class="social-rail-spacer"></div>
       <div class="social-rail-footer">Your world. Your people.</div>
     </aside>
@@ -47,7 +48,7 @@
         </section>
         <aside class="social-side-panel">
           <div class="social-side-card"><span class="social-side-icon">✦</span><h3>Make it yours</h3><p>Follow people whose posts you want to see. Your Home feed will fill up as your circle grows.</p><button data-view="explore">Discover people →</button></div>
-          <div class="social-side-note">Jetchat Social · 3.9.0</div>
+          <div class="social-side-note">Jetchat Social · 3.9.1</div>
         </aside>
       </div>
     </main>
@@ -930,7 +931,7 @@
 
   function closeModal() { modal.hidden = true; createForm.reset(); status.textContent = ""; overlay.querySelector("#socialImageName").textContent = "No photo selected · 8 MB maximum"; }
   function openCreate() { modal.hidden = false; overlay.querySelector("#socialPostBody").focus(); }
-  overlay.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => button.dataset.view === "create" ? openCreate() : openView(button.dataset.view)));
+  overlay.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => { if(button.dataset.view==="create")openCreate(); else if(button.dataset.view==="settings"){ if(typeof window.openJetchatSettings==="function")window.openJetchatSettings(); } else openView(button.dataset.view); }));
   const chatFilterButtons = [...overlay.querySelectorAll("[data-chat-tab]")];
   const chatSections = [...overlay.querySelectorAll("[data-chat-section]")];
   function setChatFilter(filter) {
