@@ -58,6 +58,43 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// Cloudflare Turnstile configuration. The secret key is never sent to browsers.
+const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || "";
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || "";
+
+app.get("/api/captcha-config", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json({ enabled: Boolean(TURNSTILE_SITE_KEY && TURNSTILE_SECRET_KEY), siteKey: TURNSTILE_SITE_KEY });
+});
+
+// Verify every auth attempt on the server. Client-side widget state is never trusted.
+async function verifyTurnstileToken(token) {
+    if (!TURNSTILE_SECRET_KEY || typeof token !== "string" || !token.trim()) {
+        return false;
+    }
+
+    try {
+        const body = new URLSearchParams({
+            secret: TURNSTILE_SECRET_KEY,
+            response: token.trim()
+        });
+
+        const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body,
+            signal: AbortSignal.timeout(8000)
+        });
+
+        if (!response.ok) return false;
+        const result = await response.json();
+        return result.success === true && result.action === "jetchat-auth";
+    } catch (error) {
+        console.error("CAPTCHA verification unavailable:", error.message);
+        return false;
+    }
+}
+
 // Serve public folder
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -192,11 +229,18 @@ io.on("connection", (socket) => {
     // =========================
     // SIGNUP
     // =========================
-    socket.on("signup", async ({ username, password }, callback) => {
+    socket.on("signup", async ({ username, password, captchaToken }, callback) => {
         if (!username || !password) {
             return callback({
                 success: false,
                 message: "Enter a username and password."
+            });
+        }
+
+        if (!(await verifyTurnstileToken(captchaToken))) {
+            return callback({
+                success: false,
+                message: "Please complete the security check and try again."
             });
         }
 
@@ -216,11 +260,18 @@ io.on("connection", (socket) => {
     // =========================
     // LOGIN
     // =========================
-    socket.on("login", async ({ username, password }, callback) => {
+    socket.on("login", async ({ username, password, captchaToken }, callback) => {
         if (!username || !password) {
             return callback({
                 success: false,
                 message: "Enter a username and password."
+            });
+        }
+
+        if (!(await verifyTurnstileToken(captchaToken))) {
+            return callback({
+                success: false,
+                message: "Please complete the security check and try again."
             });
         }
 

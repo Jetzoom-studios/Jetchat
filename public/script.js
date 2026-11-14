@@ -67,6 +67,82 @@ const dmConversationCount = document.getElementById("dmConversationCount");
 const messageSearchInput = document.getElementById("messageSearchInput");
 const profileCustomStatus = document.getElementById("profileCustomStatus");
 const authFeedback = document.getElementById("authFeedback");
+const captchaWidget = document.getElementById("captchaWidget");
+const captchaStatus = document.getElementById("captchaStatus");
+let captchaToken = "";
+let captchaWidgetId = null;
+let captchaReady = false;
+
+function setCaptchaStatus(message, isError = false) {
+    if (!captchaStatus) return;
+    captchaStatus.textContent = message;
+    captchaStatus.classList.toggle("is-error", isError);
+}
+
+function updateAuthButtons() {
+    const enabled = captchaReady && Boolean(captchaToken);
+    loginButton.disabled = !enabled;
+    signupButton.disabled = !enabled;
+}
+
+function resetCaptcha(message = "Please complete the security check.") {
+    captchaToken = "";
+    updateAuthButtons();
+    if (window.turnstile && captchaWidgetId !== null) {
+        window.turnstile.reset(captchaWidgetId);
+    }
+    setCaptchaStatus(message);
+}
+
+async function initializeCaptcha() {
+    try {
+        const response = await fetch("/api/captcha-config", { cache: "no-store" });
+        if (!response.ok) throw new Error("Could not load CAPTCHA configuration.");
+        const config = await response.json();
+
+        if (!config.enabled || !config.siteKey) {
+            setCaptchaStatus("Security check is not configured yet. Please contact the Jetchat administrator.", true);
+            return;
+        }
+
+        window.onJetchatTurnstileLoad = () => {
+            if (!window.turnstile || !captchaWidget) {
+                setCaptchaStatus("Security check could not load. Refresh and try again.", true);
+                return;
+            }
+
+            captchaWidgetId = window.turnstile.render(captchaWidget, {
+                sitekey: config.siteKey,
+                theme: "auto",
+                action: "jetchat-auth",
+                callback: token => {
+                    captchaToken = token;
+                    captchaReady = true;
+                    updateAuthButtons();
+                    setCaptchaStatus("Verification complete. You can continue.");
+                },
+                "expired-callback": () => resetCaptcha("Verification expired. Please try again."),
+                "error-callback": () => {
+                    captchaReady = false;
+                    resetCaptcha("Security check failed to load. Please refresh.", true);
+                }
+            });
+            setCaptchaStatus("Complete the security check to continue.");
+        };
+
+        const loader = document.createElement("script");
+        loader.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onJetchatTurnstileLoad&render=explicit";
+        loader.async = true;
+        loader.defer = true;
+        loader.onerror = () => setCaptchaStatus("Security check could not load. Check your connection and refresh.", true);
+        document.head.appendChild(loader);
+    } catch (error) {
+        console.error("CAPTCHA setup error:", error);
+        setCaptchaStatus("Security check is unavailable. Please refresh later.", true);
+    }
+}
+
+initializeCaptcha();
 const friendSearchInput = document.getElementById("friendSearchInput");
 const friendSearchResults = document.getElementById("friendSearchResults");
 
@@ -227,8 +303,18 @@ loginButton.addEventListener("click", () => {
     if (!user || !pass) {
         return alert("Enter username and password");
     }
+    if (!captchaToken) {
+        setCaptchaStatus("Complete the security check first.", true);
+        return;
+    }
 
-    socket.emit("login", { username: user, password: pass }, (res) => {
+    const token = captchaToken;
+    loginButton.disabled = true;
+    signupButton.disabled = true;
+    setCaptchaStatus("Checking verification...");
+
+    socket.emit("login", { username: user, password: pass, captchaToken: token }, (res) => {
+        resetCaptcha(res.success ? "Verification complete." : "Please complete the security check again.");
         if (!res.success) return alert(res.message);
 
         jetchatSettings.showOnline = res.user.show_online !== false;
@@ -244,8 +330,18 @@ signupButton.addEventListener("click", () => {
     if (!user || !pass) {
         return alert("Enter username and password");
     }
+    if (!captchaToken) {
+        setCaptchaStatus("Complete the security check first.", true);
+        return;
+    }
 
-    socket.emit("signup", { username: user, password: pass }, (res) => {
+    const token = captchaToken;
+    loginButton.disabled = true;
+    signupButton.disabled = true;
+    setCaptchaStatus("Checking verification...");
+
+    socket.emit("signup", { username: user, password: pass, captchaToken: token }, (res) => {
+        resetCaptcha(res.success ? "Verification complete." : "Please complete the security check again.");
         if (!res.success) return alert(res.message);
         if (authFeedback) {
             authFeedback.textContent = "Account created. You can sign in now.";
