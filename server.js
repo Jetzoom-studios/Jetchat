@@ -814,8 +814,9 @@ socket.on("dismiss update", async (updateId, callback) => {
                 return respond({ success: false, message: "Message not found." });
             }
 
-            await db.toggleMessageReaction(data.messageId, data.chat, socket.username, data.emoji);
-            const rows = await db.getMessageReactions(data.chat);
+            const reactionChat = data.chat === "global" ? "global" : makeDMChatId(socket.username, peer);
+            await db.toggleMessageReaction(data.messageId, reactionChat, socket.username, data.emoji);
+            const rows = await db.getMessageReactions(reactionChat);
             const reactions = rows
                 .filter(row => String(row.message_id) === String(data.messageId))
                 .map(row => ({
@@ -825,11 +826,11 @@ socket.on("dismiss update", async (updateId, callback) => {
                 }));
             const update = {
                 messageId: String(data.messageId),
-                chat: data.chat,
+                chat: reactionChat,
                 reactions
             };
 
-            if (data.chat === "global") {
+            if (reactionChat === "global") {
                 io.emit("message reactions updated", update);
             } else {
                 io.to(`user:${socket.username}`).emit("message reactions updated", update);
@@ -872,9 +873,10 @@ socket.on("dismiss update", async (updateId, callback) => {
             if (!source) {
                 return respond({ success: false, message: "Message not found." });
             }
+            const savedChat = data.chat === "global" ? "global" : makeDMChatId(socket.username, getDMPartner(data.chat, socket.username));
             const result = await db.toggleSavedMessage(socket.username, {
                 id: source.id,
-                chat: data.chat,
+                chat: savedChat,
                 username: source.username,
                 text: source.text
             });
