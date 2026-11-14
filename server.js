@@ -556,6 +556,24 @@ socket.on("dismiss update", async (updateId, callback) => {
     });
 
     // =========================
+    // SEARCH USERS FOR FRIEND DISCOVERY
+    // =========================
+    socket.on("search users", async (query, callback) => {
+        const respond = result => {
+            if (typeof callback === "function") callback(result);
+        };
+        if (!socket.username) return respond({ success: false, users: [] });
+
+        try {
+            const users = await db.searchUsers(query, socket.username);
+            respond({ success: true, users });
+        } catch (err) {
+            console.error("User search error:", err);
+            respond({ success: false, users: [], message: "Search is temporarily unavailable." });
+        }
+    });
+
+    // =========================
     // GET FRIEND REQUESTS
     // =========================
     socket.on("get friend requests", async (callback) => {
