@@ -300,3 +300,8 @@
 body.light-mode .now-panel{background:#fff;border-color:#e3e4ee}
 body.light-mode .now-hero{background:radial-gradient(circle at 85% 15%,rgba(91,177,190,.12),transparent 34%),linear-gradient(130deg,#f1efff,#f4f8fa);border-color:#e0ddef}
 body.light-mode .now-hero p:not(.social-eyebrow),body.light-mode .now-list-row small,body.light-mode .now-empty,body.light-mode .now-pulse-meta{color:#777b8d}
+
+
+/* Settings is a first-class item in the social rail */
+#socialExperience .social-rail .social-nav[data-view="settings"]{margin-top:2px}
+#socialExperience .social-rail .social-nav[data-view="settings"] span{font-size:17px}
