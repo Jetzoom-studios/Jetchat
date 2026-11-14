@@ -681,7 +681,10 @@
     if (caption) stage.append(caption);
     stage.append(shade, mediaLabel, progress, tools);
     if (comments) stage.append(comments);
-    card.replaceChildren(head, stage, actions);
+    // Keep the action rail inside the full-screen reel stage so it sits above
+    // the video layer and receives pointer events on desktop and mobile.
+    stage.append(actions);
+    card.replaceChildren(head, stage);
     card.dataset.reelPostId = String(post.id);
   }
 
