@@ -10,10 +10,10 @@ const pool = new Pool({
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
   fileFilter(req, file, cb) {
-    const allowed = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
-    if (!allowed.has(file.mimetype)) return cb(new Error("Only JPG, PNG, GIF and WebP images are supported."));
+    const allowed = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime"]);
+    if (!allowed.has(file.mimetype)) return cb(new Error("Use JPG, PNG, GIF, WebP, MP4, WebM or MOV media."));
     cb(null, true);
   }
 });
@@ -29,8 +29,14 @@ function ensureSchema() {
         image_data BYTEA,
         image_type TEXT,
         image_name TEXT,
+        video_data BYTEA,
+        video_type TEXT,
+        video_name TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_data BYTEA;
+      ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_type TEXT;
+      ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_name TEXT;
       CREATE INDEX IF NOT EXISTS social_posts_created_idx ON social_posts(created_at DESC);
       CREATE INDEX IF NOT EXISTS social_posts_user_idx ON social_posts(username, created_at DESC);
       CREATE TABLE IF NOT EXISTS social_follows (
@@ -70,6 +76,8 @@ function safePost(row) {
     body: row.body,
     hasImage: Boolean(row.image_type),
     imageType: row.image_type || null,
+    hasVideo: Boolean(row.video_type),
+    videoType: row.video_type || null,
     createdAt: row.created_at,
     likeCount: Number(row.like_count || 0),
     commentCount: Number(row.comment_count || 0),
@@ -83,14 +91,16 @@ async function listPosts(viewer, mode, username) {
   await ensureSchema();
   const params = [viewer];
   let where = "";
-  if (mode === "home") {
+  if (mode === "reels") {
+    where = "WHERE p.video_type IS NOT NULL";
+  } else if (mode === "home") {
     where = "WHERE (p.username = $1 OR EXISTS (SELECT 1 FROM social_follows f WHERE f.follower = $1 AND f.following = p.username))";
   } else if (mode === "profile") {
     params.push(username);
     where = "WHERE p.username = $2";
   }
   const result = await pool.query(`
-    SELECT p.id,p.username,p.body,p.image_type,p.created_at,
+    SELECT p.id,p.username,p.body,p.image_type,p.video_type,p.created_at,
       (SELECT COUNT(*) FROM social_likes l WHERE l.post_id=p.id)::INT AS like_count,
       (SELECT COUNT(*) FROM social_comments c WHERE c.post_id=p.id)::INT AS comment_count,
       EXISTS(SELECT 1 FROM social_likes l WHERE l.post_id=p.id AND l.username=$1) AS liked_by_me,
@@ -139,6 +149,16 @@ module.exports = function createSocialRouter(getRequestSession) {
     catch (error) { console.error("Social explore error:", error.message); res.status(500).json({ success: false, message: "Couldn't load Explore." }); }
   });
 
+  router.get("/reels", auth, async (req, res) => {
+    try {
+      res.set("Cache-Control", "no-store");
+      res.json({ success: true, posts: await listPosts(req.socialUser.username, "reels") });
+    } catch (error) {
+      console.error("Load reels error:", error.message);
+      res.status(500).json({ success: false, message: "Couldn't load Reels." });
+    }
+  });
+
   router.get("/profile/:username", auth, async (req, res) => {
     try {
       const target = String(req.params.username || "").trim();
@@ -158,19 +178,23 @@ module.exports = function createSocialRouter(getRequestSession) {
     } catch (error) { console.error("Social profile error:", error.message); res.status(500).json({ success: false, message: "Couldn't load this profile." }); }
   });
 
-  router.post("/posts", auth, (req, res, next) => upload.single("image")(req, res, error => {
-    if (error) return res.status(400).json({ success: false, message: error.message || "Image upload failed." });
+  router.post("/posts", auth, (req, res, next) => upload.fields([{ name: "image", maxCount: 1 }, { name: "video", maxCount: 1 }])(req, res, error => {
+    if (error) return res.status(400).json({ success: false, message: error.message || "Media upload failed." });
     next();
   }), async (req, res) => {
     try {
       const body = String(req.body.body || "").trim();
-      if (!body && !req.file) return res.status(400).json({ success: false, message: "Write something or add a photo." });
+      const image = req.files?.image?.[0] || null;
+      const video = req.files?.video?.[0] || null;
+      if (image && video) return res.status(400).json({ success: false, message: "Choose either a photo or a video." });
+      if (!body && !image && !video) return res.status(400).json({ success: false, message: "Write something or add media." });
       if (body.length > 2000) return res.status(400).json({ success: false, message: "Posts must be 2,000 characters or fewer." });
       const result = await pool.query(
-        "INSERT INTO social_posts (username,body,image_data,image_type,image_name) VALUES ($1,$2,$3,$4,$5) RETURNING id,username,body,image_type,created_at",
-        [req.socialUser.username, body, req.file ? req.file.buffer : null, req.file ? req.file.mimetype : null, req.file ? String(req.file.originalname).slice(0,180) : null]
+        "INSERT INTO social_posts (username,body,image_data,image_type,image_name,video_data,video_type,video_name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,username,body,image_type,video_type,created_at",
+        [req.socialUser.username, body, image ? image.buffer : null, image ? image.mimetype : null, image ? String(image.originalname).slice(0,180) : null, video ? video.buffer : null, video ? video.mimetype : null, video ? String(video.originalname).slice(0,180) : null]
       );
-      res.status(201).json({ success: true, post: { id: String(result.rows[0].id), username: result.rows[0].username, body: result.rows[0].body, hasImage: Boolean(result.rows[0].image_type), imageType: result.rows[0].image_type, createdAt: result.rows[0].created_at, likeCount: 0, commentCount: 0, likedByMe: false } });
+      const row = result.rows[0];
+      res.status(201).json({ success: true, post: { id: String(row.id), username: row.username, body: row.body, hasImage: Boolean(row.image_type), imageType: row.image_type, hasVideo: Boolean(row.video_type), videoType: row.video_type, createdAt: row.created_at, likeCount: 0, commentCount: 0, likedByMe: false } });
     } catch (error) { console.error("Create social post error:", error.message); res.status(500).json({ success: false, message: "Couldn't publish your post." }); }
   });
 
@@ -184,6 +208,18 @@ module.exports = function createSocialRouter(getRequestSession) {
       res.type(result.rows[0].image_type);
       res.send(result.rows[0].image_data);
     } catch (error) { console.error("Social image error:", error.message); res.sendStatus(500); }
+  });
+
+  router.get("/videos/:id", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.sendStatus(404);
+      const result = await pool.query("SELECT video_data,video_type FROM social_posts WHERE id=$1 LIMIT 1", [req.params.id]);
+      if (!result.rows.length || !result.rows[0].video_data) return res.sendStatus(404);
+      res.set("Cache-Control", "private, max-age=300");
+      res.set("X-Content-Type-Options", "nosniff");
+      res.type(result.rows[0].video_type);
+      res.send(result.rows[0].video_data);
+    } catch (error) { console.error("Social video error:", error.message); res.sendStatus(500); }
   });
 
   router.post("/posts/:id/like", auth, async (req, res) => {
