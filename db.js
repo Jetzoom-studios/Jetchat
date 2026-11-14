@@ -995,8 +995,10 @@ async function ensureAuthSessionsTable() {
             user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             expires_at TIMESTAMPTZ NOT NULL,
-            last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            user_agent TEXT NOT NULL DEFAULT ''
         );
+        ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEFAULT '';
         CREATE INDEX IF NOT EXISTS auth_sessions_user_id_idx
             ON auth_sessions(user_id);
         CREATE INDEX IF NOT EXISTS auth_sessions_expires_at_idx
@@ -1008,16 +1010,67 @@ function hashSessionToken(token) {
     return crypto.createHash("sha256").update(String(token)).digest("hex");
 }
 
-async function createAuthSession(userId) {
+async function createAuthSession(userId, userAgent = "") {
     await ensureAuthSessionsTable();
     const token = crypto.randomBytes(32).toString("hex");
     const tokenHash = hashSessionToken(token);
     await pool.query(
-        `INSERT INTO auth_sessions (token_hash, user_id, expires_at)
-         VALUES ($1, $2, NOW() + INTERVAL '30 days')`,
-        [tokenHash, userId]
+        `INSERT INTO auth_sessions (token_hash, user_id, expires_at, user_agent)
+         VALUES ($1, $2, NOW() + INTERVAL '30 days', $3)`,
+        [tokenHash, userId, String(userAgent || "").slice(0, 500)]
     );
     return { token, sessionHash: tokenHash };
+}
+
+async function listAuthSessions(userId) {
+    await ensureAuthSessionsTable();
+    const result = await pool.query(
+        `SELECT token_hash, user_agent, created_at, last_used_at, expires_at
+         FROM auth_sessions WHERE user_id = $1 AND expires_at > NOW()
+         ORDER BY last_used_at DESC`, [userId]
+    );
+    return result.rows;
+}
+
+async function revokeAuthSessionForUser(sessionHash, userId, currentSessionHash) {
+    if (typeof sessionHash !== "string" || !/^[a-f0-9]{64}$/i.test(sessionHash) || sessionHash === currentSessionHash) return null;
+    await ensureAuthSessionsTable();
+    const result = await pool.query(
+        `DELETE FROM auth_sessions WHERE token_hash = $1 AND user_id = $2 RETURNING token_hash`,
+        [sessionHash, userId]
+    );
+    return result.rows[0] || null;
+}
+
+async function revokeOtherAuthSessions(userId, currentSessionHash) {
+    await ensureAuthSessionsTable();
+    const result = await pool.query(
+        `DELETE FROM auth_sessions WHERE user_id = $1 AND token_hash <> $2 RETURNING token_hash`,
+        [userId, currentSessionHash]
+    );
+    return result.rows.map(row => row.token_hash);
+}
+
+async function touchAuthSession(sessionHash) {
+    if (typeof sessionHash !== "string" || !/^[a-f0-9]{64}$/i.test(sessionHash)) return;
+    await ensureAuthSessionsTable();
+    await pool.query(
+        `UPDATE auth_sessions SET last_used_at = NOW()
+         WHERE token_hash = $1 AND last_used_at < NOW() - INTERVAL '5 minutes'`,
+        [sessionHash]
+    );
+}
+
+async function changeAccountPassword(username, currentPassword, newPassword, currentSessionHash) {
+    await ensureAuthSessionsTable();
+    const result = await pool.query("SELECT id, password FROM users WHERE username = $1 LIMIT 1", [username]);
+    if (!result.rows.length || !(await verifyPassword(currentPassword, result.rows[0].password))) {
+        return { success: false, message: "Your current password is incorrect." };
+    }
+    const passwordHash = await hashPassword(newPassword);
+    await pool.query("UPDATE users SET password = $1 WHERE id = $2", [passwordHash, result.rows[0].id]);
+    const revokedSessions = await revokeOtherAuthSessions(result.rows[0].id, currentSessionHash);
+    return { success: true, revokedSessions };
 }
 
 async function getAuthSession(token) {
@@ -1099,6 +1152,11 @@ module.exports = {
     createAuthSession,
     getAuthSession,
     revokeAuthSession,
+    listAuthSessions,
+    revokeAuthSessionForUser,
+    revokeOtherAuthSessions,
+    touchAuthSession,
+    changeAccountPassword,
     migratePlaintextPasswords,
 
     getProfile,

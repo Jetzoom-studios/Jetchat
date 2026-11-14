@@ -5443,3 +5443,33 @@ body.light-mode .settings-footer .logout-button {
 @media (max-width: 700px) {
     .settings-footer .logout-button { min-height: 46px; }
 }
+
+/* Account security and signed-in device manager */
+.account-security-section{border-top:1px solid rgba(161,139,255,.16);padding-top:18px}
+.account-security-note{margin:5px 0 12px;color:#9996b5;font-size:11px;line-height:1.5}
+.account-sessions-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 9px;color:#e8e3ff;font-size:12px}
+.account-sessions-list{display:flex;flex-direction:column;gap:8px}
+.account-session-card{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:12px;border:1px solid rgba(161,139,255,.17);border-radius:11px;background:rgba(255,255,255,.035)}
+.account-session-details{display:flex;flex:1 1 auto;flex-direction:column;min-width:0;gap:4px}
+.account-session-details strong{color:#e8e3ff;font-size:12px;overflow-wrap:anywhere}
+.account-session-details small{color:#9996b5;font-size:10px;line-height:1.4}
+.account-session-current{color:#8fd5ad;font-size:10px;font-weight:700}
+.account-session-other{color:#aaa4c9;font-size:10px}
+.account-secondary-button,.account-session-revoke{min-height:34px;padding:7px 11px;border:1px solid rgba(161,139,255,.24);border-radius:8px;background:rgba(130,111,220,.13);color:#e6e0ff;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.account-session-revoke{flex:0 0 auto;border-color:rgba(221,91,105,.3);background:rgba(190,61,78,.12);color:#f0a6ad}
+.account-revoke-all{width:100%;margin-top:10px}
+.change-password-form{display:flex;flex-direction:column;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(161,139,255,.13)}
+.change-password-form strong{margin-bottom:4px;color:#e8e3ff;font-size:12px}
+.change-password-form label{color:#aaa6c3;font-size:11px}
+.change-password-form input{width:100%;min-height:39px;padding:8px 10px;border:1px solid rgba(161,139,255,.2);border-radius:8px;background:rgba(8,12,25,.7);color:#f0edff;font:inherit;font-size:12px}
+.change-password-form input:focus{outline:2px solid rgba(153,136,232,.5);outline-offset:1px}
+.account-security-status{min-height:16px;margin:0;color:#9cdbb6;font-size:11px;line-height:1.45}
+.account-secondary-button:disabled,.account-session-revoke:disabled{opacity:.55;cursor:wait}
+body.light-mode .account-security-note,body.light-mode .account-session-details small{color:#777b8d}
+body.light-mode .account-sessions-heading,body.light-mode .account-session-details strong,body.light-mode .change-password-form strong{color:#34364d}
+body.light-mode .account-session-card{border-color:#e1e3eb;background:#fff}
+body.light-mode .account-secondary-button{border-color:#d8d7e8;background:#f0eff9;color:#514c80}
+body.light-mode .account-session-revoke{border-color:#efc9cd;background:#fff1f2;color:#a53645}
+body.light-mode .change-password-form label{color:#696d82}
+body.light-mode .change-password-form input{border-color:#d9dce6;background:#fff;color:#292d3a}
+@media(max-width:700px){.account-session-card{align-items:flex-start}.account-session-revoke,.account-secondary-button{min-height:40px}}

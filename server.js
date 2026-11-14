@@ -164,6 +164,95 @@ app.post("/api/session/logout", async (req, res) => {
     }
 });
 
+async function getRequestSession(req) {
+    const token = getCookieValue(req.headers.cookie, SESSION_COOKIE_NAME);
+    return token ? db.getAuthSession(token) : null;
+}
+function describeDevice(userAgent) {
+    const ua = String(userAgent || "");
+    let os = "Unknown device";
+    if (/Windows NT/i.test(ua)) os = "Windows";
+    else if (/Mac OS X/i.test(ua)) os = "macOS";
+    else if (/Android/i.test(ua)) os = "Android";
+    else if (/(iPhone|iPad|iPod)/i.test(ua)) os = "iOS";
+    else if (/Linux/i.test(ua)) os = "Linux";
+    let browser = "Browser";
+    if (/Edg\//i.test(ua)) browser = "Microsoft Edge";
+    else if (/OPR\//i.test(ua)) browser = "Opera";
+    else if (/Firefox\//i.test(ua)) browser = "Firefox";
+    else if (/Chrome\//i.test(ua)) browser = "Chrome";
+    else if (/Safari\//i.test(ua)) browser = "Safari";
+    return `${browser} on ${os}`;
+}
+function notifyRevokedSessions(hashes) {
+    for (const hash of hashes || []) {
+        io.to(`session:${hash}`).emit("session revoked");
+        for (const active of io.sockets.sockets.values()) {
+            if (active.sessionHash === hash) active.disconnect(true);
+        }
+    }
+}
+app.get("/api/account/sessions", async (req, res) => {
+    try {
+        const current = await getRequestSession(req);
+        if (!current) return res.status(401).json({ success:false, message:"Please sign in again." });
+        const sessions = await db.listAuthSessions(current.user.id);
+        res.set("Cache-Control","no-store");
+        return res.json({ success:true, sessions:sessions.map(row => ({
+            id:row.token_hash, device:describeDevice(row.user_agent),
+            createdAt:row.created_at, lastActiveAt:row.last_used_at,
+            expiresAt:row.expires_at, current:row.token_hash === current.sessionHash
+        })) });
+    } catch(error) {
+        console.error("List account sessions error:",error.message);
+        return res.status(500).json({success:false,message:"Couldn't load signed-in devices."});
+    }
+});
+app.post("/api/account/sessions/revoke", async (req,res) => {
+    try {
+        const current=await getRequestSession(req);
+        if(!current) return res.status(401).json({success:false,message:"Please sign in again."});
+        const revoked=await db.revokeAuthSessionForUser(req.body && req.body.sessionId,current.user.id,current.sessionHash);
+        if(!revoked) return res.status(404).json({success:false,message:"That session wasn't found or is the current device."});
+        notifyRevokedSessions([revoked.token_hash]);
+        res.set("Cache-Control","no-store");
+        return res.json({success:true});
+    } catch(error) {
+        console.error("Revoke account session error:",error.message);
+        return res.status(500).json({success:false,message:"Couldn't sign out that device."});
+    }
+});
+app.post("/api/account/sessions/revoke-others", async (req,res) => {
+    try {
+        const current=await getRequestSession(req);
+        if(!current) return res.status(401).json({success:false,message:"Please sign in again."});
+        const revoked=await db.revokeOtherAuthSessions(current.user.id,current.sessionHash);
+        notifyRevokedSessions(revoked);
+        res.set("Cache-Control","no-store");
+        return res.json({success:true,count:revoked.length});
+    } catch(error) {
+        console.error("Revoke other sessions error:",error.message);
+        return res.status(500).json({success:false,message:"Couldn't sign out other devices."});
+    }
+});
+app.post("/api/account/change-password", async (req,res) => {
+    try {
+        const current=await getRequestSession(req);
+        if(!current) return res.status(401).json({success:false,message:"Please sign in again."});
+        const currentPassword=String(req.body && req.body.currentPassword || "");
+        const newPassword=String(req.body && req.body.newPassword || "");
+        if(newPassword.length<8 || newPassword.length>128) return res.status(400).json({success:false,message:"Your new password must be 8–128 characters."});
+        const result=await db.changeAccountPassword(current.user.username,currentPassword,newPassword,current.sessionHash);
+        if(!result.success) return res.status(400).json(result);
+        notifyRevokedSessions(result.revokedSessions);
+        res.set("Cache-Control","no-store");
+        return res.json({success:true,signedOutDevices:result.revokedSessions.length});
+    } catch(error) {
+        console.error("Change account password error:",error.message);
+        return res.status(500).json({success:false,message:"Couldn't change your password."});
+    }
+});
+
 // Read the HttpOnly cookie during the Socket.IO handshake. The raw token is
 // never exposed to page JavaScript after the initial login exchange.
 io.use(async (socket, next) => {
@@ -326,6 +415,11 @@ async function attachMessageReactions(chat, history) {
 // =========================
 io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
+    socket.on("session activity", () => {
+        if (socket.sessionHash) db.touchAuthSession(socket.sessionHash).catch(error =>
+            console.error("Session activity update error:", error.message)
+        );
+    });
 
     socket.on("restore session", async callback => {
         if (typeof callback !== "function") return;
@@ -401,7 +495,7 @@ io.on("connection", (socket) => {
                 return callback(result);
             }
 
-            const session = await db.createAuthSession(result.user.id);
+            const session = await db.createAuthSession(result.user.id, socket.handshake.headers["user-agent"] || "");
             await activateAuthenticatedSocket(socket, result.user, session.sessionHash);
 
             callback({
