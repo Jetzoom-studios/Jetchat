@@ -325,8 +325,10 @@
         if (!item.read_at) {
           try { await request("/notifications/" + encodeURIComponent(item.id) + "/read", { method: "POST" }); item.read_at = new Date().toISOString(); setNotificationCount(notificationItems.filter(value => !value.read_at).length); row.classList.remove("is-unread"); row.classList.add("is-read"); } catch {}
         }
-        if (item.type === "story_reply") openView("chats");
-        else if (item.type === "like" || item.type === "comment") openView("home");
+        if (item.type === "story_reply") {
+          openView("chats");
+          if (typeof window.openConversation === "function") window.openConversation(item.actor);
+        } else if (item.type === "like" || item.type === "comment") openView("home");
         notificationPanel.hidden = true;
         notificationButton.setAttribute("aria-expanded", "false");
       });
