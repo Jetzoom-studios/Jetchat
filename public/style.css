@@ -4771,3 +4771,337 @@ body.light-mode .friend-item { color: #514d6d; }
     .dm-conversation-open { min-height: 52px; }
     .dm-conversation-preview { max-width: 105px; }
 }
+
+
+/* =========================================================
+   JETCHAT MOBILE LAYOUT
+   Strictly scoped to small screens; desktop/tablet layout
+   above 700px remains unchanged.
+========================================================= */
+.mobile-menu-btn,
+.mobile-nav-backdrop { display: none; }
+
+@media (max-width: 700px) {
+    html, body {
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        min-height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+
+    body {
+        position: fixed;
+        inset: 0;
+    }
+
+    .app {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .sidebar {
+        position: fixed;
+        z-index: 100020;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(86vw, 340px);
+        min-width: 0;
+        max-width: 340px;
+        height: 100%;
+        height: 100dvh;
+        padding-bottom: env(safe-area-inset-bottom);
+        transform: translateX(-105%);
+        transition: transform .24s cubic-bezier(.2,.75,.25,1);
+        box-shadow: 22px 0 65px rgba(0,0,0,.42);
+        will-change: transform;
+    }
+
+    body.mobile-nav-open .sidebar {
+        transform: translateX(0);
+    }
+
+    .mobile-nav-backdrop {
+        display: block;
+        position: fixed;
+        z-index: 100010;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        padding: 0;
+        background: rgba(3,5,14,.66);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .2s ease, visibility .2s ease;
+        backdrop-filter: blur(4px);
+    }
+
+    body.mobile-nav-open .mobile-nav-backdrop {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .main {
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .mobile-menu-btn {
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        margin-right: 9px;
+        border: 1px solid rgba(177,161,255,.22);
+        border-radius: 12px;
+        background: rgba(161,139,255,.11);
+        color: #e9e3ff;
+        font-size: 21px;
+        line-height: 1;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .topbar {
+        flex: 0 0 auto;
+        min-height: 62px;
+        height: auto;
+        padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+        gap: 8px;
+    }
+
+    .chat-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .chat-title h2 {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: clamp(15px, 4vw, 18px);
+    }
+
+    #onlineCount { white-space: nowrap; font-size: 10px; }
+    .message-search-input {
+        flex: 0 1 112px;
+        width: 112px;
+        min-width: 0;
+        height: 36px;
+        padding: 0 9px;
+        font-size: 12px;
+    }
+
+    #settingsBtn {
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+    }
+
+    #chatContainer {
+        flex: 1 1 0;
+        min-height: 0;
+        padding: 12px 9px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #messages { gap: 5px; }
+    .message {
+        width: 100%;
+        max-width: 100%;
+        padding: 11px 10px;
+        overflow-wrap: anywhere;
+    }
+    .message .text {
+        max-width: 100%;
+        font-size: 15px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .message-toolbar {
+        position: static;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        width: 100%;
+        margin: 7px 0 0;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+    }
+    .message-toolbar button,
+    .reaction-chip,
+    .reaction-picker button,
+    .dm-pin-button {
+        min-width: 40px;
+        min-height: 40px;
+    }
+    .reaction-picker {
+        position: fixed;
+        top: auto;
+        right: 12px;
+        bottom: calc(86px + env(safe-area-inset-bottom));
+        width: min(300px, calc(100vw - 24px));
+    }
+
+    #typingIndicator {
+        flex: 0 0 auto;
+        padding: 2px 12px;
+    }
+
+    #replyPreview {
+        flex: 0 0 auto;
+        margin: 0 10px 7px;
+        padding-bottom: 2px;
+    }
+
+    #chatForm {
+        flex: 0 0 auto;
+        gap: 7px;
+        padding: 9px 10px calc(9px + env(safe-area-inset-bottom));
+        min-height: 60px;
+    }
+
+    #emojiButton {
+        flex: 0 0 42px;
+        width: 42px;
+        height: 44px;
+        min-height: 44px;
+    }
+
+    #messageInput {
+        min-width: 0;
+        width: 0;
+        flex: 1 1 auto;
+        height: 44px;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 16px;
+    }
+
+    #sendButton {
+        flex: 0 0 auto;
+        width: auto;
+        min-width: 58px;
+        height: 44px;
+        min-height: 44px;
+        padding: 0 13px;
+        font-size: 14px;
+    }
+
+    .emoji-picker {
+        position: fixed;
+        z-index: 100030;
+        left: 10px;
+        right: 10px;
+        bottom: calc(70px + env(safe-area-inset-bottom));
+        width: auto;
+        max-width: none;
+    }
+
+    /* Modals become phone-sized, scrollable sheets. */
+    .settings-panel {
+        align-items: flex-end;
+        padding: 0;
+    }
+    .settings-card {
+        width: 100%;
+        max-width: none;
+        max-height: min(88dvh, 760px);
+        margin: 0;
+        padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+        border-radius: 22px 22px 0 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .profile-modal {
+        align-items: center;
+        justify-content: center;
+        padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    }
+    .profile-card {
+        width: 100%;
+        max-width: 440px;
+        max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+        overflow-y: auto;
+    }
+
+    .saved-messages-modal,
+    .update-modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+    .saved-messages-panel,
+    .update-card {
+        width: 100%;
+        max-width: none;
+        max-height: 90dvh;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom);
+        overflow-y: auto;
+    }
+
+    .login-screen {
+        min-height: 100dvh;
+        padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+        overflow-y: auto;
+    }
+    .login-card {
+        width: min(100%, 400px);
+        max-width: 100%;
+        padding: 32px 22px;
+    }
+    #usernameInput,
+    #passwordInput,
+    #loginButton,
+    #signupButton {
+        width: 100%;
+        min-height: 48px;
+        font-size: 16px;
+    }
+
+    /* Friend and conversation rows are touch-first. */
+    #globalChatBtn,
+    .saved-messages-nav,
+    .friend-item,
+    .dm-conversation-open,
+    .dm-pin-button {
+        min-height: 44px;
+    }
+
+    body.mobile-nav-open { touch-action: pan-y; }
+}
+
+@media (max-width: 380px) {
+    .topbar { gap: 6px; padding-left: 8px; padding-right: 8px; }
+    .mobile-menu-btn { flex-basis: 38px; width: 38px; height: 38px; margin-right: 5px; }
+    .message-search-input { flex-basis: 82px; width: 82px; }
+    #onlineCount { display: none; }
+    #chatForm { gap: 5px; padding-left: 7px; padding-right: 7px; }
+    #emojiButton { flex-basis: 38px; width: 38px; }
+    #sendButton { min-width: 52px; padding: 0 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .mobile-nav-backdrop { transition: none !important; }
+}
