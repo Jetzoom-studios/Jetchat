@@ -7,3 +7,5 @@
 
 /* Correct mounted native chat controls */
 .social-global-chat{cursor:default}.social-global-chat #globalChatBtn{display:block!important;width:100%;min-height:42px;padding:0 4px 0 0;border:0;background:transparent;color:#fff;text-align:left;font-size:15px;font-weight:750;cursor:pointer}.social-global-chat .social-global-copy{display:none}.social-chat-list-heading #socialCreateGroupMount #createGroupBtn{border:1px solid #414866;border-radius:9px;padding:8px 11px;background:#20263a;color:#e8eaff;cursor:pointer}.social-chat-hub #globalChatBtn{display:block!important}.social-chat-hub .social-global-icon,.social-chat-hub .social-chat-arrow{pointer-events:none}
+
+.social-chat-return-button{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:9px 12px;margin-right:10px;border:1px solid #414866;border-radius:10px;background:#20263a;color:#e8eaff;font-weight:700;cursor:pointer}.social-chat-return-button:hover{background:#2b3450}
