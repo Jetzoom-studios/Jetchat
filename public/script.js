@@ -9,6 +9,7 @@ let unreadCount = 0;
 const unreadByChat = Object.create(null);
 let username = "";
 let currentChat = "global";
+let groupConversationCache = [];
 let onlineUsernames = new Set();
 let currentProfileColor = "#5865f2";
 
@@ -294,6 +295,7 @@ function startChat(user) {
     loadFriendRequests();
     loadFriends();
     loadDMConversations();
+    loadGroups();
     loadUpdateNotice();
 
     messageInput.focus();
@@ -545,12 +547,21 @@ document.addEventListener("keydown", event => {
     if (event.key === "Escape") closeMobileDrawer();
 });
 
+function getChatKey(chat = currentChat) {
+    if(chat==="global")return "global";
+    if(String(chat).startsWith("group:"))return String(chat);
+    return [username,chat].sort().join("|");
+}
+function getGroupByChat(chat) {
+    if(!String(chat).startsWith("group:"))return null;
+    return groupConversationCache.find(group=>String(group.id)===String(chat).slice(6))||null;
+}
 function openConversation(chat) {
     closeMobileDrawer();
     currentChat = chat;
-
+    const group=getGroupByChat(chat);
     document.querySelector(".chat-title h2").textContent =
-        chat === "global" ? "Global Chat" : "DM with " + chat;
+        chat === "global" ? "Global Chat" : group ? group.name : "DM with " + chat;
 
     messages.innerHTML = "";
     lastMessageUser = null;
@@ -563,10 +574,22 @@ function openConversation(chat) {
     }
 
     socket.emit("load chat", chat);
-    if (chat !== "global") {
-        loadDMConversations();
-    }
+    if(chat!=="global"&&!String(chat).startsWith("group:"))loadDMConversations();
 }
+
+
+
+// GROUP CONVERSATIONS
+const groupListContainer=document.getElementById("groupList");
+const groupCreateModal=document.getElementById("groupCreateModal");
+const groupCreateStatus=document.getElementById("groupCreateStatus");
+function loadGroups(){if(!groupListContainer)return;socket.emit("get groups",result=>{if(!result?.success)return;groupConversationCache=Array.isArray(result.groups)?result.groups:[];renderGroups();});}
+function renderGroups(){if(!groupListContainer)return;groupListContainer.replaceChildren();if(!groupConversationCache.length){groupListContainer.textContent="No groups yet";return;}groupConversationCache.forEach(group=>{const button=document.createElement("button");button.type="button";button.className="group-conversation-item";button.classList.toggle("active",currentChat===`group:${group.id}`);const title=document.createElement("strong");title.textContent=group.name;const meta=document.createElement("span");meta.textContent=`${group.member_count} members`;button.append(title,meta);button.addEventListener("click",()=>openConversation(`group:${group.id}`));groupListContainer.appendChild(button);});}
+function closeGroupCreateModal(){if(groupCreateModal)groupCreateModal.style.display="none";if(groupCreateStatus)groupCreateStatus.textContent="";}
+document.getElementById("createGroupBtn")?.addEventListener("click",()=>{groupCreateModal.style.display="flex";document.getElementById("groupNameInput").focus();});
+document.getElementById("closeGroupCreate")?.addEventListener("click",closeGroupCreateModal);document.getElementById("cancelGroupCreate")?.addEventListener("click",closeGroupCreateModal);
+document.getElementById("submitGroupCreate")?.addEventListener("click",()=>{const name=document.getElementById("groupNameInput").value.trim();const members=document.getElementById("groupMembersInput").value.split(",").map(v=>v.trim()).filter(Boolean);const button=document.getElementById("submitGroupCreate");if(!name||!members.length){groupCreateStatus.textContent="Enter a group name and at least one friend.";return;}button.disabled=true;groupCreateStatus.textContent="Creating group…";socket.emit("create group",{name,members},result=>{button.disabled=false;if(!result?.success){groupCreateStatus.textContent=result?.message||"Couldn't create group.";return;}document.getElementById("groupNameInput").value="";document.getElementById("groupMembersInput").value="";closeGroupCreateModal();loadGroups();openConversation(`group:${result.group.id}`);});});
+socket.on("groups updated",loadGroups);
 
 // =========================
 // DM CONVERSATION LIST
@@ -883,9 +906,7 @@ function openReactionPicker(messageElement, trigger) {
 }
 
 socket.on("message reactions updated", update => {
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
     if (!update || update.chat !== expectedChat) return;
     const target = findMessageElementById(update.messageId);
     if (target) renderMessageReactions(target, update.reactions);
@@ -912,7 +933,7 @@ function openSavedMessagesVault() {
             card.className = "saved-message-card";
             const meta = document.createElement("div");
             meta.className = "saved-message-meta";
-            meta.textContent = `${saved.author_username} · ${saved.chat === "global" ? "Global Chat" : "Direct Message"} · ${formatDMTime(saved.saved_at)}`;
+            meta.textContent = `${saved.author_username} · ${saved.chat === "global" ? "Global Chat" : String(saved.chat).startsWith("group:") ? "Group Chat" : "Direct Message"} · ${formatDMTime(saved.saved_at)}`;
             const body = document.createElement("p");
             body.textContent = saved.message_text;
             const actions = document.createElement("div");
@@ -955,13 +976,23 @@ document.getElementById("savedMessagesModal")?.addEventListener("click", event =
     if (event.target.id === "savedMessagesModal") event.currentTarget.style.display = "none";
 });
 
+
+
+// FILE SHARING + VOICE MESSAGES
+const chatFileInput=document.getElementById("chatFileInput"),attachFileBtn=document.getElementById("attachFileBtn"),voiceMessageBtn=document.getElementById("voiceMessageBtn");
+let voiceRecorder=null,voiceStream=null,voiceChunks=[];
+async function uploadChatFile(file,isVoice=false){if(!file||currentChat==="global")return showInAppNotification("Choose a conversation","Files and voice messages are available in DMs and group chats.");if(file.size>12*1024*1024)return showInAppNotification("File too large","The maximum upload size is 12 MB.");const form=new FormData();form.append("file",file);form.append("chat",getChatKey());try{const response=await fetch("/api/chat/upload",{method:"POST",credentials:"same-origin",body:form});const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||"Upload failed.");socket.emit("chat message",{text:isVoice?"Voice message":"",chat:getChatKey(),attachmentId:result.attachment.id,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})});}catch(error){showInAppNotification("Upload failed",error.message);}}
+attachFileBtn?.addEventListener("click",()=>{if(currentChat==="global")return showInAppNotification("Choose a conversation","Files can be shared in DMs and group chats.");chatFileInput?.click();});
+chatFileInput?.addEventListener("change",async()=>{const file=chatFileInput.files?.[0];if(file)await uploadChatFile(file);chatFileInput.value="";});
+voiceMessageBtn?.addEventListener("click",async()=>{if(currentChat==="global")return showInAppNotification("Choose a conversation","Voice messages are available in DMs and group chats.");if(voiceRecorder&&voiceRecorder.state==="recording"){voiceRecorder.stop();voiceMessageBtn.textContent="🎙";voiceMessageBtn.classList.remove("recording");return;}if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined")return showInAppNotification("Recording unavailable","This browser doesn't support voice recording.");try{voiceStream=await navigator.mediaDevices.getUserMedia({audio:true});voiceChunks=[];voiceRecorder=new MediaRecorder(voiceStream);voiceRecorder.addEventListener("dataavailable",event=>{if(event.data.size)voiceChunks.push(event.data);});voiceRecorder.addEventListener("stop",async()=>{const blob=new Blob(voiceChunks,{type:voiceRecorder.mimeType||"audio/webm"});voiceStream?.getTracks().forEach(track=>track.stop());voiceStream=null;if(blob.size)await uploadChatFile(new File([blob],`voice-${Date.now()}.webm`,{type:blob.type||"audio/webm"}),true);},{once:true});voiceRecorder.start();voiceMessageBtn.textContent="■";voiceMessageBtn.classList.add("recording");}catch(error){voiceStream?.getTracks().forEach(track=>track.stop());voiceStream=null;showInAppNotification("Microphone unavailable","Allow microphone access to record a voice message.");}});
+document.getElementById("mediaGalleryBtn")?.addEventListener("click",()=>{const modal=document.getElementById("mediaGalleryModal"),list=document.getElementById("mediaGalleryList");if(currentChat==="global"){list.textContent="Open a DM or group chat to view its shared media.";modal.style.display="flex";return;}modal.style.display="flex";list.textContent="Loading shared media…";socket.emit("get chat media",getChatKey(),result=>{list.replaceChildren();if(!result?.success||!result.media?.length){list.textContent="No shared media in this conversation yet.";return;}result.media.forEach(item=>{const row=document.createElement("a");row.className="media-gallery-item";row.href=`/api/chat-media/${encodeURIComponent(item.id)}`;row.target="_blank";row.rel="noopener";const label=document.createElement("span");label.textContent=item.original_name;const meta=document.createElement("small");meta.textContent=`${item.mime_type} · shared by ${item.uploader}`;row.append(label,meta);list.appendChild(row);});});});
+document.getElementById("closeMediaGallery")?.addEventListener("click",()=>document.getElementById("mediaGalleryModal").style.display="none");document.getElementById("mediaGalleryModal")?.addEventListener("click",event=>{if(event.target.id==="mediaGalleryModal")event.currentTarget.style.display="none";});
+
 // =========================
 // RECEIVE MESSAGES
 // =========================
 function displayMessage(data) {
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
 
     if (!data || data.chat !== expectedChat) {
         return;
@@ -1009,7 +1040,8 @@ function displayMessage(data) {
                 </div>
             ` : ""}
 
-            <div class="text">${escapeHTML(data.text)}</div>
+            <div class="text">${escapeHTML(data.text || "")}</div>
+            ${data.attachment_id ? (String(data.attachment_mime || "").startsWith("image/") ? `<a class="message-attachment-image" href="/api/chat-media/${encodeURIComponent(data.attachment_id)}" target="_blank" rel="noopener"><img src="/api/chat-media/${encodeURIComponent(data.attachment_id)}" alt="${escapeHTML(data.attachment_name || "Shared image")}" loading="lazy"></a>` : String(data.attachment_mime || "").startsWith("audio/") ? `<div class="message-audio"><span>Voice message</span><audio controls preload="none" src="/api/chat-media/${encodeURIComponent(data.attachment_id)}"></audio></div>` : `<a class="message-attachment-file" href="/api/chat-media/${encodeURIComponent(data.attachment_id)}">${escapeHTML(data.attachment_name || "Download file")} · ${Math.max(1, Math.round(Number(data.attachment_size || 0) / 1024))} KB</a>`) : ""}
             <div class="time">${escapeHTML(data.time)}</div>
             ${!isGlobalMessage && data.username === username ? `
                 <div class="message-status">${data.read_at ? "Read" : data.delivered_at ? "Delivered" : "Sent"}</div>
@@ -1176,9 +1208,7 @@ function updateUnreadCount() {
 }
 
 function clearUnreadForChat(chat) {
-    const chatId = chat === "global"
-        ? "global"
-        : [username, chat].sort().join("|");
+    const chatId = getChatKey(chat);
 
     delete unreadByChat[chatId];
     updateUnreadCount();
@@ -1224,9 +1254,7 @@ function notifyIncomingMessage(data) {
     if (!data || data.system || data.username === username) return;
 
     const chatId = data.chat || "global";
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
     const isCurrentChat = chatId === expectedChat;
     const isVisible = isTabActive && document.visibilityState === "visible";
 
@@ -1235,9 +1263,10 @@ function notifyIncomingMessage(data) {
     unreadByChat[chatId] = (unreadByChat[chatId] || 0) + 1;
     updateUnreadCount();
 
+    const group = getGroupByChat(chatId);
     const chatName = chatId === "global"
         ? "Global chat"
-        : data.username;
+        : group ? group.name : data.username;
 
     showInAppNotification(
         `New message from ${chatName}`,
@@ -1274,18 +1303,16 @@ function handleIncomingMessage(data) {
     displayMessage(data);
     notifyIncomingMessage(data);
 
-    if (data && !data.system && data.chat && data.chat !== "global") {
-        loadDMConversations();
-    }
+    if(data&&!data.system&&data.chat&&data.chat!=="global"){if(String(data.chat).startsWith("group:"))loadGroups();else loadDMConversations();}
 
     applyMessageSearch();
 
     if (
         data &&
         !data.system &&
-        currentChat !== "global" &&
+        currentChat !== "global" && !String(currentChat).startsWith("group:") &&
         data.username === currentChat &&
-        data.chat === [username, currentChat].sort().join("|") &&
+        data.chat === getChatKey() &&
         jetchatSettings.readReceipts &&
         isTabActive &&
         document.visibilityState === "visible"
@@ -1301,7 +1328,7 @@ document.addEventListener("visibilitychange", () => {
         clearUnreadForChat(currentChat);
 
         if (
-            currentChat !== "global" &&
+            currentChat !== "global" && !String(currentChat).startsWith("group:") &&
             jetchatSettings.readReceipts
         ) {
             socket.emit("mark chat read", currentChat, () => loadDMConversations());
@@ -1313,7 +1340,7 @@ window.addEventListener("focus", () => {
     isTabActive = true;
     clearUnreadForChat(currentChat);
 
-    if (currentChat !== "global" && jetchatSettings.readReceipts) {
+    if (currentChat !== "global" && !String(currentChat).startsWith("group:") && jetchatSettings.readReceipts) {
         socket.emit("mark chat read", currentChat, () => loadDMConversations());
     }
 });
@@ -1328,9 +1355,7 @@ socket.on("chat message received", handleIncomingMessage);
 function updateVisibleMessageStatuses(data, status) {
     if (!data || !Array.isArray(data.ids)) return;
 
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
 
     if (data.chat !== expectedChat) return;
 
@@ -1465,7 +1490,7 @@ socket.on("chat history", (history) => {
     loadDMConversations();
 
     if (
-        currentChat !== "global" &&
+        currentChat !== "global" && !String(currentChat).startsWith("group:") &&
         jetchatSettings.readReceipts &&
         document.visibilityState === "visible"
     ) {

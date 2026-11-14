@@ -86,6 +86,14 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const chatUpload = multer({
+    storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 },
+    fileFilter(req,file,cb) {
+        const allowed=new Set(["image/jpeg","image/png","image/gif","image/webp","application/pdf","text/plain","audio/webm","audio/ogg","audio/mp4","audio/mpeg","audio/wav","audio/x-m4a"]);
+        if(!allowed.has(file.mimetype)) return cb(new Error("That file type isn't supported."));
+        cb(null,true);
+    }
+});
 
 // Cloudflare Turnstile configuration. The secret key is never sent to browsers.
 const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || "";
@@ -168,6 +176,36 @@ async function getRequestSession(req) {
     const token = getCookieValue(req.headers.cookie, SESSION_COOKIE_NAME);
     return token ? db.getAuthSession(token) : null;
 }
+
+// Authenticated chat media lives in PostgreSQL, so it survives Render restarts and deploys.
+app.post("/api/chat/upload",(req,res,next)=>chatUpload.single("file")(req,res,error=>{if(error)return res.status(400).json({success:false,message:error.message||"Upload failed."});next();}),async(req,res)=>{
+    try {
+        const session=await getRequestSession(req);if(!session)return res.status(401).json({success:false,message:"Please sign in again."});
+        if(!req.file)return res.status(400).json({success:false,message:"Choose a file first."});
+        const chat=String(req.body.chat||"");let allowed=false;
+        if(/^group:[1-9][0-9]*$/.test(chat))allowed=await db.isGroupMember(chat.slice(6),session.user.username);
+        else if(chat.includes("|")&&chat.split("|").length===2){const peer=getDMPartner(chat,session.user.username);allowed=Boolean(peer&&await isAcceptedFriend(session.user.username,peer)&&makeDMChatId(session.user.username,peer)===chat);}
+        if(!allowed)return res.status(403).json({success:false,message:"You can't upload to this conversation."});
+        const attachment=await db.storeChatAttachment(chat,session.user.username,req.file);res.set("Cache-Control","no-store");return res.json({success:true,attachment});
+    }catch(error){console.error("Chat media upload error:",error.message);return res.status(500).json({success:false,message:"Couldn't upload that file."});}
+});
+app.get("/api/chat-media/:id",async(req,res)=>{
+    try{
+        const session=await getRequestSession(req);if(!session)return res.sendStatus(401);
+        if(!/^[1-9][0-9]*$/.test(req.params.id))return res.sendStatus(404);
+        const file=await db.getChatAttachment(req.params.id);if(!file)return res.sendStatus(404);
+        let allowed=false;
+        if(file.chat.startsWith("group:"))allowed=await db.isGroupMember(file.chat.slice(6),session.user.username);
+        else if(file.chat.includes("|")){const peer=getDMPartner(file.chat,session.user.username);allowed=Boolean(peer&&await isAcceptedFriend(session.user.username,peer));}
+        if(!allowed)return res.sendStatus(403);
+        res.set("X-Content-Type-Options","nosniff");res.set("Cache-Control","private,no-store");res.type(file.mime_type);
+        const safeName=String(file.original_name||"file").replace(/[\\r\\n"\\\\]/g,"_");
+        const inlineMedia=file.mime_type.startsWith("image/")||file.mime_type.startsWith("audio/");
+        res.set("Content-Disposition",inlineMedia?"inline":`attachment; filename="${safeName}"`);
+        return res.send(file.data);
+    }catch(error){console.error("Chat media retrieval error:",error.message);return res.sendStatus(500);}
+});
+
 function describeDevice(userAgent) {
     const ua = String(userAgent || "");
     let os = "Unknown device";
@@ -326,6 +364,8 @@ async function activateAuthenticatedSocket(socket, user, sessionHash) {
     presenceVisibility.set(user.username, user.show_online !== false);
     onlineUsers[user.username] = socket.id;
     await socket.join(`user:${user.username}`);
+    const groups=await db.getUserGroups(user.username);
+    for(const group of groups)await socket.join(`group:${group.id}`);
     if (sessionHash) await socket.join(`session:${sessionHash}`);
     broadcastPresence();
     io.emit("chat message", {
@@ -855,6 +895,35 @@ socket.on("dismiss update", async (updateId, callback) => {
         }
     });
 
+
+
+    socket.on("get groups",async callback=>{
+        if(!socket.username)return typeof callback==="function"&&callback({success:false,groups:[]});
+        try{const groups=await db.getUserGroups(socket.username);if(typeof callback==="function")callback({success:true,groups});}
+        catch(error){console.error("Get groups error:",error.message);if(typeof callback==="function")callback({success:false,groups:[]});}
+    });
+    socket.on("create group",async(data,callback)=>{
+        const respond=result=>{if(typeof callback==="function")callback(result);};
+        if(!socket.username||!data||typeof data.name!=="string")return respond({success:false,message:"Invalid group details."});
+        const name=data.name.trim().slice(0,40),requested=Array.isArray(data.members)?[...new Set(data.members.map(v=>String(v).trim()).filter(Boolean))]:[];
+        if(name.length<2)return respond({success:false,message:"Group names must be at least 2 characters."});
+        if(requested.length<1||requested.length>20)return respond({success:false,message:"Choose between 1 and 20 friends."});
+        try{
+            const friends=await db.getFriends(socket.username),accepted=new Set(friends.map(row=>row.friend));
+            if(requested.some(member=>!accepted.has(member)))return respond({success:false,message:"Groups can only include your existing friends."});
+            const group=await db.createGroup(name,socket.username,requested);
+            for(const member of group.members){io.in(`user:${member}`).socketsJoin(`group:${group.id}`);io.to(`user:${member}`).emit("groups updated");}
+            respond({success:true,group});
+        }catch(error){console.error("Create group error:",error.message);respond({success:false,message:"Couldn't create that group."});}
+    });
+    socket.on("get chat media",async(chat,callback)=>{
+        const respond=result=>{if(typeof callback==="function")callback(result);};
+        if(!socket.username||typeof chat!=="string")return respond({success:false,media:[]});
+        try{let allowed=false;if(/^group:[1-9][0-9]*$/.test(chat))allowed=await db.isGroupMember(chat.slice(6),socket.username);else{const peer=getDMPartner(chat,socket.username);allowed=Boolean(peer&&await isAcceptedFriend(socket.username,peer));}
+            if(!allowed)return respond({success:false,media:[]});respond({success:true,media:await db.getChatMedia(chat)});
+        }catch(error){console.error("Get chat media error:",error.message);respond({success:false,media:[]});}
+    });
+
     // =========================
     // LOAD CHAT
     // =========================
@@ -869,6 +938,10 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             if (chat === "global") {
                 history = db.loadMessages();
+            } else if (/^group:[1-9][0-9]*$/.test(String(chat))) {
+                const groupId=String(chat).slice(6);
+                if(!(await db.getGroup(groupId,socket.username))){socket.emit("chat history",[]);return;}
+                history=await db.loadGroupMessages(groupId);
             } else {
                 const peer = getDMPartner(chat, socket.username);
 
@@ -898,7 +971,7 @@ socket.on("dismiss update", async (updateId, callback) => {
                 );
             }
 
-            socket.emit("chat history", await attachMessageReactions(chat === "global" ? "global" : makeDMChatId(socket.username, getDMPartner(chat, socket.username)), history));
+            socket.emit("chat history", await attachMessageReactions(chat === "global" ? "global" : String(chat).startsWith("group:") ? chat : makeDMChatId(socket.username, getDMPartner(chat, socket.username)), history));
         } catch (err) {
             console.error("Load chat error:", err);
             socket.emit("chat history", []);
@@ -974,75 +1047,27 @@ socket.on("dismiss update", async (updateId, callback) => {
     // =========================
     // CHAT MESSAGE
     // =========================
-    socket.on("chat message", async (data) => {
-        if (!socket.username || !data || typeof data.text !== "string") return;
 
-        const messageText = data.text.trim();
-
-        if (!messageText) return;
-
-        const msg = {
-            id: Date.now() + Math.random(),
-            username: socket.username,
-            text: messageText,
-            replyTo: data.replyTo || null,
-            time: data.time || Date.now()
-        };
-
-        if (data.chat === "global") {
-            msg.chat = "global";
-
-            db.addMessage(msg);
-
-            io.emit("chat message", msg);
-            return;
-        }
-
-        try {
-            const peer = getDMPartner(data.chat, socket.username);
-
-            if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
-                return;
+    socket.on("chat message",async data=>{
+        if(!socket.username||!data||typeof data.text!=="string")return;
+        const textValue=data.text.trim().slice(0,5000),attachmentId=data.attachmentId&&/^[1-9][0-9]*$/.test(String(data.attachmentId))?String(data.attachmentId):null;
+        if(!textValue&&!attachmentId)return;
+        const msg={id:Date.now()+Math.random(),username:socket.username,text:textValue,replyTo:data.replyTo||null,time:data.time||Date.now()};
+        if(data.chat==="global"){if(attachmentId)return;msg.chat="global";db.addMessage(msg);io.emit("chat message",msg);return;}
+        try{
+            if(/^group:[1-9][0-9]*$/.test(String(data.chat))){
+                const groupId=String(data.chat).slice(6);if(!(await db.isGroupMember(groupId,socket.username)))return;
+                if(attachmentId){const file=await db.getChatAttachment(attachmentId);if(!file||file.chat!==data.chat||file.uploader!==socket.username)return;msg.attachment_id=file.id;msg.attachment_name=file.original_name;msg.attachment_mime=file.mime_type;msg.attachment_size=file.size;}
+                msg.chat=data.chat;const saved=await db.addGroupMessage({...msg,attachmentId});if(saved&&saved.id!==undefined)msg.id=saved.id;io.to(`group:${groupId}`).emit("chat message",msg);return;
             }
-
-            const chatId = makeDMChatId(socket.username, peer);
-
-            msg.chat = chatId;
-            msg.recipient = peer;
-
-            const savedMessage = await db.saveDM(msg);
-
-            // Use the database ID so the live message and loaded history agree.
-            if (savedMessage && savedMessage.id !== undefined) {
-                msg.id = savedMessage.id;
-            }
-
-            // Deliver to the sender and the actual recipient, not the chat ID.
-            socket.emit("chat message", msg);
-
-            // Send to the recipient's account room, not a single socket ID.
-            // This also supports multiple tabs/devices logged into the same account.
-            const recipientRoom = `user:${peer}`;
-            const recipientOnline =
-                (io.sockets.adapter.rooms.get(recipientRoom)?.size || 0) > 0;
-
-            io.to(recipientRoom).emit("chat message", msg);
-
-            if (recipientOnline) {
-                const deliveredIds = await db.markDMDelivered(chatId, peer);
-
-                if (deliveredIds.length) {
-                    io.to(`user:${socket.username}`).emit("messages delivered", {
-                        chat: chatId,
-                        ids: deliveredIds
-                    });
-                }
-            }
-        } catch (err) {
-            console.error("Direct message error:", err);
-        }
+            const peer=getDMPartner(data.chat,socket.username);if(!peer||!(await isAcceptedFriend(socket.username,peer)))return;
+            const chatId=makeDMChatId(socket.username,peer);
+            if(attachmentId){const file=await db.getChatAttachment(attachmentId);if(!file||file.chat!==chatId||file.uploader!==socket.username)return;msg.attachment_id=file.id;msg.attachment_name=file.original_name;msg.attachment_mime=file.mime_type;msg.attachment_size=file.size;}
+            msg.chat=chatId;msg.recipient=peer;const saved=await db.saveDM({...msg,attachmentId});if(saved&&saved.id!==undefined)msg.id=saved.id;
+            socket.emit("chat message",msg);const room=`user:${peer}`,online=(io.sockets.adapter.rooms.get(room)?.size||0)>0;io.to(room).emit("chat message",msg);
+            if(online){const ids=await db.markDMDelivered(chatId,peer);if(ids.length)io.to(`user:${socket.username}`).emit("messages delivered",{chat:chatId,ids});}
+        }catch(error){console.error("Chat message error:",error);}
     });
-
 
     // =========================
     // PERSISTENT MESSAGE REACTIONS
@@ -1064,6 +1089,10 @@ socket.on("dismiss update", async (updateId, callback) => {
                 messageExists = db.loadMessages().some(message =>
                     String(message.id) === String(data.messageId)
                 );
+            } else if (/^group:[1-9][0-9]*$/.test(String(data.chat))) {
+                if(!(await db.isGroupMember(String(data.chat).slice(6),socket.username)))return respond({success:false,message:"You cannot react in this conversation."});
+                const groupHistory=await db.loadGroupMessages(String(data.chat).slice(6));
+                messageExists=groupHistory.some(message=>String(message.id)===String(data.messageId));
             } else {
                 peer = getDMPartner(data.chat, socket.username);
                 if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
@@ -1080,7 +1109,7 @@ socket.on("dismiss update", async (updateId, callback) => {
                 return respond({ success: false, message: "Message not found." });
             }
 
-            const reactionChat = data.chat === "global" ? "global" : makeDMChatId(socket.username, peer);
+            const reactionChat = data.chat === "global" ? "global" : String(data.chat).startsWith("group:") ? data.chat : makeDMChatId(socket.username, peer);
             await db.toggleMessageReaction(data.messageId, reactionChat, socket.username, data.emoji);
             const rows = await db.getMessageReactions(reactionChat);
             const reactions = rows
@@ -1098,6 +1127,8 @@ socket.on("dismiss update", async (updateId, callback) => {
 
             if (reactionChat === "global") {
                 io.emit("message reactions updated", update);
+            } else if(reactionChat.startsWith("group:")) {
+                io.to(reactionChat).emit("message reactions updated",update);
             } else {
                 io.to(`user:${socket.username}`).emit("message reactions updated", update);
                 io.to(`user:${peer}`).emit("message reactions updated", update);
@@ -1126,6 +1157,10 @@ socket.on("dismiss update", async (updateId, callback) => {
                 source = db.loadMessages().find(message =>
                     String(message.id) === String(data.messageId)
                 );
+            } else if(/^group:[1-9][0-9]*$/.test(String(data.chat))){
+                if(!(await db.isGroupMember(String(data.chat).slice(6),socket.username)))return respond({success:false,message:"You cannot save from this conversation."});
+                const groupHistory=await db.loadGroupMessages(String(data.chat).slice(6));
+                source=groupHistory.find(message=>String(message.id)===String(data.messageId));
             } else {
                 const peer = getDMPartner(data.chat, socket.username);
                 if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
@@ -1139,7 +1174,7 @@ socket.on("dismiss update", async (updateId, callback) => {
             if (!source) {
                 return respond({ success: false, message: "Message not found." });
             }
-            const savedChat = data.chat === "global" ? "global" : makeDMChatId(socket.username, getDMPartner(data.chat, socket.username));
+            const savedChat = data.chat === "global" ? "global" : String(data.chat).startsWith("group:") ? data.chat : makeDMChatId(socket.username, getDMPartner(data.chat, socket.username));
             const result = await db.toggleSavedMessage(socket.username, {
                 id: source.id,
                 chat: savedChat,
