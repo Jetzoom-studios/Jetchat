@@ -5536,3 +5536,35 @@ body.light-mode .jetchat-call-card>header{border-color:#e5e6ee}
 body.light-mode .jetchat-call-card header p:last-child{color:#777b8d}
 body.light-mode .call-controls button:not(.call-hangup){background:#f0eff9;color:#393650;border-color:#d9d5eb}
 @media(max-width:650px){.jetchat-call-overlay{padding:0;align-items:stretch}.jetchat-call-card{width:100%;height:100%;border:0;border-radius:0;display:flex;flex-direction:column}.call-stage{flex:1;height:auto;min-height:220px}.call-stage video#callLocalVideo{width:30%;right:10px;bottom:10px}.call-controls{padding:14px 10px calc(14px + env(safe-area-inset-bottom))}.call-controls button{flex:1;padding:0 9px}}
+
+
+/* Jetchat 3.9.2 — DM call toolbar has its own row (never squeezed into 78px header) */
+.topbar{flex-wrap:nowrap!important;align-content:normal!important;row-gap:0!important}
+.dm-call-availability{
+  position:relative;z-index:5;order:initial;display:flex;flex:0 0 auto;
+  align-items:center;flex-wrap:wrap;gap:10px;width:100%;min-width:0;
+  margin:0;padding:10px clamp(16px,2.5vw,30px);
+  border:0;border-bottom:1px solid rgba(145,130,220,.19);border-radius:0;
+  background:linear-gradient(100deg,rgba(20,23,43,.98),rgba(18,31,46,.98));
+  box-shadow:0 5px 18px rgba(0,0,0,.12);font-size:12px;
+}
+.dm-call-availability[hidden]{display:none!important}
+.dm-call-peer-status{flex:1 1 180px;min-width:130px;margin-right:auto;font-size:12px;font-weight:800;white-space:normal}
+.dm-call-peer-status[data-status="available"]{color:#62d69c}
+.dm-call-peer-status[data-status="busy"]{color:#e4b66f}
+.dm-call-peer-status[data-status="unavailable"]{color:#b8b3c9}
+.dm-call-availability label{color:#aaa6c2;font-size:11px;font-weight:750}
+.dm-call-availability select{min-height:38px;padding:6px 11px;border:1px solid rgba(145,130,220,.38);border-radius:10px;background:#171a2b;color:#f3efff;font:inherit;font-size:12px}
+.dm-call-action{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 16px;border:1px solid rgba(160,143,238,.42);border-radius:10px;background:linear-gradient(135deg,#6955b6,#3d5e83);color:#fff;font:inherit;font-size:12px;font-weight:850;cursor:pointer;transition:filter .15s,transform .15s}
+.dm-call-action:hover:not(:disabled){filter:brightness(1.16);transform:translateY(-1px)}
+.dm-call-action:disabled{opacity:.55;cursor:not-allowed}
+body.light-mode .dm-call-availability{background:linear-gradient(100deg,#f6f4ff,#eef5f7);border-bottom-color:#ded9ef}
+body.light-mode .dm-call-peer-status{color:#514b70}
+body.light-mode .dm-call-availability label{color:#69647f}
+body.light-mode .dm-call-availability select{background:#fff;color:#292d3a;border-color:#d9dce6}
+@media(max-width:650px){
+ .dm-call-availability{gap:8px;padding:9px 12px}
+ .dm-call-peer-status{flex:1 0 100%;min-width:0}
+ .dm-call-action{flex:1;padding:0 10px}
+ .dm-call-availability select{flex:1}
+}
