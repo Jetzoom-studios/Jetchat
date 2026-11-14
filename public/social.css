@@ -66,6 +66,10 @@
 
 /* Jetchat 3.7.3 — Activity centre */
 .social-top-actions{display:flex;align-items:center;gap:10px}
+.social-profile-top-button{display:inline-flex;align-items:center;gap:9px;height:42px;padding:0 13px;border:1px solid var(--social-border,#30384b);border-radius:13px;background:var(--social-card,#151b2a);color:var(--social-text,#f3f5fb);font-size:12px;font-weight:750;cursor:pointer;transition:background .18s,border-color .18s,transform .18s}
+.social-profile-top-button:hover{background:#252b40;border-color:#7163b0;transform:translateY(-1px)}
+.social-profile-top-avatar{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:linear-gradient(135deg,#8d70ff,#e65b9b);color:white;font-size:11px}
+@media(max-width:520px){.social-profile-top-button{padding:0 9px}.social-profile-top-button span:last-child{display:none}}
 .social-notifications-button{position:relative;width:42px;height:42px;border:1px solid var(--social-border,#30384b);border-radius:13px;background:var(--social-card,#151b2a);color:var(--social-text,#f3f5fb);font-size:22px;cursor:pointer}
 .social-notifications-button span{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;display:grid;place-items:center;border-radius:20px;background:#e34f76;color:white;font-size:10px;font-weight:800}
 .social-notifications-button span[hidden]{display:none}
