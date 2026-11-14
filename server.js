@@ -9,8 +9,37 @@ const { Server } = require("socket.io");
 const db = require("./db");
 
 const app = express();
+app.use(express.json({ limit: "10kb" }));
 const server = http.createServer(app);
 const io = new Server(server);
+
+const SESSION_COOKIE_NAME = "jetchat_session";
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getCookieValue(cookieHeader, name) {
+    if (typeof cookieHeader !== "string") return "";
+    const prefix = name + "=";
+    const part = cookieHeader.split(";").map(value => value.trim()).find(value => value.startsWith(prefix));
+    if (!part) return "";
+    try { return decodeURIComponent(part.slice(prefix.length)); }
+    catch { return ""; }
+}
+
+function sessionCookieOptions(req) {
+    return {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production" || req.headers["x-forwarded-proto"] === "https",
+        sameSite: "lax",
+        path: "/",
+        maxAge: SESSION_MAX_AGE_MS
+    };
+}
+
+function clearSessionCookieOptions(req) {
+    const options = sessionCookieOptions(req);
+    delete options.maxAge;
+    return options;
+}
 
 const PORT = process.env.PORT || 3000;
 
@@ -95,6 +124,61 @@ async function verifyTurnstileToken(token) {
     }
 }
 
+// Establish a persistent session cookie after a successful CAPTCHA-protected login.
+app.post("/api/session/establish", async (req, res) => {
+    try {
+        const token = req.body && req.body.token;
+        const session = await db.getAuthSession(token);
+        if (!session) return res.status(401).json({ success: false, message: "Session could not be established. Please sign in again." });
+        res.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(req));
+        res.set("Cache-Control", "no-store");
+        return res.json({ success: true });
+    } catch (error) {
+        console.error("Session establishment error:", error.message);
+        return res.status(500).json({ success: false, message: "Could not save your sign-in." });
+    }
+});
+
+// Revoke only this remembered browser session. Other devices remain signed in.
+app.post("/api/session/logout", async (req, res) => {
+    try {
+        const token = getCookieValue(req.headers.cookie, SESSION_COOKIE_NAME);
+        const session = token ? await db.getAuthSession(token) : null;
+        if (token) await db.revokeAuthSession(token);
+        res.clearCookie(SESSION_COOKIE_NAME, clearSessionCookieOptions(req));
+        res.set("Cache-Control", "no-store");
+        if (session) {
+            const room = `session:${session.sessionHash}`;
+            io.to(room).emit("session revoked");
+            for (const activeSocket of io.sockets.sockets.values()) {
+                if (activeSocket.sessionHash === session.sessionHash) {
+                    activeSocket.disconnect(true);
+                }
+            }
+        }
+        return res.json({ success: true });
+    } catch (error) {
+        console.error("Session logout error:", error.message);
+        res.clearCookie(SESSION_COOKIE_NAME, clearSessionCookieOptions(req));
+        return res.status(500).json({ success: false, message: "Could not sign out cleanly." });
+    }
+});
+
+// Read the HttpOnly cookie during the Socket.IO handshake. The raw token is
+// never exposed to page JavaScript after the initial login exchange.
+io.use(async (socket, next) => {
+    try {
+        const token = getCookieValue(socket.handshake.headers.cookie, SESSION_COOKIE_NAME);
+        if (token) {
+            const session = await db.getAuthSession(token);
+            if (session) socket.restoredSession = session;
+        }
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Serve public folder
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -143,6 +227,23 @@ function broadcastPresence() {
     const presence = getPresenceSnapshot();
     io.emit("presence update", presence);
     io.emit("online count", presence.count);
+}
+
+async function activateAuthenticatedSocket(socket, user, sessionHash) {
+    socket.username = user.username;
+    socket.accountId = user.id;
+    socket.sessionHash = sessionHash || null;
+    users[socket.id] = user.username;
+    presenceVisibility.set(user.username, user.show_online !== false);
+    onlineUsers[user.username] = socket.id;
+    await socket.join(`user:${user.username}`);
+    if (sessionHash) await socket.join(`session:${sessionHash}`);
+    broadcastPresence();
+    io.emit("chat message", {
+        system: true,
+        text: `🟢 ${user.username} joined the chat`
+    });
+    socket.emit("chat history", await attachMessageReactions("global", db.loadMessages()));
 }
 
 // =========================
@@ -226,6 +327,24 @@ async function attachMessageReactions(chat, history) {
 io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
 
+    socket.on("restore session", async callback => {
+        if (typeof callback !== "function") return;
+        if (!socket.restoredSession) return callback({ success: false });
+        try {
+            if (!socket.username) {
+                await activateAuthenticatedSocket(
+                    socket,
+                    socket.restoredSession.user,
+                    socket.restoredSession.sessionHash
+                );
+            }
+            callback({ success: true, user: socket.restoredSession.user });
+        } catch (error) {
+            console.error("Session restore error:", error.message);
+            callback({ success: false });
+        }
+    });
+
     // =========================
     // SIGNUP
     // =========================
@@ -282,29 +401,13 @@ io.on("connection", (socket) => {
                 return callback(result);
             }
 
-            socket.username = result.user.username;
-            users[socket.id] = result.user.username;
-            socket.accountId = result.user.id;
-            presenceVisibility.set(
-                result.user.username,
-                result.user.show_online !== false
-            );
-            onlineUsers[result.user.username] = socket.id;
-            // A username room delivers DMs to every active session for this account.
-            socket.join(`user:${result.user.username}`);
-
-            broadcastPresence();
-
-            io.emit("chat message", {
-                system: true,
-                text: `🟢 ${result.user.username} joined the chat`
-            });
-
-            socket.emit("chat history", await attachMessageReactions("global", db.loadMessages()));
+            const session = await db.createAuthSession(result.user.id);
+            await activateAuthenticatedSocket(socket, result.user, session.sessionHash);
 
             callback({
                 success: true,
-                user: result.user
+                user: result.user,
+                sessionToken: session.token
             });
         } catch (err) {
             console.error("Login error:", err);
