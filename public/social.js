@@ -680,8 +680,10 @@
     stage.append(video);
     if (caption) stage.append(caption);
     stage.append(shade, mediaLabel, progress, tools);
-    if (comments) stage.append(comments);
-    card.replaceChildren(head, stage, actions);
+    // The action rail stays above the video; comments live beside the stage on desktop.
+    stage.append(actions);
+    card.replaceChildren(head, stage);
+    if (comments) card.append(comments);
     card.dataset.reelPostId = String(post.id);
   }
 
@@ -753,25 +755,57 @@
 
   async function showComments(postId, card) {
     const area = card.querySelector(".social-comments");
+    const isReel = card.classList.contains("social-reel-card");
     area.hidden = !area.hidden;
+    card.classList.toggle("comments-open", isReel && !area.hidden);
     if (area.hidden) return;
-    area.innerHTML = '<div class="social-loading">Loading comments…</div>';
-    try {
-      const data = await request("/posts/" + encodeURIComponent(postId) + "/comments");
+
+    const renderComments = async () => {
       area.replaceChildren();
-      data.comments.forEach(comment => {
-        const line = document.createElement("p");
-        const name = document.createElement("strong");
-        name.textContent = "@" + comment.username + " ";
-        const body = document.createTextNode(comment.body);
-        line.append(name, body);
-        area.append(line);
+      const header = document.createElement("header");
+      header.className = "social-comments-header";
+      const title = document.createElement("strong");
+      title.textContent = "Comments";
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "social-comments-close";
+      close.textContent = "×";
+      close.setAttribute("aria-label", "Close comments");
+      close.addEventListener("click", () => {
+        area.hidden = true;
+        card.classList.remove("comments-open");
       });
+      header.append(title, close);
+
+      const list = document.createElement("div");
+      list.className = "social-comments-list";
+      list.innerHTML = '<div class="social-loading">Loading comments…</div>';
+      area.append(header, list);
+      try {
+        const data = await request("/posts/" + encodeURIComponent(postId) + "/comments");
+        list.replaceChildren();
+        if (!data.comments.length) {
+          const empty = document.createElement("p");
+          empty.className = "social-comments-empty";
+          empty.textContent = "No comments yet. Start the conversation.";
+          list.append(empty);
+        }
+        data.comments.forEach(comment => {
+          const line = document.createElement("p");
+          const name = document.createElement("strong");
+          name.textContent = "@" + comment.username + " ";
+          line.append(name, document.createTextNode(comment.body));
+          list.append(line);
+        });
+      } catch (error) {
+        list.textContent = error.message;
+      }
+
       const form = document.createElement("form");
       form.className = "social-comment-form";
       const input = document.createElement("input");
       input.maxLength = 500;
-      input.placeholder = "Write a comment…";
+      input.placeholder = "Add a comment…";
       input.required = true;
       const submit = document.createElement("button");
       submit.textContent = "Send";
@@ -779,18 +813,25 @@
       form.append(input, submit);
       form.addEventListener("submit", async event => {
         event.preventDefault();
+        const body = input.value.trim();
+        if (!body) return;
         submit.disabled = true;
         try {
-          await request("/posts/" + encodeURIComponent(postId) + "/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: input.value }) });
-          area.hidden = true;
-          showComments(postId, card);
-        } catch (error) { input.setCustomValidity(error.message); input.reportValidity(); }
-        finally { submit.disabled = false; }
+          await request("/posts/" + encodeURIComponent(postId) + "/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+          await renderComments();
+          area.querySelector(".social-comment-form input")?.focus();
+        } catch (error) {
+          input.setCustomValidity(error.message);
+          input.reportValidity();
+        } finally {
+          const currentSubmit = area.querySelector(".social-comment-form button");
+          if (currentSubmit) currentSubmit.disabled = false;
+        }
       });
       area.append(form);
-    } catch (error) { area.textContent = error.message; }
+    };
+    await renderComments();
   }
-
   async function openProfile(target) {
     try {
       const data = await request("/profile/" + encodeURIComponent(target));
