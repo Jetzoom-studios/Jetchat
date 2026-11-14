@@ -103,6 +103,62 @@ function ensureSchema() {
         read_at TIMESTAMPTZ
       );
       CREATE INDEX IF NOT EXISTS social_notifications_recipient_idx ON social_notifications(recipient, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS social_reposts (
+        post_id BIGINT NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+        username TEXT NOT NULL,
+        quote TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (post_id, username)
+      );
+      CREATE TABLE IF NOT EXISTS social_clubs (
+        id BIGSERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        owner TEXT NOT NULL,
+        visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','private')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS social_club_members (
+        club_id BIGINT NOT NULL REFERENCES social_clubs(id) ON DELETE CASCADE,
+        username TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner','moderator','member')),
+        joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (club_id, username)
+      );
+      CREATE TABLE IF NOT EXISTS social_club_posts (
+        id BIGSERIAL PRIMARY KEY,
+        club_id BIGINT NOT NULL REFERENCES social_clubs(id) ON DELETE CASCADE,
+        username TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS social_pulse_responses (
+        id BIGSERIAL PRIMARY KEY,
+        prompt_date DATE NOT NULL,
+        username TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (prompt_date, username)
+      );
+      CREATE TABLE IF NOT EXISTS social_relays (
+        id BIGSERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        starter TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        is_open BOOLEAN NOT NULL DEFAULT TRUE
+      );
+      CREATE TABLE IF NOT EXISTS social_relay_entries (
+        id BIGSERIAL PRIMARY KEY,
+        relay_id BIGINT NOT NULL REFERENCES social_relays(id) ON DELETE CASCADE,
+        username TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS social_club_posts_idx ON social_club_posts(club_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS social_pulse_date_idx ON social_pulse_responses(prompt_date, created_at DESC);
+      CREATE INDEX IF NOT EXISTS social_relay_entries_idx ON social_relay_entries(relay_id, created_at ASC);
+
     `).catch(error => {
       schemaPromise = null;
       throw error;
@@ -477,6 +533,172 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
       const count = await pool.query("SELECT COUNT(*)::INT AS count FROM social_follows WHERE following=$1", [actual]);
       res.json({ success: true, following, followers: count.rows[0].count });
     } catch (error) { console.error("Social follow error:", error.message); res.status(500).json({ success: false, message: "Couldn't update your follow." }); }
+  });
+
+
+  // X-inspired reposts and quote posts.
+  router.post("/posts/:id/repost", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid post."});
+      const quote = String(req.body.quote || "").trim().slice(0,280);
+      const exists = await pool.query("SELECT id FROM social_posts WHERE id=$1", [req.params.id]);
+      if (!exists.rowCount) return res.status(404).json({success:false,message:"Post not found."});
+      const removed = await pool.query("DELETE FROM social_reposts WHERE post_id=$1 AND username=$2 RETURNING post_id", [req.params.id,req.socialUser.username]);
+      let reposted = false;
+      if (!removed.rowCount) {
+        await pool.query("INSERT INTO social_reposts(post_id,username,quote) VALUES($1,$2,$3) ON CONFLICT(post_id,username) DO UPDATE SET quote=EXCLUDED.quote,created_at=NOW()", [req.params.id,req.socialUser.username,quote]);
+        reposted = true;
+      }
+      const count = await pool.query("SELECT COUNT(*)::INT AS count FROM social_reposts WHERE post_id=$1",[req.params.id]);
+      res.json({success:true,reposted,count:count.rows[0].count});
+    } catch(error) { console.error("Repost error:",error.message); res.status(500).json({success:false,message:"Couldn't repost this post."}); }
+  });
+
+  // Trending hashtags are calculated from recent public posts.
+  router.get("/trending", auth, async (req,res) => {
+    try {
+      const result = await pool.query(`
+        SELECT lower(tag) AS tag, COUNT(*)::INT AS posts
+        FROM social_posts p
+        CROSS JOIN LATERAL regexp_matches(p.body, '#([a-zA-Z0-9_]{2,30})', 'g') AS match(tag)
+        WHERE p.created_at > NOW() - INTERVAL '7 days'
+        GROUP BY lower(tag) ORDER BY posts DESC, tag ASC LIMIT 20
+      `);
+      res.set("Cache-Control","no-store");
+      res.json({success:true,trends:result.rows});
+    } catch(error) { console.error("Trending error:",error.message); res.status(500).json({success:false,message:"Couldn't load trends."}); }
+  });
+
+  // Clubs: public discovery and private invite-only membership.
+  router.get("/clubs", auth, async (req,res) => {
+    try {
+      const result=await pool.query(`
+        SELECT c.id,c.name,c.description,c.owner,c.visibility,c.created_at,
+          COUNT(m.username)::INT AS member_count,
+          EXISTS(SELECT 1 FROM social_club_members mine WHERE mine.club_id=c.id AND mine.username=$1) AS joined
+        FROM social_clubs c LEFT JOIN social_club_members m ON m.club_id=c.id
+        WHERE c.visibility='public' OR EXISTS(SELECT 1 FROM social_club_members mine WHERE mine.club_id=c.id AND mine.username=$1)
+        GROUP BY c.id ORDER BY member_count DESC,c.created_at DESC LIMIT 100
+      `,[req.socialUser.username]);
+      res.json({success:true,clubs:result.rows});
+    } catch(error) { console.error("Clubs list error:",error.message); res.status(500).json({success:false,message:"Couldn't load Clubs."}); }
+  });
+  router.post("/clubs", auth, async (req,res) => {
+    const name=String(req.body.name||"").trim().slice(0,40), description=String(req.body.description||"").trim().slice(0,240);
+    const visibility=req.body.visibility==="private"?"private":"public";
+    if(name.length<3) return res.status(400).json({success:false,message:"Club names need at least 3 characters."});
+    const client=await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const created=await client.query("INSERT INTO social_clubs(name,description,owner,visibility) VALUES($1,$2,$3,$4) RETURNING id,name,description,owner,visibility,created_at",[name,description,req.socialUser.username,visibility]);
+      await client.query("INSERT INTO social_club_members(club_id,username,role) VALUES($1,$2,'owner')",[created.rows[0].id,req.socialUser.username]);
+      await client.query("COMMIT");
+      res.status(201).json({success:true,club:{...created.rows[0],member_count:1,joined:true}});
+    } catch(error) { await client.query("ROLLBACK"); console.error("Create club error:",error.message); res.status(500).json({success:false,message:"Couldn't create this Club."}); }
+    finally { client.release(); }
+  });
+  router.post("/clubs/:id/join", auth, async (req,res) => {
+    try {
+      if(!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid Club."});
+      const club=await pool.query("SELECT id,visibility FROM social_clubs WHERE id=$1",[req.params.id]);
+      if(!club.rowCount) return res.status(404).json({success:false,message:"Club not found."});
+      if(club.rows[0].visibility==="private") return res.status(403).json({success:false,message:"This Club is invite-only."});
+      await pool.query("INSERT INTO social_club_members(club_id,username) VALUES($1,$2) ON CONFLICT DO NOTHING",[req.params.id,req.socialUser.username]);
+      res.json({success:true,joined:true});
+    } catch(error) { console.error("Join club error:",error.message); res.status(500).json({success:false,message:"Couldn't join this Club."}); }
+  });
+  router.get("/clubs/:id/posts", auth, async (req,res) => {
+    try {
+      if(!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid Club."});
+      const access=await pool.query("SELECT c.visibility,EXISTS(SELECT 1 FROM social_club_members m WHERE m.club_id=c.id AND m.username=$2) AS joined FROM social_clubs c WHERE c.id=$1",[req.params.id,req.socialUser.username]);
+      if(!access.rowCount) return res.status(404).json({success:false,message:"Club not found."});
+      if(access.rows[0].visibility==="private"&&!access.rows[0].joined) return res.status(403).json({success:false,message:"Join this Club to view its posts."});
+      const posts=await pool.query("SELECT id,username,body,created_at FROM social_club_posts WHERE club_id=$1 ORDER BY created_at DESC LIMIT 100",[req.params.id]);
+      res.json({success:true,posts:posts.rows});
+    } catch(error) { console.error("Club posts error:",error.message); res.status(500).json({success:false,message:"Couldn't load Club posts."}); }
+  });
+  router.post("/clubs/:id/posts", auth, async (req,res) => {
+    try {
+      const body=String(req.body.body||"").trim();
+      if(!/^[1-9][0-9]*$/.test(req.params.id)||!body||body.length>1000) return res.status(400).json({success:false,message:"Club posts must be 1–1,000 characters."});
+      const member=await pool.query("SELECT 1 FROM social_club_members WHERE club_id=$1 AND username=$2",[req.params.id,req.socialUser.username]);
+      if(!member.rowCount) return res.status(403).json({success:false,message:"Join this Club before posting."});
+      const post=await pool.query("INSERT INTO social_club_posts(club_id,username,body) VALUES($1,$2,$3) RETURNING id,username,body,created_at",[req.params.id,req.socialUser.username,body]);
+      res.status(201).json({success:true,post:post.rows[0]});
+    } catch(error) { console.error("Create Club post error:",error.message); res.status(500).json({success:false,message:"Couldn't publish to this Club."}); }
+  });
+
+  // A shared daily prompt, one response per account per day.
+  router.get("/pulse", auth, async (req,res) => {
+    try {
+      const promptDate=(await pool.query("SELECT CURRENT_DATE::TEXT AS day")).rows[0].day;
+      const prompts=["What is one thing everyone should try at least once?","What would make your community better this week?","What is a skill you wish you could learn instantly?","What is a small win you had recently?","If you could build one new app feature, what would it be?","What topic could you talk about for hours?","What is something people misunderstand about your generation?"];
+      const dayNumber=Math.floor(new Date(promptDate+"T00:00:00Z").getTime()/86400000);
+      const prompt=prompts[((dayNumber%prompts.length)+prompts.length)%prompts.length];
+      const [responses,mine]=await Promise.all([
+        pool.query("SELECT username,body,created_at FROM social_pulse_responses WHERE prompt_date=$1 ORDER BY created_at DESC LIMIT 100",[promptDate]),
+        pool.query("SELECT 1 FROM social_pulse_responses WHERE prompt_date=$1 AND username=$2",[promptDate,req.socialUser.username])
+      ]);
+      res.json({success:true,date:promptDate,prompt,responded:Boolean(mine.rowCount),responses:responses.rows});
+    } catch(error) { console.error("Pulse load error:",error.message); res.status(500).json({success:false,message:"Couldn't load today's Pulse."}); }
+  });
+  router.post("/pulse", auth, async (req,res) => {
+    try {
+      const body=String(req.body.body||"").trim().slice(0,280);
+      if(!body) return res.status(400).json({success:false,message:"Write a response first."});
+      const result=await pool.query("INSERT INTO social_pulse_responses(prompt_date,username,body) VALUES(CURRENT_DATE,$1,$2) ON CONFLICT(prompt_date,username) DO NOTHING RETURNING id",[req.socialUser.username,body]);
+      if(!result.rowCount) return res.status(409).json({success:false,message:"You've already answered today's Pulse."});
+      res.status(201).json({success:true});
+    } catch(error) { console.error("Pulse response error:",error.message); res.status(500).json({success:false,message:"Couldn't submit your Pulse."}); }
+  });
+
+  // Relay: a community-built chain where each contribution continues the creation.
+  router.get("/relay", auth, async (req,res) => {
+    try {
+      const relays=await pool.query(`
+        SELECT r.id,r.title,r.starter,r.created_at,r.is_open,COUNT(e.id)::INT AS entries,
+          (SELECT body FROM social_relay_entries WHERE relay_id=r.id ORDER BY created_at DESC,id DESC LIMIT 1) AS latest
+        FROM social_relays r LEFT JOIN social_relay_entries e ON e.relay_id=r.id
+        GROUP BY r.id ORDER BY r.is_open DESC,r.created_at DESC LIMIT 50
+      `);
+      res.json({success:true,relays:relays.rows});
+    } catch(error) { console.error("Relay list error:",error.message); res.status(500).json({success:false,message:"Couldn't load Relay."}); }
+  });
+  router.post("/relay", auth, async (req,res) => {
+    try {
+      const title=String(req.body.title||"").trim().slice(0,100), first=String(req.body.first||"").trim().slice(0,280);
+      if(title.length<3||!first) return res.status(400).json({success:false,message:"Add a title and the first contribution."});
+      const client=await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const relay=await client.query("INSERT INTO social_relays(title,starter) VALUES($1,$2) RETURNING id,title,starter,created_at,is_open",[title,req.socialUser.username]);
+        await client.query("INSERT INTO social_relay_entries(relay_id,username,body) VALUES($1,$2,$3)",[relay.rows[0].id,req.socialUser.username,first]);
+        await client.query("COMMIT");
+        res.status(201).json({success:true,relay:relay.rows[0]});
+      } catch(error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+    } catch(error) { console.error("Create Relay error:",error.message); res.status(500).json({success:false,message:"Couldn't start this Relay."}); }
+  });
+  router.get("/relay/:id", auth, async (req,res) => {
+    try {
+      if(!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid Relay."});
+      const [relay,entries]=await Promise.all([
+        pool.query("SELECT id,title,starter,created_at,is_open FROM social_relays WHERE id=$1",[req.params.id]),
+        pool.query("SELECT username,body,created_at FROM social_relay_entries WHERE relay_id=$1 ORDER BY created_at ASC,id ASC",[req.params.id])
+      ]);
+      if(!relay.rowCount) return res.status(404).json({success:false,message:"Relay not found."});
+      res.json({success:true,relay:relay.rows[0],entries:entries.rows});
+    } catch(error) { console.error("Relay detail error:",error.message); res.status(500).json({success:false,message:"Couldn't open this Relay."}); }
+  });
+  router.post("/relay/:id/entries", auth, async (req,res) => {
+    try {
+      const body=String(req.body.body||"").trim().slice(0,280);
+      if(!/^[1-9][0-9]*$/.test(req.params.id)||!body) return res.status(400).json({success:false,message:"Write a contribution first."});
+      const relay=await pool.query("SELECT is_open FROM social_relays WHERE id=$1",[req.params.id]);
+      if(!relay.rowCount) return res.status(404).json({success:false,message:"Relay not found."});
+      if(!relay.rows[0].is_open) return res.status(409).json({success:false,message:"This Relay is closed."});
+      const result=await pool.query("INSERT INTO social_relay_entries(relay_id,username,body) VALUES($1,$2,$3) RETURNING username,body,created_at",[req.params.id,req.socialUser.username,body]);
+      res.status(201).json({success:true,entry:result.rows[0]});
+    } catch(error) { console.error("Relay contribution error:",error.message); res.status(500).json({success:false,message:"Couldn't add your contribution."}); }
   });
 
   return router;
