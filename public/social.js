@@ -182,6 +182,9 @@
       video.controls = true;
       video.playsInline = true;
       video.preload = "metadata";
+      video.autoplay = true;
+      video.muted = true;
+      video.loop = true;
       video.poster = "";
       video.src = api + "/videos/" + encodeURIComponent(post.id);
       video.setAttribute("aria-label", "Video shared by " + post.username);
@@ -211,6 +214,7 @@
   }
 
   async function loadPosts(view) {
+    feed.classList.toggle("social-reels-feed", view === "reels");
     feed.innerHTML = '<div class="social-loading">Loading posts…</div>';
     try {
       const data = await request(view === "explore" ? "/explore" : view === "reels" ? "/reels" : "/feed");
@@ -224,6 +228,19 @@
         return;
       }
       data.posts.forEach(post => feed.append(renderPost(post)));
+      if (view === "reels") {
+        const videos = [...feed.querySelectorAll("video")];
+        if ("IntersectionObserver" in window) {
+          const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+            const video = entry.target;
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.65) video.play().catch(() => {});
+            else video.pause();
+          }), { threshold: [0, 0.65, 1] });
+          videos.forEach(video => observer.observe(video));
+        } else {
+          videos.forEach(video => video.play().catch(() => {}));
+        }
+      }
     } catch (error) {
       feed.innerHTML = "";
       const message = document.createElement("p");
