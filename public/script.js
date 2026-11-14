@@ -518,6 +518,144 @@ chatForm.addEventListener("submit", (e) => {
     }
 });
 
+
+function renderMessageReactions(messageElement, reactions) {
+    if (!messageElement) return;
+    let container = messageElement.querySelector(".message-reactions");
+    if (!container) {
+        container = document.createElement("div");
+        container.className = "message-reactions";
+        messageElement.appendChild(container);
+    }
+    container.innerHTML = "";
+    (Array.isArray(reactions) ? reactions : []).forEach(reaction => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "reaction-chip";
+        chip.textContent = `${reaction.emoji} ${reaction.count}`;
+        const users = Array.isArray(reaction.users) ? reaction.users : [];
+        chip.title = users.length ? users.join(", ") : "React";
+        chip.setAttribute("aria-label", `${reaction.count} reactions: ${reaction.emoji}`);
+        chip.classList.toggle("reacted-by-me", users.includes(username));
+        chip.addEventListener("click", () => {
+            socket.emit("toggle message reaction", {
+                messageId: messageElement.dataset.messageId,
+                chat: currentChat,
+                emoji: reaction.emoji
+            });
+        });
+        container.appendChild(chip);
+    });
+}
+
+const REACTION_CHOICES = ["👍", "❤️", "😂", "🔥", "🎉", "😮", "😢", "👏", "💯"];
+
+function openReactionPicker(messageElement, trigger) {
+    document.querySelectorAll(".reaction-picker").forEach(picker => picker.remove());
+    const picker = document.createElement("div");
+    picker.className = "reaction-picker";
+    picker.setAttribute("role", "group");
+    picker.setAttribute("aria-label", "Choose a reaction");
+    REACTION_CHOICES.forEach(emoji => {
+        const choice = document.createElement("button");
+        choice.type = "button";
+        choice.textContent = emoji;
+        choice.setAttribute("aria-label", `React with ${emoji}`);
+        choice.addEventListener("click", () => {
+            socket.emit("toggle message reaction", {
+                messageId: messageElement.dataset.messageId,
+                chat: currentChat,
+                emoji
+            }, result => {
+                if (!result?.success) {
+                    showInAppNotification("Reaction failed", result?.message || "Please try again.");
+                }
+            });
+            picker.remove();
+        });
+        picker.appendChild(choice);
+    });
+    messageElement.appendChild(picker);
+    picker.querySelector("button")?.focus();
+    const close = event => {
+        if (!picker.contains(event.target) && event.target !== trigger) {
+            picker.remove();
+            document.removeEventListener("pointerdown", close);
+        }
+    };
+    setTimeout(() => document.addEventListener("pointerdown", close), 0);
+}
+
+socket.on("message reactions updated", update => {
+    const expectedChat = currentChat === "global"
+        ? "global"
+        : [username, currentChat].sort().join("|");
+    if (!update || update.chat !== expectedChat) return;
+    const target = findMessageElementById(update.messageId);
+    if (target) renderMessageReactions(target, update.reactions);
+});
+
+function openSavedMessagesVault() {
+    const modal = document.getElementById("savedMessagesModal");
+    const list = document.getElementById("savedMessagesList");
+    if (!modal || !list) return;
+    modal.style.display = "flex";
+    list.innerHTML = '<div class="saved-empty">Loading your saved messages…</div>';
+    socket.emit("get saved messages", result => {
+        list.innerHTML = "";
+        if (!result?.success) {
+            list.textContent = "Couldn't load saved messages.";
+            return;
+        }
+        if (!result.messages.length) {
+            list.innerHTML = '<div class="saved-empty">Your vault is empty. Save a message from its message menu.</div>';
+            return;
+        }
+        result.messages.forEach(saved => {
+            const card = document.createElement("article");
+            card.className = "saved-message-card";
+            const meta = document.createElement("div");
+            meta.className = "saved-message-meta";
+            meta.textContent = `${saved.author_username} · ${saved.chat === "global" ? "Global Chat" : "Direct Message"} · ${formatDMTime(saved.saved_at)}`;
+            const body = document.createElement("p");
+            body.textContent = saved.message_text;
+            const actions = document.createElement("div");
+            actions.className = "saved-message-actions";
+            const open = document.createElement("button");
+            open.type = "button";
+            open.textContent = "Open conversation";
+            open.addEventListener("click", () => {
+                modal.style.display = "none";
+                const peer = saved.chat === "global" ? "global" :
+                    saved.chat.split("|").find(name => name !== username);
+                openConversation(peer || "global");
+            });
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.textContent = "Remove";
+            remove.addEventListener("click", () => {
+                socket.emit("toggle saved message", {
+                    messageId: saved.message_id,
+                    chat: saved.chat
+                }, response => {
+                    if (response?.success) openSavedMessagesVault();
+                });
+            });
+            actions.append(open, remove);
+            card.append(meta, body, actions);
+            list.appendChild(card);
+        });
+    });
+}
+
+document.getElementById("savedMessagesBtn")?.addEventListener("click", openSavedMessagesVault);
+document.getElementById("closeSavedMessages")?.addEventListener("click", () => {
+    document.getElementById("savedMessagesModal").style.display = "none";
+});
+document.getElementById("savedMessagesModal")?.addEventListener("click", event => {
+    if (event.target.id === "savedMessagesModal") event.currentTarget.style.display = "none";
+});
+
 // =========================
 // RECEIVE MESSAGES
 // =========================
@@ -580,7 +718,8 @@ function displayMessage(data) {
         </div>
 
         <div class="message-toolbar">
-            <button class="react-btn" type="button">😊</button>
+            <button class="react-btn" type="button" aria-label="Add reaction" title="Add reaction">😊</button>
+            <button class="save-message-btn" type="button" aria-label="Save message" title="Save message">☆</button>
             <button class="reply-btn" type="button">↩</button>
             ${isGlobalMessage ? `
                 <button class="edit-btn" type="button">✏️</button>
@@ -599,6 +738,30 @@ function displayMessage(data) {
             openProfile(data.username);
         };
     }
+
+
+    message.querySelector(".react-btn").addEventListener("click", event => {
+        event.stopPropagation();
+        openReactionPicker(message, event.currentTarget);
+    });
+
+    message.querySelector(".save-message-btn").addEventListener("click", event => {
+        event.stopPropagation();
+        socket.emit("toggle saved message", {
+            messageId: data.id,
+            chat: currentChat
+        }, result => {
+            if (!result?.success) {
+                return showInAppNotification("Save failed", result?.message || "Couldn't save this message.");
+            }
+            event.currentTarget.textContent = result.saved ? "★" : "☆";
+            event.currentTarget.title = result.saved ? "Saved to your vault" : "Save message";
+            showInAppNotification(
+                result.saved ? "Saved message" : "Removed from vault",
+                result.saved ? "Added to your Saved Messages vault." : "Removed from your vault."
+            );
+        });
+    });
 
     message.querySelector(".reply-btn").addEventListener("click", () => {
         startReply({
@@ -663,6 +826,7 @@ function displayMessage(data) {
     }
 
     messages.appendChild(message);
+    renderMessageReactions(message, data.reactions || []);
 
     const distanceFromBottom = chatContainer
         ? chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight
@@ -1112,6 +1276,9 @@ const typingStatusToggle = document.getElementById("typingStatusToggle");
 
 const reducedMotionToggle = document.getElementById("reducedMotionToggle");
 const highContrastToggle = document.getElementById("highContrastToggle");
+const wideSpacingToggle = document.getElementById("wideSpacingToggle");
+const alwaysShowActionsToggle = document.getElementById("alwaysShowActionsToggle");
+const strongFocusToggle = document.getElementById("strongFocusToggle");
 
 const resetSettings = document.getElementById("resetSettings");
 
@@ -1129,7 +1296,10 @@ const SETTINGS_DEFAULTS = {
     readReceipts: true,
     typingStatus: true,
     reducedMotion: false,
-    highContrast: false
+    highContrast: false,
+    wideSpacing: false,
+    alwaysShowActions: false,
+    strongFocus: true
 };
 
 let jetchatSettings = { ...SETTINGS_DEFAULTS };
@@ -1185,6 +1355,9 @@ function applyJetchatSettings() {
         "high-contrast",
         !!jetchatSettings.highContrast
     );
+    body.classList.toggle("wide-spacing", !!jetchatSettings.wideSpacing);
+    body.classList.toggle("always-show-actions", !!jetchatSettings.alwaysShowActions);
+    body.classList.toggle("strong-focus", !!jetchatSettings.strongFocus);
 
     root.style.setProperty(
         "--jetchat-accent",
@@ -1363,7 +1536,10 @@ const settingInputs = [
     [typingStatusToggle, "typingStatus", null, true],
 
     [reducedMotionToggle, "reducedMotion", null, true],
-    [highContrastToggle, "highContrast", null, true]
+    [highContrastToggle, "highContrast", null, true],
+    [wideSpacingToggle, "wideSpacing", null, true],
+    [alwaysShowActionsToggle, "alwaysShowActions", null, true],
+    [strongFocusToggle, "strongFocus", null, true]
 ];
 
 settingInputs.forEach(([element, key, convert, isCheckbox]) => {
@@ -1727,3 +1903,24 @@ if (updateOk) {
 if (updateClose) {
     updateClose.addEventListener("click", dismissCurrentUpdate);
 }
+
+
+// =========================
+// KEYBOARD NAVIGATION SHORTCUTS
+// =========================
+document.addEventListener("keydown", event => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const key = event.key.toLowerCase();
+    if (key === "k") {
+        event.preventDefault();
+        if (dmSearchInput) dmSearchInput.focus();
+    } else if (key === "/") {
+        event.preventDefault();
+        messageInput?.focus();
+    }
+});
+document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    const savedModal = document.getElementById("savedMessagesModal");
+    if (savedModal?.style.display === "flex") savedModal.style.display = "none";
+});
