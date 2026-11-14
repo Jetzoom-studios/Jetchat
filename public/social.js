@@ -46,7 +46,7 @@
         </section>
         <aside class="social-side-panel">
           <div class="social-side-card"><span class="social-side-icon">✦</span><h3>Make it yours</h3><p>Follow people whose posts you want to see. Your Home feed will fill up as your circle grows.</p><button data-view="explore">Discover people →</button></div>
-          <div class="social-side-note">Jetchat Social · 3.6.4</div>
+          <div class="social-side-note">Jetchat Social · 3.8.0</div>
         </aside>
       </div>
     </main>
@@ -384,7 +384,7 @@
     featurePage.replaceChildren(featureButton("← All Relays",loadRelay,"social-back"),featureHeading("COMMUNITY CREATION",relay.title,"Add the next contribution to the chain."));
     const card=featureCard();card.innerHTML="<div class='social-loading'>Loading Relay…</div>";featurePage.append(card);
     try{const data=await request("/relay/"+relay.id);card.replaceChildren();data.entries.forEach((entry,index)=>{const row=featureCard("social-relay-entry");const n=document.createElement("small");n.textContent="PART "+(index+1)+" · @"+entry.username;const body=document.createElement("p");body.textContent=entry.body;row.append(n,body);card.append(row);});
-      if(data.relay.is_open){const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Continue the creation…" required></textarea><button class="social-feature-button" type="submit">Add my part</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/relay/"+relay.id+"/entries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.body.value})});openRelay(relay);}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
+      if(data.relay.is_open){const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Continue the creation…" required></textarea><button class="social-feature-button" type="submit">Add my part</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/relay/"+relay.id+"/entries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});openRelay(relay);}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
     }catch(error){renderFeatureError(card,error,()=>openRelay(relay));}
   }
 
@@ -577,7 +577,7 @@
     actions.className = "social-post-actions";
     const like = makeButton((post.likedByMe ? "♥" : "♡") + "  " + post.likeCount, "social-like" + (post.likedByMe ? " liked" : ""), () => toggleLike(post, like));
     const comments = makeButton("▱  " + post.commentCount + " comments", "social-comment-toggle", () => showComments(post.id, card));
-    const repost = makeButton("↻ Repost", "social-repost", async () => { const quote=window.prompt("Add a comment (optional) before reposting:",""); if(quote===null)return; repost.disabled=true; try{const result=await request("/posts/"+encodeURIComponent(post.id)+"/repost",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quote})}); repost.textContent=result.reposted?"↻ Reposted":"↻ Repost"; repost.classList.toggle("is-reposted",result.reposted); repost.title=result.count+" reposts";}catch(error){repost.title=error.message;}finally{repost.disabled=false;} });
+    const repost = makeButton("↻ " + (post.repostCount||0) + " Repost", "social-repost" + (post.repostedByMe?" is-reposted":""), async () => { const quote=window.prompt("Add a comment to create a quote post. Leave blank for a simple repost:",""); if(quote===null)return; repost.disabled=true; try{if(quote.trim()){await request("/posts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:"↪ @"+post.username+": "+String(post.body||"").slice(0,500)+"\\n\\n"+quote.trim().slice(0,280)})});repost.textContent="↪ Quoted";repost.classList.add("is-reposted");}else{const result=await request("/posts/"+encodeURIComponent(post.id)+"/repost",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});post.repostedByMe=result.reposted;post.repostCount=result.count;repost.textContent="↻ "+result.count+" Repost";repost.classList.toggle("is-reposted",result.reposted);}}catch(error){repost.title=error.message;}finally{repost.disabled=false;} });
     actions.append(like, comments, repost);
     card.append(actions);
 
