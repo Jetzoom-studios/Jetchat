@@ -5358,3 +5358,56 @@ body.light-mode .auth-feedback {
     .discover-user,
     .discover-add-button { transition: none !important; }
 }
+
+
+/* Cloudflare Turnstile authentication challenge */
+.captcha-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 4px 0 16px;
+    padding: 12px 10px;
+    border: 1px solid rgba(161,139,255,.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,.025);
+}
+.captcha-label {
+    margin: 0 !important;
+    color: #c7c2e2 !important;
+    font-size: 11px !important;
+    line-height: 1.4;
+    font-weight: 650;
+    letter-spacing: .04em;
+}
+.captcha-widget {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 65px;
+}
+.captcha-status {
+    min-height: 15px;
+    margin: 0 !important;
+    color: #9996b5 !important;
+    font-size: 10px !important;
+    line-height: 1.4;
+    text-align: center;
+}
+.captcha-status.is-error { color: #e69a9a !important; }
+#loginButton:disabled,
+#signupButton:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+    filter: saturate(.55);
+    transform: none !important;
+    box-shadow: none !important;
+}
+body.light-mode .captcha-section {
+    border-color: rgba(105,91,166,.16);
+    background: rgba(105,91,166,.035);
+}
+body.light-mode .captcha-label { color: #514c70 !important; }
+body.light-mode .captcha-status { color: #77758d !important; }
+body.light-mode .captcha-status.is-error { color: #a33d48 !important; }
