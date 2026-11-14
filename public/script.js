@@ -298,6 +298,7 @@ function startChat(user) {
     loadGroups();
     loadUpdateNotice();
 
+    if (window.openJetchatSocial) window.openJetchatSocial("home");
     messageInput.focus();
 }
 
@@ -575,6 +576,7 @@ function openConversation(chat) {
 
     socket.emit("load chat", chat);
     if(chat!=="global"&&!String(chat).startsWith("group:"))loadDMConversations();
+    if (window.openJetchatSocial) window.openJetchatSocial("chatroom");
 }
 
 
