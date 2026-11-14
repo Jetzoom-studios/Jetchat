@@ -40,9 +40,9 @@
       <header class="social-chat-heading"><div><p class="social-eyebrow">YOUR CONVERSATIONS</p><h1>Chat</h1></div><span class="social-chat-count" id="socialChatCount">Your people, all in one place</span></header>
       <div class="social-chat-hub-content">
         <section class="social-add-friends-card"><h2>Add friends</h2><p>Find people and start a conversation.</p><div id="socialFriendSearchMount"></div><div id="socialFriendResultsMount"></div></section>
-        <button id="socialGlobalChatMount" class="social-global-chat"><span class="social-global-icon">◎</span><span><strong>Global Chat</strong><small>Join the community conversation</small></span><span class="social-chat-arrow">›</span></button>
+        <div id="socialGlobalChatMount" class="social-global-chat"><span class="social-global-icon">◎</span><span class="social-global-copy"><strong>Global Chat</strong><small>Join the community conversation</small></span><span class="social-chat-arrow">›</span></div>
         <section class="social-chat-list-card"><div class="social-chat-list-heading"><h2>Recent conversations</h2><span id="socialDmCount"></span></div><div id="socialDmSearchMount"></div><div id="socialDmListMount"></div></section>
-        <section class="social-chat-list-card social-groups-card"><div class="social-chat-list-heading"><h2>Group chats</h2><button id="socialCreateGroupMount" type="button">＋ New group</button></div><div id="socialGroupListMount"></div></section>
+        <section class="social-chat-list-card social-groups-card"><div class="social-chat-list-heading"><h2>Group chats</h2><div id="socialCreateGroupMount"></div></div><div id="socialGroupListMount"></div></section>
       </div>
     </section>
 
