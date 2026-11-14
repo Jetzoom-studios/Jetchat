@@ -984,10 +984,88 @@ async function getSavedMessages(username) {
     return result.rows;
 }
 
+// =========================
+// PERSISTENT AUTH SESSIONS
+// =========================
+async function ensureAuthSessionsTable() {
+    await runSchemaMigration(
+        "auth_sessions.table",
+        `CREATE TABLE IF NOT EXISTS auth_sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            expires_at TIMESTAMPTZ NOT NULL,
+            last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS auth_sessions_user_id_idx
+            ON auth_sessions(user_id);
+        CREATE INDEX IF NOT EXISTS auth_sessions_expires_at_idx
+            ON auth_sessions(expires_at);`
+    );
+}
+
+function hashSessionToken(token) {
+    return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+async function createAuthSession(userId) {
+    await ensureAuthSessionsTable();
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashSessionToken(token);
+    await pool.query(
+        `INSERT INTO auth_sessions (token_hash, user_id, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '30 days')`,
+        [tokenHash, userId]
+    );
+    return { token, sessionHash: tokenHash };
+}
+
+async function getAuthSession(token) {
+    if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) return null;
+    await ensureAuthSessionsTable();
+    const tokenHash = hashSessionToken(token);
+    const result = await pool.query(
+        `SELECT s.token_hash, u.id, u.username, u.avatar, u.bio,
+                u.join_date, u.show_online
+         FROM auth_sessions s
+         JOIN users u ON u.id = s.user_id
+         WHERE s.token_hash = $1 AND s.expires_at > NOW()
+         LIMIT 1`,
+        [tokenHash]
+    );
+    if (!result.rows.length) {
+        await pool.query(
+            "DELETE FROM auth_sessions WHERE token_hash = $1 AND expires_at <= NOW()",
+            [tokenHash]
+        );
+        return null;
+    }
+    await pool.query(
+        "UPDATE auth_sessions SET last_used_at = NOW() WHERE token_hash = $1",
+        [tokenHash]
+    );
+    return {
+        user: publicUser(result.rows[0]),
+        sessionHash: result.rows[0].token_hash
+    };
+}
+
+async function revokeAuthSession(token) {
+    if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) return null;
+    await ensureAuthSessionsTable();
+    const tokenHash = hashSessionToken(token);
+    const result = await pool.query(
+        "DELETE FROM auth_sessions WHERE token_hash = $1 RETURNING user_id",
+        [tokenHash]
+    );
+    return result.rows[0] || null;
+}
+
 // Convert every existing plaintext password before the server accepts
 // connections. The migration is idempotent and never logs password values.
 async function migratePlaintextPasswords() {
     await ensureShowOnlineColumn();
+    await ensureAuthSessionsTable();
 
     const result = await pool.query(
         "SELECT id, password FROM users"
@@ -1018,6 +1096,9 @@ module.exports = {
 
     createUser,
     loginUser,
+    createAuthSession,
+    getAuthSession,
+    revokeAuthSession,
     migratePlaintextPasswords,
 
     getProfile,
