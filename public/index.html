@@ -157,6 +157,22 @@
             </div>
         </div>
 
+        <div class="settings-section account-security-section">
+            <h3>Account security</h3>
+            <p class="account-security-note">Manage the browsers and devices signed in to your Jetchat account.</p>
+            <div class="account-sessions-heading"><strong>Where you're signed in</strong><button id="refreshSessionsBtn" type="button" class="account-secondary-button">Refresh</button></div>
+            <div id="accountSessionsList" class="account-sessions-list" aria-live="polite"><p class="account-security-note">Open Settings to load your devices.</p></div>
+            <button id="signOutOtherDevicesBtn" type="button" class="account-secondary-button account-revoke-all">Sign out all other devices</button>
+            <form id="changePasswordForm" class="change-password-form">
+                <strong>Change password</strong>
+                <label for="currentAccountPassword">Current password</label><input id="currentAccountPassword" type="password" autocomplete="current-password" maxlength="128" required>
+                <label for="newAccountPassword">New password</label><input id="newAccountPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                <label for="confirmAccountPassword">Confirm new password</label><input id="confirmAccountPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                <button type="submit" class="account-secondary-button">Update password</button>
+                <p id="passwordChangeStatus" class="account-security-status" role="status" aria-live="polite"></p>
+            </form>
+        </div>
+
         <div class="settings-footer">
             <button id="resetSettings" type="button">Reset settings</button>
             <button id="logoutButton" class="logout-button" type="button">Sign Out</button>
