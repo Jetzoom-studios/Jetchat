@@ -1562,6 +1562,7 @@ function openProfile(targetUsername) {
         profileBanner.dataset.style = currentBannerStyle;
         profileModal.querySelector(".profile-card").dataset.cardStyle = currentCardStyle;
         profileModal.querySelector(".profile-card").style.setProperty("--profile-accent", currentProfileAccent);
+        profileModal.querySelector(".profile-card").style.setProperty("--profile-banner-color", currentProfileColor);
         if (profileDisplayName) profileDisplayName.textContent = res.profile.display_name || "";
 
         profileAvatar.src =
@@ -2068,6 +2069,7 @@ saveProfileBtn.addEventListener("click", () => {
         profileBanner.dataset.style = currentBannerStyle;
         profileModal.querySelector(".profile-card").dataset.cardStyle = currentCardStyle;
         profileModal.querySelector(".profile-card").style.setProperty("--profile-accent", currentProfileAccent);
+        profileModal.querySelector(".profile-card").style.setProperty("--profile-banner-color", currentProfileColor);
 
         editProfileModal.style.display = "none";
         profileModal.style.display = "flex";
