@@ -181,7 +181,9 @@ function safePost(row) {
     commentCount: Number(row.comment_count || 0),
     likedByMe: Boolean(row.liked_by_me),
     following: Boolean(row.following),
-    isMe: Boolean(row.is_me)
+    isMe: Boolean(row.is_me),
+    repostCount: Number(row.repost_count || 0),
+    repostedByMe: Boolean(row.reposted_by_me)
   };
 }
 
@@ -201,6 +203,8 @@ async function listPosts(viewer, mode, username) {
     SELECT p.id,p.username,p.body,p.image_type,p.video_type,p.created_at,
       (SELECT COUNT(*) FROM social_likes l WHERE l.post_id=p.id)::INT AS like_count,
       (SELECT COUNT(*) FROM social_comments c WHERE c.post_id=p.id)::INT AS comment_count,
+      (SELECT COUNT(*) FROM social_reposts r WHERE r.post_id=p.id)::INT AS repost_count,
+      EXISTS(SELECT 1 FROM social_reposts r WHERE r.post_id=p.id AND r.username=$1) AS reposted_by_me,
       EXISTS(SELECT 1 FROM social_likes l WHERE l.post_id=p.id AND l.username=$1) AS liked_by_me,
       EXISTS(SELECT 1 FROM social_follows f WHERE f.follower=$1 AND f.following=p.username) AS following,
       (p.username = $1) AS is_me
@@ -562,7 +566,7 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
         FROM social_posts p
         CROSS JOIN LATERAL regexp_matches(p.body, '#([a-zA-Z0-9_]{2,30})', 'g') AS matches(match)
         WHERE p.created_at > NOW() - INTERVAL '7 days'
-        GROUP BY lower(tag) ORDER BY posts DESC, tag ASC LIMIT 20
+        GROUP BY lower(match[1]) ORDER BY posts DESC, tag ASC LIMIT 20
       `);
       res.set("Cache-Control","no-store");
       res.json({success:true,trends:result.rows});
