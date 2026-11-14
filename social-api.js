@@ -71,7 +71,8 @@ function safePost(row) {
     likeCount: Number(row.like_count || 0),
     commentCount: Number(row.comment_count || 0),
     likedByMe: Boolean(row.liked_by_me),
-    following: Boolean(row.following)
+    following: Boolean(row.following),
+    isMe: Boolean(row.is_me)
   };
 }
 
@@ -90,7 +91,8 @@ async function listPosts(viewer, mode, username) {
       (SELECT COUNT(*) FROM social_likes l WHERE l.post_id=p.id)::INT AS like_count,
       (SELECT COUNT(*) FROM social_comments c WHERE c.post_id=p.id)::INT AS comment_count,
       EXISTS(SELECT 1 FROM social_likes l WHERE l.post_id=p.id AND l.username=$1) AS liked_by_me,
-      EXISTS(SELECT 1 FROM social_follows f WHERE f.follower=$1 AND f.following=p.username) AS following
+      EXISTS(SELECT 1 FROM social_follows f WHERE f.follower=$1 AND f.following=p.username) AS following,
+      (p.username = $1) AS is_me
     FROM social_posts p
     ${where}
     ORDER BY p.created_at DESC
