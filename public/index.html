@@ -190,8 +190,14 @@
             autocomplete="off"
         >
 
-        <button id="loginButton">Login</button>
-        <button id="signupButton">Sign Up</button>
+        <div class="captcha-section">
+            <p class="captcha-label">Quick security check</p>
+            <div id="captchaWidget" class="captcha-widget" aria-label="Human verification"></div>
+            <p id="captchaStatus" class="captcha-status" role="status" aria-live="polite">Loading security check...</p>
+        </div>
+
+        <button id="loginButton" disabled>Login</button>
+        <button id="signupButton" disabled>Sign Up</button>
 
     </div>
 </div>
