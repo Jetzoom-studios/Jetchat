@@ -610,7 +610,7 @@ socket.on("call:signal",async data=>{if(!activeCall||activeCall.callId!==data.ca
 socket.on("call:rejected",d=>{if(activeCall?.callId===d.callId){closeCallMedia();alert(d.by+" declined the call.");}});
 socket.on("call:ended",d=>{if(activeCall?.callId===d.callId||incomingCall?.callId===d.callId){closeCallMedia();if(d.reason)alert(d.reason);}});
 function ensureCallAvailabilityUI(){
- if(callAvailabilityUI&&callAvailabilityUI.isConnected)return callAvailabilityUI;const topbar=document.querySelector(".topbar");if(!topbar)return null;
+ if(callAvailabilityUI&&callAvailabilityUI.isConnected)return callAvailabilityUI;const roomMain=document.querySelector("#socialChatRoomMain");const topbar=roomMain?.querySelector(".topbar")||document.querySelector(".main .topbar");if(!topbar)return null;
  const wrap=document.createElement("div");wrap.id="dmCallAvailability";wrap.className="dm-call-availability";wrap.hidden=true;
  const peer=document.createElement("span");peer.className="dm-call-peer-status";peer.textContent="Checking call availability…";
  const label=document.createElement("label");label.textContent="Your status";const select=document.createElement("select");select.setAttribute("aria-label","Your call availability");
