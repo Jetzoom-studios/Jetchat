@@ -200,3 +200,50 @@
 .social-repost.is-reposted{color:#72d6b0}
 .social-nav[data-view="clubs"],.social-nav[data-view="pulse"],.social-nav[data-view="relay"],.social-nav[data-view="trending"]{margin-top:3px}
 @media(max-width:650px){.social-feature-page{padding:17px 12px 36px;max-height:calc(100dvh - 80px)}.social-feature-card{padding:15px}.social-feature-list-item{align-items:flex-start;flex-direction:column}.social-feature-list-item .social-feature-button{width:100%}.social-trend-row{gap:8px}.social-trend-row small{font-size:11px}}
+
+
+/* Jetchat Reels refresh — immersive, one-video-at-a-time short-form player */
+#socialExperience:has(#socialFeed.social-reels-feed) .social-top{display:none}
+#socialExperience:has(#socialFeed.social-reels-feed) .social-main{overflow:hidden;background:#050609}
+#socialExperience:has(#socialFeed.social-reels-feed) .social-content{display:block;width:100%;max-width:none;height:100%;margin:0;padding:0}
+#socialExperience:has(#socialFeed.social-reels-feed) .social-feed-column{height:100%;min-height:0}
+#socialExperience:has(#socialFeed.social-reels-feed) .social-side-panel,
+#socialExperience:has(#socialFeed.social-reels-feed) #socialStoriesHint,
+#socialExperience:has(#socialFeed.social-reels-feed) #socialStoriesBar{display:none!important}
+#socialFeed.social-reels-feed{box-sizing:border-box;width:100%;height:100%;max-width:none;margin:0;padding:0;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory;scroll-behavior:smooth;overscroll-behavior-y:contain;scrollbar-width:none;background:#050609}
+#socialFeed.social-reels-feed::-webkit-scrollbar{display:none}
+#socialFeed.social-reels-feed .social-reel-card{position:relative;box-sizing:border-box;width:min(100%,520px);height:100%;min-height:100%;margin:0 auto;padding:0;border:0;border-radius:0;background:#050609;box-shadow:none;overflow:hidden;scroll-snap-align:start;scroll-snap-stop:always}
+#socialFeed.social-reels-feed .social-reel-card>.social-post-head{position:absolute;z-index:4;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:22px 18px 54px;background:linear-gradient(180deg,rgba(0,0,0,.62),transparent);border:0}
+#socialFeed.social-reels-feed .social-reel-card .social-post-avatar{width:39px;height:39px;border:1px solid #ffffff70}
+#socialFeed.social-reels-feed .social-reel-card .social-post-identity{min-width:0}
+#socialExperience .social-reel-card .social-author{color:#fff;text-shadow:0 1px 8px #000}
+#socialExperience .social-reel-card .social-post-identity span{color:#e0e3eb}
+#socialFeed.social-reels-feed .social-reel-stage{position:absolute;inset:0;overflow:hidden;background:#050609}
+#socialFeed.social-reels-feed .social-reel-stage>.social-post-video{position:absolute;inset:0;width:100%;height:100%;max-height:none;aspect-ratio:auto;object-fit:contain;border:0;border-radius:0;background:#050609}
+#socialFeed.social-reels-feed .social-reel-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.36),transparent 22%,transparent 55%,rgba(0,0,0,.76) 100%)}
+#socialFeed.social-reels-feed .social-reel-media-label{position:absolute;top:20px;left:18px;z-index:3;display:none;color:#fff;font-size:10px;font-weight:900;letter-spacing:2px}
+#socialFeed.social-reels-feed .social-reel-progress{position:absolute;z-index:5;left:0;right:0;bottom:0;height:3px;background:#ffffff45}
+#socialFeed.social-reels-feed .social-reel-progress span{display:block;width:100%;height:100%;background:#fff;transform:scaleX(0);transform-origin:left}
+#socialFeed.social-reels-feed .social-reel-tools{position:absolute;z-index:5;top:76px;right:14px;display:flex;gap:8px}
+#socialFeed.social-reels-feed .social-reel-tool{display:grid;place-items:center;width:38px;height:38px;border:1px solid #ffffff35;border-radius:50%;background:#090b13a8;color:#fff;font-size:18px;backdrop-filter:blur(10px);cursor:pointer}
+#socialFeed.social-reels-feed .social-reel-tool:hover{background:#ffffff30}
+#socialFeed.social-reels-feed .social-reel-card .social-post-body{position:absolute;z-index:4;left:17px;right:82px;bottom:56px;max-height:26%;overflow:auto;margin:0;padding:0;color:#fff;font-size:14px;line-height:1.45;text-shadow:0 1px 8px #000;white-space:pre-wrap}
+#socialFeed.social-reels-feed .social-reel-card>.social-post-actions{position:absolute;z-index:6;right:10px;bottom:62px;display:flex;flex-direction:column;align-items:center;gap:14px;width:58px;margin:0;padding:0;border:0}
+#socialFeed.social-reels-feed .social-reel-card>.social-post-actions button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:52px;min-height:49px;padding:5px 2px;border:0;border-radius:12px;background:#090b1380;color:#fff;font-size:12px;font-weight:800;text-shadow:0 1px 6px #000}
+#socialFeed.social-reels-feed .social-reel-card>.social-post-actions button:hover{background:#ffffff26}
+#socialFeed.social-reels-feed .social-reel-card>.social-post-actions .liked{color:#ff6d9d}
+#socialFeed.social-reels-feed .social-reel-card .social-comments{position:absolute;z-index:8;left:10px;right:76px;bottom:12px;max-height:42%;overflow:auto;margin:0;padding:14px;border:1px solid #ffffff25;border-radius:16px;background:rgba(8,11,18,.94);backdrop-filter:blur(16px)}
+#socialFeed.social-reels-feed .social-reel-card .social-comments[hidden]{display:none!important}
+#socialFeed.social-reels-feed .social-reel-card .social-comments p{color:#f1f3f8}
+#socialFeed.social-reels-feed .social-reel-card .social-comment-form input{background:#171d2b}
+@media(max-width:650px){
+  #socialExperience:has(#socialFeed.social-reels-feed){background:#000}
+  #socialExperience:has(#socialFeed.social-reels-feed) .social-main{height:calc(100% - 66px);flex:1;min-height:0}
+  #socialFeed.social-reels-feed{height:100%;height:100dvh}
+  #socialFeed.social-reels-feed .social-reel-card{width:100%;height:100%;min-height:100%;border-radius:0}
+  #socialFeed.social-reels-feed .social-reel-card>.social-post-head{padding:16px 14px 52px}
+  #socialFeed.social-reels-feed .social-reel-tools{top:70px;right:12px}
+  #socialFeed.social-reels-feed .social-reel-card>.social-post-actions{right:7px;bottom:52px;gap:12px}
+  #socialFeed.social-reels-feed .social-reel-card .social-post-body{left:14px;right:72px;bottom:45px;font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){#socialFeed.social-reels-feed{scroll-behavior:auto}}
