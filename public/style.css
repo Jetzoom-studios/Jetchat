@@ -5491,3 +5491,48 @@ body.light-mode .change-password-form input{border-color:#d9dce6;background:#fff
 body.light-mode .dm-call-availability{background:#f3f1fb;border-color:#e2deef}
 body.light-mode .dm-call-availability select{background:#fff;color:#34364d;border-color:#d9dce6}
 @media(max-width:900px){.dm-call-availability{flex-wrap:wrap;margin:6px 0 0;order:5}.topbar{flex-wrap:wrap}.dm-call-peer-status{white-space:normal}}
+
+
+/* Jetchat 3.9.1 — visible DM call controls */
+.topbar{flex-wrap:wrap;align-content:center;row-gap:8px}
+.dm-call-availability{order:20;display:flex;align-items:center;flex-wrap:wrap;gap:9px;width:100%;min-width:0;margin:0;padding:9px 11px;border:1px solid rgba(145,130,220,.25);border-radius:12px;background:linear-gradient(100deg,rgba(130,111,220,.12),rgba(38,67,83,.13));font-size:11px}
+.dm-call-availability[hidden]{display:none!important}
+.dm-call-peer-status{font-weight:750;color:#aaa5c5;white-space:nowrap;margin-right:auto}
+.dm-call-peer-status[data-status="available"]{color:#62d69c}
+.dm-call-peer-status[data-status="busy"]{color:#e4b66f}
+.dm-call-peer-status[data-status="unavailable"]{color:#a7a3b8}
+.dm-call-availability label{color:#a8a4bf;font-size:10px;font-weight:700}
+.dm-call-availability select{min-height:34px;padding:5px 9px;border:1px solid rgba(145,130,220,.32);border-radius:9px;background:#171a2b;color:#f3efff;font:inherit;font-size:11px}
+.dm-call-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 13px;border:1px solid rgba(145,130,220,.35);border-radius:9px;background:linear-gradient(135deg,#51428b,#343b68);color:#fff;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:filter .15s,transform .15s}
+.dm-call-action:hover:not(:disabled){filter:brightness(1.18);transform:translateY(-1px)}
+.dm-call-action:disabled{opacity:.38;cursor:not-allowed;filter:grayscale(.6)}
+body.light-mode .dm-call-availability{border-color:#ded9ef;background:linear-gradient(100deg,#f1effb,#edf4f6)}
+body.light-mode .dm-call-peer-status{color:#66617e}
+body.light-mode .dm-call-availability label{color:#69647f}
+body.light-mode .dm-call-availability select{background:#fff;color:#292d3a;border-color:#d9dce6}
+@media(max-width:700px){.dm-call-availability{gap:7px;padding:9px}.dm-call-peer-status{flex:1 0 100%;white-space:normal}.dm-call-action{flex:1;padding:0 8px}.dm-call-availability select{flex:1}}
+/* Full-screen, responsive WebRTC call surface */
+.jetchat-call-overlay{position:fixed;z-index:100500;inset:0;display:grid;place-items:center;padding:20px;background:rgba(3,5,13,.88);backdrop-filter:blur(14px)}
+.jetchat-call-overlay[hidden]{display:none!important}
+.jetchat-call-card{width:min(820px,100%);overflow:hidden;border:1px solid rgba(164,146,238,.28);border-radius:22px;background:#111625;color:#f5f3ff;box-shadow:0 30px 100px #000b}
+.jetchat-call-card>header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 22px;border-bottom:1px solid #293149}
+.jetchat-call-card h2{margin:3px 0;font-size:22px}
+.jetchat-call-card header p:last-child{margin:4px 0 0;color:#a6adc2;font-size:12px}
+.call-eyebrow{margin:0;color:#a99af1;font-size:9px;font-weight:900;letter-spacing:1.7px}
+.jetchat-call-card header button{width:36px;height:36px;border:0;border-radius:10px;background:#242c40;color:#fff;font-size:23px;cursor:pointer}
+.call-stage{position:relative;display:grid;place-items:center;min-height:300px;height:min(58vh,570px);background:radial-gradient(circle at 50% 40%,#25233e,#070a12 72%)}
+.call-stage video#callRemoteVideo{width:100%;height:100%;object-fit:contain}
+.call-stage video#callLocalVideo{position:absolute;right:18px;bottom:18px;width:min(24%,190px);aspect-ratio:4/3;object-fit:cover;border:2px solid rgba(255,255,255,.75);border-radius:13px;background:#080a11;box-shadow:0 8px 28px #0008}
+.call-stage audio{display:none}
+.call-avatar{position:absolute;display:grid;place-items:center;width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#7965d9,#347d91);font-size:40px;font-weight:850}
+.jetchat-call-overlay.audio-only .call-stage video{display:none}
+.jetchat-call-overlay.audio-only .call-stage{height:300px}
+.jetchat-call-overlay.audio-only .call-avatar{display:grid}
+.call-controls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;padding:18px}
+.call-controls button{min-height:42px;padding:0 17px;border:1px solid #424b67;border-radius:11px;background:#252d43;color:#f3f1ff;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.call-controls .call-hangup{border-color:#a8445b;background:#b83d57;color:#fff}
+body.light-mode .jetchat-call-card{background:#fff;color:#292d3a;border-color:#e0ddef}
+body.light-mode .jetchat-call-card>header{border-color:#e5e6ee}
+body.light-mode .jetchat-call-card header p:last-child{color:#777b8d}
+body.light-mode .call-controls button:not(.call-hangup){background:#f0eff9;color:#393650;border-color:#d9d5eb}
+@media(max-width:650px){.jetchat-call-overlay{padding:0;align-items:stretch}.jetchat-call-card{width:100%;height:100%;border:0;border-radius:0;display:flex;flex-direction:column}.call-stage{flex:1;height:auto;min-height:220px}.call-stage video#callLocalVideo{width:30%;right:10px;bottom:10px}.call-controls{padding:14px 10px calc(14px + env(safe-area-inset-bottom))}.call-controls button{flex:1;padding:0 9px}}
