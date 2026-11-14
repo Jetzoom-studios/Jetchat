@@ -177,6 +177,8 @@ async function getRequestSession(req) {
     return token ? db.getAuthSession(token) : null;
 }
 
+app.use("/api/social", require("./social-api")(getRequestSession));
+
 // Authenticated chat media lives in PostgreSQL, so it survives Render restarts and deploys.
 app.post("/api/chat/upload",(req,res,next)=>chatUpload.single("file")(req,res,error=>{if(error)return res.status(400).json({success:false,message:error.message||"Upload failed."});next();}),async(req,res)=>{
     try {
