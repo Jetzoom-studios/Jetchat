@@ -1580,6 +1580,11 @@ function openProfile(targetUsername) {
     });
 }
 
+window.openJetchatOwnProfile = function () {
+    if (!username) return;
+    openProfile(username);
+};
+
 closeProfile.addEventListener("click", () => {
     profileModal.style.display = "none";
 });
