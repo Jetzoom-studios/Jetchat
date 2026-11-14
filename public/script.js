@@ -610,7 +610,7 @@ socket.on("call:signal",async data=>{if(!activeCall||activeCall.callId!==data.ca
 socket.on("call:rejected",d=>{if(activeCall?.callId===d.callId){closeCallMedia();alert(d.by+" declined the call.");}});
 socket.on("call:ended",d=>{if(activeCall?.callId===d.callId||incomingCall?.callId===d.callId){closeCallMedia();if(d.reason)alert(d.reason);}});
 function ensureCallAvailabilityUI(){
- if(callAvailabilityUI)return callAvailabilityUI;const topbar=document.querySelector(".topbar");if(!topbar)return null;
+ if(callAvailabilityUI&&callAvailabilityUI.isConnected)return callAvailabilityUI;const topbar=document.querySelector(".topbar");if(!topbar)return null;
  const wrap=document.createElement("div");wrap.id="dmCallAvailability";wrap.className="dm-call-availability";wrap.hidden=true;
  const peer=document.createElement("span");peer.className="dm-call-peer-status";peer.textContent="Checking call availability…";
  const label=document.createElement("label");label.textContent="Your status";const select=document.createElement("select");select.setAttribute("aria-label","Your call availability");
@@ -618,7 +618,7 @@ function ensureCallAvailabilityUI(){
  select.addEventListener("change",()=>{ownCallAvailability=select.value;socket.emit("set call availability",ownCallAvailability,r=>{if(!r?.success){ownCallAvailability="unavailable";select.value=ownCallAvailability;}});});
  const audio=document.createElement("button");audio.type="button";audio.className="dm-call-action";audio.dataset.callMode="audio";audio.textContent="☎ Audio call";audio.addEventListener("click",()=>startDirectCall("audio"));
  const video=document.createElement("button");video.type="button";video.className="dm-call-action";video.dataset.callMode="video";video.textContent="▣ Video call";video.addEventListener("click",()=>startDirectCall("video"));
- wrap.append(peer,label,select,audio,video);topbar.append(wrap);callAvailabilityUI=wrap;return wrap;
+ wrap.append(peer,label,select,audio,video);topbar.insertAdjacentElement("afterend",wrap);callAvailabilityUI=wrap;return wrap;
 }
 function updateCallAvailabilityPeer(data){if(!callAvailabilityUI||!data||data.username!==callAvailabilityPeer)return;const l=callAvailabilityUI.querySelector(".dm-call-peer-status");const state=["available","busy","unavailable"].includes(data.status)?data.status:"unavailable";l.textContent=state==="available"?"● Available for calls":state==="busy"?"● Busy right now":"● Not available for calls";l.dataset.status=state;callAvailabilityUI.querySelectorAll("[data-call-mode]").forEach(b=>b.disabled=state!=="available");}
 function refreshDMCallAvailability(peer){const ui=ensureCallAvailabilityUI();if(!ui)return;const isDM=Boolean(peer)&&peer!=="global"&&!String(peer).startsWith("group:");ui.hidden=!isDM;callAvailabilityPeer=isDM?peer:"";if(!isDM)return;ui.querySelector("select").value=ownCallAvailability;const l=ui.querySelector(".dm-call-peer-status");l.textContent="Checking call availability…";l.dataset.status="loading";ui.querySelectorAll("[data-call-mode]").forEach(b=>b.disabled=true);socket.emit("get call availability",peer,r=>{if(!r?.success){l.textContent="Call availability unavailable";return;}updateCallAvailabilityPeer({username:peer,status:r.status});});}
