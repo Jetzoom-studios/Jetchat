@@ -565,62 +565,62 @@ function getGroupByChat(chat) {
 let ownCallAvailability = "unavailable";
 let callAvailabilityPeer = "";
 let callAvailabilityUI = null;
-function ensureCallAvailabilityUI() {
-    if (callAvailabilityUI) return callAvailabilityUI;
-    const topbar = document.querySelector(".topbar");
-    if (!topbar) return null;
-    const wrap = document.createElement("div");
-    wrap.id = "dmCallAvailability";
-    wrap.className = "dm-call-availability";
-    wrap.hidden = true;
-    const peer = document.createElement("span");
-    peer.className = "dm-call-peer-status";
-    peer.textContent = "Call status unavailable";
-    const label = document.createElement("label");
-    label.textContent = "You:";
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", "Your call availability");
-    [["available","Available"],["busy","Busy"],["unavailable","Unavailable"]].forEach(([value,text]) => {
-        const option=document.createElement("option");option.value=value;option.textContent=text;select.append(option);
-    });
-    select.value=ownCallAvailability;
-    select.addEventListener("change",()=>{
-        ownCallAvailability=select.value;
-        socket.emit("set call availability",ownCallAvailability,result=>{
-            if(!result?.success){select.value=ownCallAvailability="unavailable";peer.textContent="Couldn't update call status.";}
-        });
-    });
-    wrap.append(peer,label,select);
-    const title=topbar.querySelector(".chat-title");
-    if(title)title.insertAdjacentElement("afterend",wrap);else topbar.prepend(wrap);
-    callAvailabilityUI=wrap;
-    return wrap;
+let activeCall = null;
+let activePeerConnection = null;
+let localCallStream = null;
+let remoteCallStream = null;
+let incomingCall = null;
+let callUiRoot = null;
+function ensureCallUi(){
+ if(callUiRoot)return callUiRoot;
+ const root=document.createElement("section");root.id="jetchatCallOverlay";root.className="jetchat-call-overlay";root.hidden=true;
+ root.innerHTML='<div class="jetchat-call-card"><header><div><p class="call-eyebrow">JETCHAT CALL</p><h2 id="callTitle">Connecting…</h2><p id="callStatus">Setting up your call</p></div><button type="button" id="callClose" aria-label="Close call">×</button></header><div class="call-stage"><video id="callRemoteVideo" autoplay playsinline></video><video id="callLocalVideo" autoplay muted playsinline></video><audio id="callRemoteAudio" autoplay></audio><div id="callAvatar" class="call-avatar">J</div></div><div class="call-controls"><button type="button" id="callMute">Mute mic</button><button type="button" id="callCamera">Turn camera off</button><button type="button" id="callHangup" class="call-hangup">Hang up</button></div></div>';
+ document.body.append(root);callUiRoot=root;
+ root.querySelector("#callClose").addEventListener("click",endCurrentCall);root.querySelector("#callHangup").addEventListener("click",endCurrentCall);
+ root.querySelector("#callMute").addEventListener("click",()=>{const t=localCallStream?.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;root.querySelector("#callMute").textContent=t.enabled?"Mute mic":"Unmute mic";});
+ root.querySelector("#callCamera").addEventListener("click",()=>{const t=localCallStream?.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;root.querySelector("#callCamera").textContent=t.enabled?"Turn camera off":"Turn camera on";});
+ return root;
 }
-function updateCallAvailabilityPeer(data) {
-    if(!callAvailabilityUI||!data||data.username!==callAvailabilityPeer)return;
-    const label=callAvailabilityUI.querySelector(".dm-call-peer-status");
-    const state=["available","busy","unavailable"].includes(data.status)?data.status:"unavailable";
-    label.textContent=state==="available"?"Available for calls":state==="busy"?"Busy right now":"Not available for calls";
-    label.dataset.status=state;
+function setCallStatus(title,status){const r=ensureCallUi();r.querySelector("#callTitle").textContent=title;r.querySelector("#callStatus").textContent=status;}
+function showCallOverlay(title,status,mode){const r=ensureCallUi();r.hidden=false;r.classList.toggle("audio-only",mode!=="video");setCallStatus(title,status);}
+function closeCallMedia(){if(activePeerConnection){activePeerConnection.close();activePeerConnection=null;}if(localCallStream){localCallStream.getTracks().forEach(t=>t.stop());localCallStream=null;}remoteCallStream=null;if(callUiRoot){callUiRoot.querySelector("#callRemoteVideo").srcObject=null;callUiRoot.querySelector("#callLocalVideo").srcObject=null;callUiRoot.querySelector("#callRemoteAudio").srcObject=null;callUiRoot.hidden=true;}activeCall=null;incomingCall=null;}
+function endCurrentCall(){if(activeCall?.callId)socket.emit("call:end",{callId:activeCall.callId});closeCallMedia();}
+function buildPeerConnection(){
+ const pc=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]});activePeerConnection=pc;
+ localCallStream.getTracks().forEach(t=>pc.addTrack(t,localCallStream));
+ pc.ontrack=e=>{if(!remoteCallStream)remoteCallStream=new MediaStream();e.streams[0]?.getTracks().forEach(t=>{if(!remoteCallStream.getTracks().some(x=>x.id===t.id))remoteCallStream.addTrack(t);});const r=ensureCallUi();r.querySelector("#callRemoteVideo").srcObject=remoteCallStream;r.querySelector("#callRemoteAudio").srcObject=remoteCallStream;r.querySelector("#callAvatar").hidden=true;};
+ pc.onicecandidate=e=>{if(e.candidate&&activeCall?.callId)socket.emit("call:signal",{callId:activeCall.callId,signal:{candidate:e.candidate}});};
+ pc.onconnectionstatechange=()=>{if(pc.connectionState==="connected")setCallStatus(activeCall?.peer||"Call","Connected");else if(["failed","disconnected"].includes(pc.connectionState))setCallStatus(activeCall?.peer||"Call","Connection interrupted");};return pc;
 }
-function refreshDMCallAvailability(peer) {
-    const ui=ensureCallAvailabilityUI();
-    if(!ui)return;
-    const isDM=Boolean(peer)&&peer!=="global"&&!String(peer).startsWith("group:");
-    ui.hidden=!isDM;
-    callAvailabilityPeer=isDM?peer:"";
-    if(!isDM)return;
-    ui.querySelector("select").value=ownCallAvailability;
-    const label=ui.querySelector(".dm-call-peer-status");
-    label.textContent="Checking call availability…";
-    label.dataset.status="loading";
-    socket.emit("get call availability",peer,result=>{
-        if(!result?.success){label.textContent="Call availability unavailable";return;}
-        updateCallAvailabilityPeer({username:peer,status:result.status});
-    });
+async function getCallMedia(mode){if(!navigator.mediaDevices?.getUserMedia)throw new Error("Calls require HTTPS and browser media permissions.");return navigator.mediaDevices.getUserMedia({audio:true,video:mode==="video"});}
+async function startDirectCall(mode){
+ if(!callAvailabilityPeer||currentChat==="global"||String(currentChat).startsWith("group:"))return;
+ if(ownCallAvailability!=="available"){alert("Set your call availability to Available first.");return;}
+ const peer=callAvailabilityPeer;const buttons=callAvailabilityUI.querySelectorAll("[data-call-mode]");buttons.forEach(b=>b.disabled=true);
+ try{showCallOverlay(peer,"Requesting permissions…",mode);localCallStream=await getCallMedia(mode);ensureCallUi().querySelector("#callLocalVideo").srcObject=localCallStream;
+  socket.emit("call:request",{target:peer,mode},result=>{if(!result?.success){closeCallMedia();alert(result?.message||"Could not start the call.");return;}activeCall={callId:result.callId,peer,mode,initiator:true};setCallStatus(peer,"Ringing…");});
+ }catch(e){closeCallMedia();alert(e.message||"Could not access your microphone or camera.");}finally{buttons.forEach(b=>b.disabled=false);}
 }
+async function answerIncomingCall(){if(!incomingCall)return;const call=incomingCall;incomingCall=null;try{localCallStream=await getCallMedia(call.mode);activeCall={callId:call.callId,peer:call.caller,mode:call.mode,initiator:false};ensureCallUi().querySelector("#callLocalVideo").srcObject=localCallStream;showCallOverlay(call.caller,"Connecting…",call.mode);const result=await new Promise(resolve=>socket.emit("call:accept",{callId:call.callId},resolve));if(!result?.success)throw new Error("This call is no longer available.");buildPeerConnection();}catch(e){socket.emit("call:reject",{callId:call.callId});closeCallMedia();alert(e.message||"Could not answer the call.");}}
+socket.on("call:incoming",data=>{incomingCall=data;if(window.confirm(data.caller+" is calling ("+(data.mode==="video"?"video":"audio")+"). Accept?"))answerIncomingCall();else{socket.emit("call:reject",{callId:data.callId});incomingCall=null;}});
+socket.on("call:accepted",async data=>{if(!activeCall||activeCall.callId!==data.callId||!activeCall.initiator)return;try{const pc=buildPeerConnection();const offer=await pc.createOffer();await pc.setLocalDescription(offer);socket.emit("call:signal",{callId:activeCall.callId,signal:{description:pc.localDescription}});setCallStatus(activeCall.peer,"Connecting…");}catch(e){setCallStatus(activeCall.peer,"Could not establish the call.");endCurrentCall();}});
+socket.on("call:signal",async data=>{if(!activeCall||activeCall.callId!==data.callId)return;try{const sig=data.signal||{};if(sig.description){if(!activePeerConnection)buildPeerConnection();await activePeerConnection.setRemoteDescription(new RTCSessionDescription(sig.description));if(sig.description.type==="offer"){const answer=await activePeerConnection.createAnswer();await activePeerConnection.setLocalDescription(answer);socket.emit("call:signal",{callId:activeCall.callId,signal:{description:activePeerConnection.localDescription}});}}else if(sig.candidate&&activePeerConnection)await activePeerConnection.addIceCandidate(new RTCIceCandidate(sig.candidate));}catch(e){console.error("Call signalling error:",e);setCallStatus(activeCall.peer,"Connection error.");}});
+socket.on("call:rejected",d=>{if(activeCall?.callId===d.callId){closeCallMedia();alert(d.by+" declined the call.");}});
+socket.on("call:ended",d=>{if(activeCall?.callId===d.callId||incomingCall?.callId===d.callId){closeCallMedia();if(d.reason)alert(d.reason);}});
+function ensureCallAvailabilityUI(){
+ if(callAvailabilityUI)return callAvailabilityUI;const topbar=document.querySelector(".topbar");if(!topbar)return null;
+ const wrap=document.createElement("div");wrap.id="dmCallAvailability";wrap.className="dm-call-availability";wrap.hidden=true;
+ const peer=document.createElement("span");peer.className="dm-call-peer-status";peer.textContent="Checking call availability…";
+ const label=document.createElement("label");label.textContent="Your status";const select=document.createElement("select");select.setAttribute("aria-label","Your call availability");
+ [["available","Available"],["busy","Busy"],["unavailable","Unavailable"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;select.append(o);});select.value=ownCallAvailability;
+ select.addEventListener("change",()=>{ownCallAvailability=select.value;socket.emit("set call availability",ownCallAvailability,r=>{if(!r?.success){ownCallAvailability="unavailable";select.value=ownCallAvailability;}});});
+ const audio=document.createElement("button");audio.type="button";audio.className="dm-call-action";audio.dataset.callMode="audio";audio.textContent="☎ Audio call";audio.addEventListener("click",()=>startDirectCall("audio"));
+ const video=document.createElement("button");video.type="button";video.className="dm-call-action";video.dataset.callMode="video";video.textContent="▣ Video call";video.addEventListener("click",()=>startDirectCall("video"));
+ wrap.append(peer,label,select,audio,video);topbar.append(wrap);callAvailabilityUI=wrap;return wrap;
+}
+function updateCallAvailabilityPeer(data){if(!callAvailabilityUI||!data||data.username!==callAvailabilityPeer)return;const l=callAvailabilityUI.querySelector(".dm-call-peer-status");const state=["available","busy","unavailable"].includes(data.status)?data.status:"unavailable";l.textContent=state==="available"?"● Available for calls":state==="busy"?"● Busy right now":"● Not available for calls";l.dataset.status=state;callAvailabilityUI.querySelectorAll("[data-call-mode]").forEach(b=>b.disabled=state!=="available");}
+function refreshDMCallAvailability(peer){const ui=ensureCallAvailabilityUI();if(!ui)return;const isDM=Boolean(peer)&&peer!=="global"&&!String(peer).startsWith("group:");ui.hidden=!isDM;callAvailabilityPeer=isDM?peer:"";if(!isDM)return;ui.querySelector("select").value=ownCallAvailability;const l=ui.querySelector(".dm-call-peer-status");l.textContent="Checking call availability…";l.dataset.status="loading";ui.querySelectorAll("[data-call-mode]").forEach(b=>b.disabled=true);socket.emit("get call availability",peer,r=>{if(!r?.success){l.textContent="Call availability unavailable";return;}updateCallAvailabilityPeer({username:peer,status:r.status});});}
 socket.on("call availability update",updateCallAvailabilityPeer);
-
 function openConversation(chat) {
     closeMobileDrawer();
     currentChat = chat;
