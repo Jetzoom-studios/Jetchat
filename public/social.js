@@ -383,8 +383,23 @@
   async function openRelay(relay) {
     featurePage.replaceChildren(featureButton("← All Relays",loadRelay,"social-back"),featureHeading("COMMUNITY CREATION",relay.title,"Add the next contribution to the chain."));
     const card=featureCard();card.innerHTML="<div class='social-loading'>Loading Relay…</div>";featurePage.append(card);
-    try{const data=await request("/relay/"+relay.id);card.replaceChildren();data.entries.forEach((entry,index)=>{const row=featureCard("social-relay-entry");const n=document.createElement("small");n.textContent="PART "+(index+1)+" · @"+entry.username;const body=document.createElement("p");body.textContent=entry.body;row.append(n,body);card.append(row);});
-      if(data.relay.is_open){const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Continue the creation…" required></textarea><button class="social-feature-button" type="submit">Add my part</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/relay/"+relay.id+"/entries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});openRelay(relay);}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
+    try{
+      const data=await request("/relay/"+relay.id);
+      card.replaceChildren();
+      data.entries.forEach((entry,index)=>{const row=featureCard("social-relay-entry");const n=document.createElement("small");n.textContent="PART "+(index+1)+" · @"+entry.username;const body=document.createElement("p");body.textContent=entry.body;row.append(n,body);card.append(row);});
+      if(data.relay.is_open){
+        if(data.relay.is_owner){
+          const closeButton=featureButton("Close this Relay",async()=>{
+            closeButton.disabled=true;
+            try{await request("/relay/"+relay.id+"/close",{method:"POST"});openRelay(relay);}
+            catch(error){closeButton.disabled=false;const status=card.querySelector(".social-status")||document.createElement("p");status.className="social-status";status.textContent=error.message;if(!status.parentNode)card.append(status);}
+          },"social-feature-button");
+          card.append(closeButton);
+        }
+        const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Continue the creation…" required></textarea><button class="social-feature-button" type="submit">Add my part</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/relay/"+relay.id+"/entries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});openRelay(relay);}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
+      }else{
+        const closed=document.createElement("p");closed.className="social-feature-muted";closed.textContent="This Relay is closed. You can still read the full creation.";card.append(closed);
+      }
     }catch(error){renderFeatureError(card,error,()=>openRelay(relay));}
   }
 
