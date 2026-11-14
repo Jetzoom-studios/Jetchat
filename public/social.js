@@ -6,11 +6,6 @@
   const app = document.getElementById("app");
   if (!app) return;
 
-  const styleLink = document.createElement("link");
-  styleLink.rel = "stylesheet";
-  styleLink.href = "/social.css";
-  document.head.appendChild(styleLink);
-
   const overlay = document.createElement("section");
   overlay.id = "socialExperience";
   overlay.className = "social-experience";
@@ -131,7 +126,7 @@
     time.textContent = timeAgo(post.createdAt);
     identity.append(author, time);
     head.append(avatar, identity);
-    if (!post.following && post.username !== window.jetchatUsername) {
+    if (!post.following && !post.isMe) {
       head.append(makeButton("＋ Follow", "social-follow-small", () => toggleFollow(post.username, card)));
     }
     card.append(head);
