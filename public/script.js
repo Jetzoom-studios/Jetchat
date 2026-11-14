@@ -66,6 +66,9 @@ const dmSearchInput = document.getElementById("dmSearchInput");
 const dmConversationCount = document.getElementById("dmConversationCount");
 const messageSearchInput = document.getElementById("messageSearchInput");
 const profileCustomStatus = document.getElementById("profileCustomStatus");
+const authFeedback = document.getElementById("authFeedback");
+const friendSearchInput = document.getElementById("friendSearchInput");
+const friendSearchResults = document.getElementById("friendSearchResults");
 
 let dmConversationCache = [];
 
@@ -244,7 +247,12 @@ signupButton.addEventListener("click", () => {
 
     socket.emit("signup", { username: user, password: pass }, (res) => {
         if (!res.success) return alert(res.message);
-        alert("Account created! Now log in.");
+        if (authFeedback) {
+            authFeedback.textContent = "Account created. You can sign in now.";
+            authFeedback.classList.add("is-visible", "is-success");
+        }
+        passwordInput.value = "";
+        loginButton.focus();
     });
 });
 
@@ -1218,11 +1226,7 @@ socket.on("chat history", (history) => {
 // PROFILE SYSTEM
 // =========================
 function openProfile(targetUsername) {
-    console.log("Opening profile:", targetUsername);
-
     socket.emit("get profile", targetUsername, (res) => {
-        console.log("PROFILE RESPONSE:", res);
-
         if (!res.success) {
             return alert("Couldn't load profile.");
         }
@@ -1725,7 +1729,7 @@ avatarInput.addEventListener("change", async () => {
 
             profileAvatar.src = data.avatar;
             editAvatarPreview.src = data.avatar;
-            alert("Avatar updated!");
+            showInAppNotification("Avatar updated", "Your new photo is saved.");
         });
     } catch (err) {
         console.error(err);
@@ -1773,7 +1777,9 @@ addFriendBtn.addEventListener("click", () => {
             return alert(res.message);
         }
 
-        alert("Friend request sent!");
+        addFriendBtn.textContent = "Request sent";
+        addFriendBtn.disabled = true;
+        addFriendBtn.classList.add("is-request-sent");
     });
 });
 
@@ -1809,14 +1815,133 @@ function loadFriendRequests() {
                         return alert("Couldn't accept request.");
                     }
 
-                    alert("Friend request accepted!");
-
                     loadFriendRequests();
+                    loadFriends();
                 });
             });
 
             container.appendChild(div);
         });
+    });
+}
+
+// =========================
+// FRIEND DISCOVERY SEARCH
+// =========================
+let friendSearchTimer = null;
+let friendSearchRequest = 0;
+
+function setSidebarTab(tabName) {
+    document.querySelectorAll("[data-sidebar-tab]").forEach(button => {
+        const active = button.dataset.sidebarTab === tabName;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    document.querySelectorAll("[data-sidebar-panel]").forEach(panel => {
+        const active = panel.dataset.sidebarPanel === tabName;
+        panel.classList.toggle("active", active);
+        panel.hidden = !active;
+    });
+}
+
+document.querySelectorAll("[data-sidebar-tab]").forEach(button => {
+    button.addEventListener("click", () => setSidebarTab(button.dataset.sidebarTab));
+});
+
+function renderFriendSearchResults(users) {
+    if (!friendSearchResults) return;
+    friendSearchResults.innerHTML = "";
+    if (!users.length) {
+        const empty = document.createElement("p");
+        empty.className = "sidebar-empty-note";
+        empty.textContent = "No users found.";
+        friendSearchResults.appendChild(empty);
+        return;
+    }
+
+    users.forEach(person => {
+        const row = document.createElement("div");
+        row.className = "discover-user";
+        const avatar = document.createElement("img");
+        avatar.className = "discover-avatar";
+        avatar.src = person.avatar || "/default-avatar.png";
+        avatar.alt = "";
+        const details = document.createElement("div");
+        details.className = "discover-user-details";
+        const name = document.createElement("button");
+        name.type = "button";
+        name.className = "discover-username";
+        name.textContent = person.username;
+        name.addEventListener("click", () => openProfile(person.username));
+        const bio = document.createElement("span");
+        bio.className = "discover-user-bio";
+        bio.textContent = person.bio || "No bio";
+        details.append(name, bio);
+
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "discover-add-button";
+        if (person.relationship === "friend") {
+            action.textContent = "Friends";
+            action.disabled = true;
+        } else if (person.relationship === "sent") {
+            action.textContent = "Requested";
+            action.disabled = true;
+        } else if (person.relationship === "received") {
+            action.textContent = "Accept";
+            action.addEventListener("click", () => {
+                socket.emit("accept friend request", person.username, result => {
+                    if (!result?.success) return showInAppNotification("Couldn't accept request", "Please try again.");
+                    searchFriendUsers(friendSearchInput.value);
+                    loadFriendRequests();
+                    loadFriends();
+                });
+            });
+        } else {
+            action.textContent = "Add";
+            action.addEventListener("click", () => {
+                action.disabled = true;
+                socket.emit("send friend request", person.username, result => {
+                    if (!result?.success) {
+                        action.disabled = false;
+                        action.textContent = "Add";
+                        showInAppNotification("Couldn't send request", result?.message || "Please try again.");
+                        return;
+                    }
+                    action.textContent = "Requested";
+                    action.classList.add("is-request-sent");
+                });
+            });
+        }
+
+        row.append(avatar, details, action);
+        friendSearchResults.appendChild(row);
+    });
+}
+
+function searchFriendUsers(value) {
+    if (!friendSearchResults) return;
+    const query = String(value || "").trim();
+    if (query.length < 2) {
+        friendSearchResults.innerHTML = '<p class="sidebar-empty-note">Type at least 2 characters to search.</p>';
+        return;
+    }
+    const requestId = ++friendSearchRequest;
+    friendSearchResults.innerHTML = '<p class="sidebar-empty-note">Searching...</p>';
+    socket.emit("search users", query, result => {
+        if (requestId !== friendSearchRequest) return;
+        if (!result?.success) {
+            friendSearchResults.innerHTML = '<p class="sidebar-empty-note">Search is unavailable right now.</p>';
+            return;
+        }
+        renderFriendSearchResults(result.users || []);
+    });
+}
+
+if (friendSearchInput) {
+    friendSearchInput.addEventListener("input", () => {
+        clearTimeout(friendSearchTimer);
+        friendSearchTimer = setTimeout(() => searchFriendUsers(friendSearchInput.value), 220);
     });
 }
 
