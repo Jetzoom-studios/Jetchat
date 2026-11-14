@@ -546,11 +546,22 @@ async function ensureCustomStatusColumn() {
     );
 }
 
+async function ensureProfileCustomizationColumns() {
+    await runSchemaMigration(
+        "users.profile_customization",
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '';
+         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_accent TEXT NOT NULL DEFAULT '#8d70ff';
+         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_banner_style TEXT NOT NULL DEFAULT 'aurora';
+         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_card_style TEXT NOT NULL DEFAULT 'glass';`
+    );
+}
+
 async function getProfile(username) {
     await ensureLastSeenColumn();
     await ensureProfileColorColumn();
     await ensureShowOnlineColumn();
     await ensureCustomStatusColumn();
+    await ensureProfileCustomizationColumns();
 
     console.log("Searching for username:", username);
 
@@ -564,7 +575,11 @@ async function getProfile(username) {
             last_seen,
             profile_color,
             show_online,
-            custom_status
+            custom_status,
+            display_name,
+            profile_accent,
+            profile_banner_style,
+            profile_card_style
         FROM users
         WHERE username = $1
         `,
@@ -683,9 +698,10 @@ async function updateAvatar(username, avatar) {
 // =========================
 // UPDATE PROFILE
 // =========================
-async function updateProfile(oldUsername, newUsername, bio, profileColor, customStatus) {
+async function updateProfile(oldUsername, newUsername, bio, profileColor, customStatus, displayName, profileAccent, bannerStyle, cardStyle) {
     await ensureProfileColorColumn();
     await ensureCustomStatusColumn();
+    await ensureProfileCustomizationColumns();
 
     await pool.query(
         `
@@ -693,10 +709,14 @@ async function updateProfile(oldUsername, newUsername, bio, profileColor, custom
         SET username = $1,
             bio = $2,
             profile_color = $3,
-            custom_status = $4
-        WHERE username = $5
+            custom_status = $4,
+            display_name = $5,
+            profile_accent = $6,
+            profile_banner_style = $7,
+            profile_card_style = $8
+        WHERE username = $9
         `,
-        [newUsername, bio, profileColor, customStatus, oldUsername]
+        [newUsername, bio, profileColor, customStatus, displayName, profileAccent, bannerStyle, cardStyle, oldUsername]
     );
 
     return {
