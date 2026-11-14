@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.7.3",
-    version: "3.7.3",
-    title: "Jetchat Activity",
+    id: "jetchat-3.7.4",
+    version: "3.7.4",
+    title: "Jetchat Profiles & Chat",
     date: "November 14, 2026",
     items: [
-        "A unified activity centre brings your social notifications together.",
-        "Get notified when someone likes or comments on your posts.",
-        "Get notified when someone follows you.",
-        "Reply to a Story and continue the conversation in direct messages.",
-        "Notifications are saved to your account and update while you're online."
+        "A redesigned chat workspace replaces the old chat menu.",
+        "Filter conversations with All, Unread, Groups and Friends tabs.",
+        "Switch between Messages and Shared media from the chat workspace.",
+        "Profiles now support display names, banner designs, card styles and custom accent colours.",
+        "Your profile design is saved to your account."
     ]
 };
 
@@ -765,17 +765,27 @@ socket.on("dismiss update", async (updateId, callback) => {
                 ? data.customStatus.trim().slice(0, 60)
                 : "";
             const profileColor =
-                typeof data.profileColor === "string" &&
-                /^#[0-9a-fA-F]{6}$/.test(data.profileColor)
-                    ? data.profileColor
-                    : "#5865f2";
+                typeof data.profileColor === "string" && /^#[0-9a-fA-F]{6}$/.test(data.profileColor)
+                    ? data.profileColor : "#5865f2";
+            const displayName = typeof data.displayName === "string" ? data.displayName.trim().slice(0, 32) : "";
+            const profileAccent =
+                typeof data.profileAccent === "string" && /^#[0-9a-fA-F]{6}$/.test(data.profileAccent)
+                    ? data.profileAccent : "#8d70ff";
+            const bannerStyles = new Set(["aurora", "sunset", "midnight", "solid"]);
+            const cardStyles = new Set(["glass", "minimal", "glow"]);
+            const bannerStyle = bannerStyles.has(data.bannerStyle) ? data.bannerStyle : "aurora";
+            const cardStyle = cardStyles.has(data.cardStyle) ? data.cardStyle : "glass";
 
             const result = await db.updateProfile(
                 socket.username,
                 newUsername,
                 bio,
                 profileColor,
-                customStatus
+                customStatus,
+                displayName,
+                profileAccent,
+                bannerStyle,
+                cardStyle
             );
 
             if (result.success) {
