@@ -72,6 +72,8 @@ const captchaStatus = document.getElementById("captchaStatus");
 let captchaToken = "";
 let captchaWidgetId = null;
 let captchaReady = false;
+let captchaInitialized = false;
+let reconnectAfterSessionEnd = false;
 
 function setCaptchaStatus(message, isError = false) {
     if (!captchaStatus) return;
@@ -95,6 +97,8 @@ function resetCaptcha(message = "Please complete the security check.") {
 }
 
 async function initializeCaptcha() {
+    if (captchaInitialized) return;
+    captchaInitialized = true;
     try {
         const response = await fetch("/api/captcha-config", { cache: "no-store" });
         if (!response.ok) throw new Error("Could not load CAPTCHA configuration.");
@@ -142,7 +146,6 @@ async function initializeCaptcha() {
     }
 }
 
-initializeCaptcha();
 const friendSearchInput = document.getElementById("friendSearchInput");
 const friendSearchResults = document.getElementById("friendSearchResults");
 
@@ -296,6 +299,72 @@ function startChat(user) {
     messageInput.focus();
 }
 
+function showSignedOutScreen() {
+    username = "";
+    currentChat = "global";
+    app.style.display = "none";
+    loginScreen.style.display = "flex";
+    passwordInput.value = "";
+    resetCaptcha("You're signed out. Complete the security check to sign in again.");
+    if (settingsPanel) {
+        settingsPanel.classList.remove("open");
+        settingsPanel.style.display = "none";
+    }
+}
+
+socket.on("connect", () => {
+    socket.emit("restore session", result => {
+        if (result && result.success && result.user) {
+            jetchatSettings.showOnline = result.user.show_online !== false;
+            saveJetchatSettings();
+            startChat(result.user.username);
+        } else {
+            initializeCaptcha();
+        }
+    });
+});
+
+socket.on("session revoked", () => {
+    reconnectAfterSessionEnd = true;
+    showSignedOutScreen();
+});
+
+socket.on("disconnect", reason => {
+    if (reconnectAfterSessionEnd) {
+        reconnectAfterSessionEnd = false;
+        socket.connect();
+    }
+});
+
+const logoutButton = document.getElementById("logoutButton");
+if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+        logoutButton.disabled = true;
+        logoutButton.textContent = "Signing out...";
+        try {
+            const response = await fetch("/api/session/logout", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Sign out failed.");
+            }
+            showSignedOutScreen();
+            if (socket.connected) {
+                socket.disconnect();
+                socket.connect();
+            }
+        } catch (error) {
+            console.error("Sign out error:", error);
+            alert("Jetchat couldn't sign you out. Please try again.");
+        } finally {
+            logoutButton.disabled = false;
+            logoutButton.textContent = "Sign Out";
+        }
+    });
+}
+
 loginButton.addEventListener("click", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
@@ -313,13 +382,29 @@ loginButton.addEventListener("click", () => {
     signupButton.disabled = true;
     setCaptchaStatus("Checking verification...");
 
-    socket.emit("login", { username: user, password: pass, captchaToken: token }, (res) => {
+    socket.emit("login", { username: user, password: pass, captchaToken: token }, async (res) => {
         resetCaptcha(res.success ? "Verification complete." : "Please complete the security check again.");
         if (!res.success) return alert(res.message);
 
-        jetchatSettings.showOnline = res.user.show_online !== false;
-        saveJetchatSettings();
-        startChat(user);
+        try {
+            const sessionResponse = await fetch("/api/session/establish", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: res.sessionToken })
+            });
+            const sessionResult = await sessionResponse.json();
+            if (!sessionResponse.ok || !sessionResult.success) {
+                throw new Error(sessionResult.message || "Could not remember this sign-in.");
+            }
+
+            jetchatSettings.showOnline = res.user.show_online !== false;
+            saveJetchatSettings();
+            startChat(res.user.username);
+        } catch (error) {
+            console.error("Persistent sign-in setup failed:", error);
+            alert("Your password was accepted, but Jetchat couldn't save your sign-in. Please try logging in again.");
+        }
     });
 });
 
