@@ -21,3 +21,10 @@
 #socialFeed:has(.social-video-post) .social-post-video{max-height: min(72vh,760px);aspect-ratio:9/16;object-fit:contain}
 #socialExperience .social-nav[data-view="reels"] span{font-size:17px}
 @media(max-width:650px){.social-post-video{max-height:68vh}.social-video-post .social-post-head{padding:2px 0}}
+
+/* Full-height, vertical swipe-style Reels experience */
+#socialFeed.social-reels-feed{width:min(100%,650px);height:calc(100vh - 112px);margin:0 auto;padding:14px 10px 34px;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;scrollbar-width:thin}
+#socialFeed.social-reels-feed .social-video-post{min-height:min(78vh,820px);display:flex;flex-direction:column;justify-content:center;scroll-snap-align:start;scroll-snap-stop:always;margin:0 auto 16px;padding:14px;background:#101522;border:1px solid #292f43;border-radius:18px}
+#socialFeed.social-reels-feed .social-post-video{width:100%;height:min(70vh,720px);max-height:none;aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:13px}
+#socialFeed.social-reels-feed .social-post-actions{padding-top:10px}
+@media(max-width:650px){#socialFeed.social-reels-feed{height:calc(100dvh - 150px);padding:8px 8px 28px}#socialFeed.social-reels-feed .social-video-post{min-height:72vh;padding:10px}#socialFeed.social-reels-feed .social-post-video{height:58vh}}
