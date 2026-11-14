@@ -13,3 +13,11 @@
 /* Keep the persistent navigation visible while the chat hub is open */
 .social-chat-hub{left:248px}
 @media(max-width:650px){.social-chat-hub{left:0;bottom:66px}}
+
+/* Reels: vertical, scroll-snapping short-video feed */
+.social-video-post{overflow:hidden}.social-post-video{display:block;width:100%;max-height:720px;aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:14px}.social-video-post .social-post-body{margin-bottom:10px}
+#socialFeed:has(.social-video-post){width:min(100%,560px);margin-inline:auto}
+#socialFeed:has(.social-video-post) .social-video-post{margin:0 auto 22px;padding:14px;background:#111625;border:1px solid #292f43;border-radius:18px}
+#socialFeed:has(.social-video-post) .social-post-video{max-height: min(72vh,760px);aspect-ratio:9/16;object-fit:contain}
+#socialExperience .social-nav[data-view="reels"] span{font-size:17px}
+@media(max-width:650px){.social-post-video{max-height:68vh}.social-video-post .social-post-head{padding:2px 0}}
