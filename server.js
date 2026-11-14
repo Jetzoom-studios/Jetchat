@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-4.0",
-    version: "4.0",
-    title: "Jetchat: The Next Era",
-    date: "November 2026",
+    id: "jetchat-3.6.4",
+    version: "3.6.4",
+    title: "Jetchat Explore",
+    date: "November 14, 2026",
     items: [
-        "Reactions now work live and stay saved across sessions.",
-        "Introducing your personal Saved Messages vault.",
-        "A redesigned conversation experience across Global Chat and DMs.",
-        "New accessibility controls for spacing, keyboard focus and message actions.",
-        "Keyboard shortcuts: Ctrl/Cmd + K for conversations, Ctrl/Cmd + / to compose."
+        "Jetchat is now more than chat: discover the new social Home and Explore feeds.",
+        "Create text and photo posts and share moments with the community.",
+        "Follow accounts, visit profiles, and build your own Jetchat circle.",
+        "Like posts and join conversations through comments.",
+        "Your posts, follows, likes and comments are saved in PostgreSQL."
     ]
 };
 
