@@ -337,6 +337,78 @@ socket.on("disconnect", reason => {
 });
 
 const logoutButton = document.getElementById("logoutButton");
+const accountSessionsList = document.getElementById("accountSessionsList");
+const refreshSessionsBtn = document.getElementById("refreshSessionsBtn");
+const signOutOtherDevicesBtn = document.getElementById("signOutOtherDevicesBtn");
+const changePasswordForm = document.getElementById("changePasswordForm");
+const passwordChangeStatus = document.getElementById("passwordChangeStatus");
+
+function formatSessionDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString([], { dateStyle:"medium", timeStyle:"short" });
+}
+async function accountRequest(url, options = {}) {
+    const response = await fetch(url, {
+        credentials:"same-origin", cache:"no-store", ...options,
+        headers:{ ...(options.headers || {}), ...(options.body ? {"Content-Type":"application/json"} : {}) }
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.message || "The request couldn't be completed.");
+    return result;
+}
+async function loadAccountSessions() {
+    if (!accountSessionsList) return;
+    accountSessionsList.textContent="Loading signed-in devices…";
+    try {
+        const result=await accountRequest("/api/account/sessions");
+        accountSessionsList.replaceChildren();
+        if (!result.sessions.length) { accountSessionsList.textContent="No active sessions were found."; return; }
+        result.sessions.forEach(session => {
+            const card=document.createElement("article"); card.className="account-session-card";
+            const details=document.createElement("div"); details.className="account-session-details";
+            const title=document.createElement("strong"); title.textContent=session.device || "Unknown device";
+            const status=document.createElement("span"); status.className=session.current?"account-session-current":"account-session-other"; status.textContent=session.current?"This device":"Signed in";
+            const activity=document.createElement("small"); activity.textContent="Last active: "+formatSessionDate(session.lastActiveAt);
+            const created=document.createElement("small"); created.textContent="Signed in: "+formatSessionDate(session.createdAt);
+            details.append(title,status,activity,created); card.appendChild(details);
+            if(!session.current) {
+                const revoke=document.createElement("button"); revoke.type="button"; revoke.className="account-session-revoke"; revoke.textContent="Sign out";
+                revoke.addEventListener("click",async()=>{
+                    revoke.disabled=true;
+                    try { await accountRequest("/api/account/sessions/revoke",{method:"POST",body:JSON.stringify({sessionId:session.id})}); await loadAccountSessions(); }
+                    catch(error) { alert(error.message); revoke.disabled=false; }
+                });
+                card.appendChild(revoke);
+            }
+            accountSessionsList.appendChild(card);
+        });
+    } catch(error) { accountSessionsList.textContent=error.message; }
+}
+refreshSessionsBtn?.addEventListener("click",loadAccountSessions);
+signOutOtherDevicesBtn?.addEventListener("click",async()=>{
+    if(!confirm("Sign out every other device? This device will stay signed in.")) return;
+    signOutOtherDevicesBtn.disabled=true;
+    try { const result=await accountRequest("/api/account/sessions/revoke-others",{method:"POST"}); await loadAccountSessions(); alert(`Signed out ${result.count} other device(s).`); }
+    catch(error) { alert(error.message); }
+    finally { signOutOtherDevicesBtn.disabled=false; }
+});
+changePasswordForm?.addEventListener("submit",async event=>{
+    event.preventDefault();
+    const currentPassword=document.getElementById("currentAccountPassword").value;
+    const newPassword=document.getElementById("newAccountPassword").value;
+    const confirmPassword=document.getElementById("confirmAccountPassword").value;
+    if(newPassword!==confirmPassword) { passwordChangeStatus.textContent="The new passwords don't match."; return; }
+    if(newPassword.length<8) { passwordChangeStatus.textContent="Use at least 8 characters."; return; }
+    const submit=changePasswordForm.querySelector('button[type="submit"]'); submit.disabled=true; passwordChangeStatus.textContent="Updating password…";
+    try {
+        const result=await accountRequest("/api/account/change-password",{method:"POST",body:JSON.stringify({currentPassword,newPassword})});
+        changePasswordForm.reset();
+        passwordChangeStatus.textContent=`Password updated. ${result.signedOutDevices} other device(s) signed out.`;
+        await loadAccountSessions();
+    } catch(error) { passwordChangeStatus.textContent=error.message; }
+    finally { submit.disabled=false; }
+});
+
 if (logoutButton) {
     logoutButton.addEventListener("click", async () => {
         logoutButton.disabled = true;
@@ -1681,6 +1753,7 @@ function saveJetchatSettings() {
 function openSettings() {
     if (!settingsPanel) return;
 
+    loadAccountSessions();
     settingsPanel.style.display = "flex";
     settingsPanel.setAttribute("aria-hidden", "false");
 
@@ -2268,3 +2341,7 @@ document.addEventListener("keydown", event => {
     const savedModal = document.getElementById("savedMessagesModal");
     if (savedModal?.style.display === "flex") savedModal.style.display = "none";
 });
+
+window.setInterval(() => {
+    if (socket.connected && username) socket.emit("session activity");
+}, 5 * 60 * 1000);
