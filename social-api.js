@@ -46,6 +46,11 @@ function ensureSchema() {
       ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_data BYTEA;
       ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_type TEXT;
       ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_name TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_accent TEXT NOT NULL DEFAULT '#8d70ff';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_banner_style TEXT NOT NULL DEFAULT 'aurora';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_card_style TEXT NOT NULL DEFAULT 'glass';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color TEXT NOT NULL DEFAULT '#5865f2';
       CREATE INDEX IF NOT EXISTS social_posts_created_idx ON social_posts(created_at DESC);
       CREATE INDEX IF NOT EXISTS social_posts_user_idx ON social_posts(username, created_at DESC);
       CREATE TABLE IF NOT EXISTS social_follows (
