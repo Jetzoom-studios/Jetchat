@@ -15,7 +15,7 @@
   overlay.id = "socialExperience";
   overlay.className = "social-experience";
   overlay.hidden = true;
-  overlay.innerHTML = \`
+  overlay.innerHTML = `
     <aside class="social-rail">
       <div class="social-brand"><span class="social-brand-mark">J</span><span>Jetchat</span></div>
       <button class="social-nav active" data-view="home"><span>⌂</span> Home</button>
@@ -51,7 +51,7 @@
         <div class="social-modal-actions"><button type="button" class="social-cancel">Cancel</button><button type="submit" class="social-publish">Publish post</button></div>
       </form>
     </div>
-  \`;
+  `;
   app.appendChild(overlay);
 
   const launcher = document.createElement("button");
@@ -316,7 +316,7 @@
       if (file) form.append("image", file);
       await request("/posts", { method: "POST", body: form });
       closeModal();
-      overlay.querySelector(".social-content").innerHTML = '<section class="social-feed-column"><div class="social-welcome"><div><strong>Your post is live.</strong><p>It's now part of the Jetchat community.</p></div><span>✦</span></div><div id="socialFeed" class="social-feed"></div></section><aside class="social-side-panel"><div class="social-side-card"><span class="social-side-icon">✦</span><h3>Keep sharing</h3><p>Discover people and build your circle.</p><button data-view="explore">Discover people →</button></div></aside>';
+      overlay.querySelector(".social-content").innerHTML = '<section class="social-feed-column"><div class="social-welcome"><div><strong>Your post is live.</strong><p>It is now part of the Jetchat community.</p></div><span>✦</span></div><div id="socialFeed" class="social-feed"></div></section><aside class="social-side-panel"><div class="social-side-card"><span class="social-side-icon">✦</span><h3>Keep sharing</h3><p>Discover people and build your circle.</p><button data-view="explore">Discover people →</button></div></aside>';
       overlay.querySelector('[data-view="explore"]').addEventListener("click", () => openView("explore"));
       loadPosts(currentView === "explore" ? "explore" : "home");
     } catch (error) { status.textContent = error.message; }
