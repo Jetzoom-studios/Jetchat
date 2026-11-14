@@ -53,10 +53,10 @@ const CURRENT_UPDATE = {
     title: "Calls & Settings",
     date: "November 14, 2026",
     items: [
-        "NOW brings recent community posts, active Clubs, open Relays and today's Pulse into one live dashboard.",
-        "See the current Jetchat online count update in real time.",
-        "Set your DM call availability to Available, Busy or Unavailable.",
-        "Friends can see your call availability in their direct messages."
+        "Start real one-to-one audio and video calls directly from DMs.",
+        "Accept or decline incoming calls, mute your microphone, toggle your camera and hang up.",
+        "Call controls have a dedicated, visible place in the DM header.",
+        "Open Settings directly from the social navigation."
     ]
 };
 
@@ -458,6 +458,14 @@ async function attachMessageReactions(chat, history) {
 // =========================
 io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
+    socket.on("call:get-ice-config", callback => {
+        const respond=value=>{if(typeof callback==="function")callback(value);};
+        if(!socket.username)return respond({success:false,iceServers:[]});
+        const iceServers=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
+        const urls=String(process.env.TURN_URLS||"").split(",").map(value=>value.trim()).filter(Boolean);
+        if(urls.length&&process.env.TURN_USERNAME&&process.env.TURN_CREDENTIAL)iceServers.push({urls,username:process.env.TURN_USERNAME,credential:process.env.TURN_CREDENTIAL});
+        respond({success:true,iceServers});
+    });
     socket.on("call:request", async (data, callback) => {
         const respond = value => { if (typeof callback === "function") callback(value); };
         const target = typeof data?.target === "string" ? data.target.trim() : "";
