@@ -419,7 +419,7 @@
     hero.append(heroCopy,online,refresh);shell.append(hero);
     const grid=document.createElement("div");grid.className="now-grid";
     const activity=document.createElement("section");activity.className="now-panel now-activity";activity.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">FRESH FROM THE COMMUNITY</span><h3>Latest moments</h3></div><span class="now-live-label">LIVE FEED</span></div><div class="now-posts"><p class="social-loading">Loading recent posts…</p></div>';
-    const community=document.createElement("section");community.className="now-panel";community.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">FIND YOUR PEOPLE</span><h3>Active Clubs</h3></div><span class="now-panel-mark">◈</span></div><div class="now-clubs"><p class="social-loading">Loading Clubs…</p></div>';
+    const community=document.createElement("section");community.className="now-panel";community.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">FIND YOUR PEOPLE</span><h3>Popular Clubs</h3></div><span class="now-panel-mark">◈</span></div><div class="now-clubs"><p class="social-loading">Loading Clubs…</p></div>';
     const relays=document.createElement("section");relays.className="now-panel";relays.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">BUILD SOMETHING TOGETHER</span><h3>Open Relays</h3></div><span class="now-panel-mark">⤴</span></div><div class="now-relays"><p class="social-loading">Loading Relays…</p></div>';
     const pulse=document.createElement("section");pulse.className="now-panel";pulse.innerHTML="<div class='now-panel-head'><div><span class='social-eyebrow'>TODAY'S COMMUNITY QUESTION</span><h3>Pulse</h3></div><span class='now-panel-mark'>✦</span></div><div class='now-pulse'><p class='social-loading'>Loading today's Pulse…</p></div>";
     grid.append(activity,community,relays,pulse);shell.append(grid);featurePage.append(shell);
@@ -1004,6 +1004,7 @@
     } else if (!storyViewer.hidden && event.key === "ArrowRight") nextStory();
     else if (!storyViewer.hidden && event.key === "ArrowLeft") previousStory();
   });
+  window.setInterval(() => { if (currentView === "now" && !document.hidden) loadNow(); }, 45000);
   window.openJetchatSocial = openView;
   // Social is the signed-in landing screen; chat opens only after choosing a conversation.
 })();
