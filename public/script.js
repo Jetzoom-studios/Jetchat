@@ -13,6 +13,9 @@ let currentChat = "global";
 let groupConversationCache = [];
 let onlineUsernames = new Set();
 let currentProfileColor = "#5865f2";
+let currentProfileAccent = "#8d70ff";
+let currentBannerStyle = "aurora";
+let currentCardStyle = "glass";
 
 // typing system
 let typingUsers = new Set();
@@ -54,6 +57,7 @@ const emojiPicker = document.getElementById("emojiPicker");
 
 const profileModal = document.getElementById("profileModal");
 const profileUsername = document.getElementById("profileUsername");
+const profileDisplayName = document.getElementById("profileDisplayName");
 const profileBio = document.getElementById("profileBio");
 const profileJoinDate = document.getElementById("profileJoinDate");
 const profileAvatar = document.getElementById("profileAvatar");
@@ -1551,7 +1555,14 @@ function openProfile(targetUsername) {
         }
 
         currentProfileColor = res.profile.profile_color || "#5865f2";
+        currentProfileAccent = res.profile.profile_accent || "#8d70ff";
+        currentBannerStyle = res.profile.profile_banner_style || "aurora";
+        currentCardStyle = res.profile.profile_card_style || "glass";
         profileBanner.style.background = currentProfileColor;
+        profileBanner.dataset.style = currentBannerStyle;
+        profileModal.querySelector(".profile-card").dataset.cardStyle = currentCardStyle;
+        profileModal.querySelector(".profile-card").style.setProperty("--profile-accent", currentProfileAccent);
+        if (profileDisplayName) profileDisplayName.textContent = res.profile.display_name || "";
 
         profileAvatar.src =
             res.profile.avatar || "/default-avatar.png";
@@ -1960,7 +1971,11 @@ const closeEditProfile = document.getElementById("closeEditProfile");
 
 const editAvatarPreview = document.getElementById("editAvatarPreview");
 const editUsername = document.getElementById("editUsername");
+const editDisplayName = document.getElementById("editDisplayName");
 const editBio = document.getElementById("editBio");
+const editProfileAccent = document.getElementById("editProfileAccent");
+const editBannerStyle = document.getElementById("editBannerStyle");
+const editCardStyle = document.getElementById("editCardStyle");
 const editCustomStatus = document.getElementById("editCustomStatus");
 const editBannerColor = document.getElementById("editBannerColor");
 const saveProfileBtn = document.getElementById("saveProfileBtn");
@@ -1969,6 +1984,10 @@ const changeAvatarBtn = document.getElementById("changeAvatarBtn");
 editProfileBtn.addEventListener("click", () => {
     editAvatarPreview.src = profileAvatar.src;
     editUsername.value = profileUsername.textContent;
+    editDisplayName.value = profileDisplayName?.textContent || "";
+    editProfileAccent.value = currentProfileAccent;
+    editBannerStyle.value = currentBannerStyle;
+    editCardStyle.value = currentCardStyle;
     editBio.value = profileBio.dataset.raw || (profileBio.textContent === "No bio yet." ? "" : profileBio.textContent);
     editCustomStatus.value = profileCustomStatus.dataset.status || "";
     editBannerColor.value = currentProfileColor;
@@ -2024,7 +2043,11 @@ saveProfileBtn.addEventListener("click", () => {
         username: editUsername.value.trim(),
         bio: editBio.value.trim(),
         customStatus: editCustomStatus.value.trim(),
-        profileColor: editBannerColor.value
+        profileColor: editBannerColor.value,
+        displayName: editDisplayName.value.trim(),
+        profileAccent: editProfileAccent.value,
+        bannerStyle: editBannerStyle.value,
+        cardStyle: editCardStyle.value
     }, (res) => {
         if (!res.success) {
             return alert(res.message);
@@ -2032,12 +2055,19 @@ saveProfileBtn.addEventListener("click", () => {
 
         username = editUsername.value.trim();
         profileUsername.textContent = username;
+        profileDisplayName.textContent = editDisplayName.value.trim();
         profileBio.textContent = editBio.value.trim() || "No bio yet.";
         profileBio.dataset.raw = editBio.value.trim();
         profileCustomStatus.dataset.status = editCustomStatus.value.trim();
         profileCustomStatus.textContent = editCustomStatus.value.trim() || "No custom status";
         currentProfileColor = editBannerColor.value;
+        currentProfileAccent = editProfileAccent.value;
+        currentBannerStyle = editBannerStyle.value;
+        currentCardStyle = editCardStyle.value;
         profileBanner.style.background = currentProfileColor;
+        profileBanner.dataset.style = currentBannerStyle;
+        profileModal.querySelector(".profile-card").dataset.cardStyle = currentCardStyle;
+        profileModal.querySelector(".profile-card").style.setProperty("--profile-accent", currentProfileAccent);
 
         editProfileModal.style.display = "none";
         profileModal.style.display = "flex";
