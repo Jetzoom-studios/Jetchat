@@ -75,6 +75,14 @@
   mount("dmList", "socialDmListMount");
   mount("createGroupBtn", "socialCreateGroupMount");
   mount("groupList", "socialGroupListMount");
+  const chatReturnButton = document.createElement("button");
+  chatReturnButton.type = "button";
+  chatReturnButton.className = "social-chat-return-button";
+  chatReturnButton.textContent = "← Chat list";
+  chatReturnButton.addEventListener("click", () => openView("chats"));
+  const appTopbar = app.querySelector(".topbar");
+  if (appTopbar) appTopbar.insertBefore(chatReturnButton, appTopbar.firstChild);
+
   const chatHubCount = overlay.querySelector("#socialChatCount");
   const dmCount = overlay.querySelector("#socialDmCount");
   const updateChatCounts = () => {
