@@ -25,6 +25,7 @@
       <header class="social-top">
         <div><p class="social-eyebrow">THE SOCIAL SIDE OF JETCHAT</p><h1 id="socialHeading">Your feed</h1></div>
         <div class="social-top-actions">
+          <button id="socialProfileButton" class="social-profile-top-button" type="button"><span class="social-profile-top-avatar">●</span><span>My Profile</span></button>
           <button id="socialNotificationsButton" class="social-notifications-button" type="button" aria-label="Notifications" aria-expanded="false">♧<span id="socialNotificationBadge" hidden>0</span></button>
           <button class="social-create-top" data-view="create">＋ Create</button>
         </div>
@@ -142,6 +143,10 @@
   const createForm = overlay.querySelector("#socialCreateForm");
   const status = overlay.querySelector("#socialCreateStatus");
   const imageInput = overlay.querySelector("#socialPostImage");
+  const profileButton = overlay.querySelector("#socialProfileButton");
+  profileButton?.addEventListener("click", () => {
+    if (typeof window.openJetchatOwnProfile === "function") window.openJetchatOwnProfile();
+  });
   const notificationButton = overlay.querySelector("#socialNotificationsButton");
   const notificationBadge = overlay.querySelector("#socialNotificationBadge");
   const notificationList = notificationPanel.querySelector("#socialNotificationList");
