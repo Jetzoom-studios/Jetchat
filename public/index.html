@@ -468,6 +468,7 @@
         </div>
 
         <h2 id="profileUsername">Username</h2>
+        <p id="profileDisplayName" class="profile-display-name"></p>
 
         <p id="profileCustomStatus" class="profile-custom-status" data-status="">
             No custom status
@@ -527,12 +528,11 @@
 
         </div>
 
-        <input
-            type="text"
-            id="editUsername"
-            placeholder="Username"
-            maxlength="20"
-        >
+        <label class="profile-color-label" for="editDisplayName">Display name</label>
+        <input type="text" id="editDisplayName" maxlength="32" placeholder="Name shown on your profile">
+
+        <label class="profile-color-label" for="editUsername">Username</label>
+        <input type="text" id="editUsername" placeholder="Username" maxlength="20">
 
         <textarea
             id="editBio"
@@ -551,18 +551,29 @@
             autocomplete="off"
         >
 
-        <label for="editBannerColor" class="profile-color-label">
-            Profile banner colour
-        </label>
-        <input
-            type="color"
-            id="editBannerColor"
-            value="#5865f2"
-        >
+        <label for="editBannerColor" class="profile-color-label">Banner colour</label>
+        <input type="color" id="editBannerColor" value="#5865f2">
 
-        <button id="saveProfileBtn">
-            Save Changes
-        </button>
+        <label for="editProfileAccent" class="profile-color-label">Profile accent</label>
+        <input type="color" id="editProfileAccent" value="#8d70ff">
+
+        <label for="editBannerStyle" class="profile-color-label">Banner design</label>
+        <select id="editBannerStyle">
+            <option value="aurora">Aurora</option>
+            <option value="sunset">Sunset</option>
+            <option value="midnight">Midnight</option>
+            <option value="solid">Solid colour</option>
+        </select>
+
+        <label for="editCardStyle" class="profile-color-label">Profile card style</label>
+        <select id="editCardStyle">
+            <option value="glass">Glass</option>
+            <option value="minimal">Minimal</option>
+            <option value="glow">Glow</option>
+        </select>
+
+        <p class="profile-editor-hint">Your profile design is saved to your account and appears when people visit your profile.</p>
+        <button id="saveProfileBtn">Save Changes</button>
 
     </div>
 </div>
