@@ -1867,6 +1867,8 @@ function openSettings() {
     });
 }
 
+window.openJetchatSettings = openSettings;
+
 function hideSettings() {
     if (!settingsPanel) return;
 
