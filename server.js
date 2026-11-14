@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.7.1",
-    version: "3.7.1",
-    title: "Jetchat Reels",
+    id: "jetchat-3.7.2",
+    version: "3.7.2",
+    title: "Jetchat Stories",
     date: "November 14, 2026",
     items: [
-        "Meet Reels: a dedicated home for short videos.",
-        "Publish MP4, WebM and MOV videos alongside your existing photo and text posts.",
-        "Watch videos with an in-feed player designed for vertical clips.",
-        "Like and comment on video posts using the existing social interactions.",
-        "Videos are stored with your Jetchat posts and remain available after signing out."
+        "Share photo and video Stories that automatically expire after 24 hours.",
+        "Browse active Stories from your Home feed.",
+        "Move through a friend's Story sequence with next and previous controls.",
+        "See who viewed your own Stories.",
+        "Stories and their view records are stored in PostgreSQL."
     ]
 };
 
