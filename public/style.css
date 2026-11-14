@@ -4388,3 +4388,73 @@ body.light-mode .settings-panel {
     }
 }
 
+
+
+/* --- Profile modal recovery: keep controls reachable on every viewport --- */
+.profile-modal {
+    box-sizing: border-box;
+    padding: 24px 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.profile-card {
+    position: relative;
+    flex: 0 1 420px;
+    width: min(420px, 100%);
+    max-width: 100%;
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.close-profile {
+    position: absolute;
+    z-index: 20;
+    top: 12px;
+    right: 12px;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 50%;
+    background: rgba(8,10,24,.82);
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,.32);
+}
+
+.close-profile:hover {
+    transform: rotate(90deg);
+    background: rgba(161,139,255,.32);
+}
+
+.profile-banner {
+    position: relative;
+    z-index: 0;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 480px) {
+    .profile-modal {
+        align-items: flex-start;
+        padding: 12px;
+    }
+
+    .profile-card {
+        width: 100%;
+        max-height: calc(100vh - 24px);
+        max-height: calc(100dvh - 24px);
+        margin: auto 0;
+    }
+}
