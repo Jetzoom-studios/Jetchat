@@ -558,9 +558,9 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
   router.get("/trending", auth, async (req,res) => {
     try {
       const result = await pool.query(`
-        SELECT lower(tag) AS tag, COUNT(*)::INT AS posts
+        SELECT lower(match[1]) AS tag, COUNT(*)::INT AS posts
         FROM social_posts p
-        CROSS JOIN LATERAL regexp_matches(p.body, '#([a-zA-Z0-9_]{2,30})', 'g') AS match(tag)
+        CROSS JOIN LATERAL regexp_matches(p.body, '#([a-zA-Z0-9_]{2,30})', 'g') AS matches(match)
         WHERE p.created_at > NOW() - INTERVAL '7 days'
         GROUP BY lower(tag) ORDER BY posts DESC, tag ASC LIMIT 20
       `);
@@ -606,6 +606,18 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
       await pool.query("INSERT INTO social_club_members(club_id,username) VALUES($1,$2) ON CONFLICT DO NOTHING",[req.params.id,req.socialUser.username]);
       res.json({success:true,joined:true});
     } catch(error) { console.error("Join club error:",error.message); res.status(500).json({success:false,message:"Couldn't join this Club."}); }
+  });
+  router.post("/clubs/:id/invite", auth, async (req,res) => {
+    try {
+      const target=String(req.body.username||"").trim();
+      if(!/^[a-zA-Z0-9_]{2,20}$/.test(target)) return res.status(400).json({success:false,message:"Enter a valid username."});
+      const role=await pool.query("SELECT role FROM social_club_members WHERE club_id=$1 AND username=$2",[req.params.id,req.socialUser.username]);
+      if(!role.rowCount||!["owner","moderator"].includes(role.rows[0].role)) return res.status(403).json({success:false,message:"Only Club owners and moderators can invite members."});
+      const user=await pool.query("SELECT username FROM users WHERE LOWER(username)=LOWER($1)",[target]);
+      if(!user.rowCount) return res.status(404).json({success:false,message:"That user doesn't exist."});
+      await pool.query("INSERT INTO social_club_members(club_id,username) VALUES($1,$2) ON CONFLICT DO NOTHING",[req.params.id,user.rows[0].username]);
+      res.json({success:true,username:user.rows[0].username});
+    } catch(error) { console.error("Club invite error:",error.message); res.status(500).json({success:false,message:"Couldn't invite this member."}); }
   });
   router.get("/clubs/:id/posts", auth, async (req,res) => {
     try {
