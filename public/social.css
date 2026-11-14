@@ -163,3 +163,40 @@
 /* Keep the global social navigation available while using the redesigned inbox */
 .social-chat-room{left:248px}
 @media(max-width:650px){.social-chat-room{left:0;bottom:66px}}
+
+
+/* Jetchat 3.8 social expansion: Clubs, Pulse, Relay and Trending */
+.social-feature-page{width:min(100%,980px);margin:0 auto;padding:26px clamp(14px,3vw,34px) 60px;overflow:auto;max-height:calc(100dvh - 100px);color:#edf1fb}
+.social-feature-heading{margin:4px 0 22px}
+.social-feature-heading h2{margin:4px 0 7px;font-size:clamp(27px,4vw,38px);letter-spacing:-.04em}
+.social-feature-heading>p:last-child{margin:0;color:#9ca9bf;line-height:1.55}
+.social-feature-card{padding:20px;margin:0 0 16px;border:1px solid #29364b;border-radius:17px;background:linear-gradient(145deg,#151f30,#101827);box-shadow:0 12px 35px #0002}
+.social-feature-card h3{margin:0 0 14px;font-size:18px}
+.social-feature-muted{color:#94a2b9;font-size:13px}
+.social-feature-form{display:grid;gap:10px}
+.social-feature-form input,.social-feature-form textarea,.social-feature-form select{width:100%;min-width:0;padding:12px 13px;border:1px solid #34425a;border-radius:10px;background:#0c1421;color:#f4f6fc;font:inherit;resize:vertical}
+.social-feature-form textarea{min-height:76px}
+.social-feature-button,.social-trend-tag{padding:10px 15px;border:1px solid #5865f2;border-radius:10px;background:#5865f2;color:white;font-weight:700;cursor:pointer}
+.social-feature-button:hover,.social-trend-tag:hover{filter:brightness(1.12)}
+.social-feature-button:disabled{opacity:.55;cursor:wait}
+.social-feature-list{display:grid;gap:10px}
+.social-feature-list-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px;border:1px solid #2b3850;border-radius:13px;background:#111b2a}
+.social-feature-list-item>div{min-width:0}
+.social-feature-list-item h4{margin:0 0 5px;font-size:16px}
+.social-feature-list-item p{margin:4px 0;color:#b5c0d3;overflow-wrap:anywhere}
+.social-feature-list-item small,.social-feature-card>small{color:#8797b1;font-size:12px}
+.social-feature-list-item .social-feature-button{flex-shrink:0}
+.social-feature-card>.social-feature-list-item{margin-top:9px}
+.social-trend-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid #29364b}
+.social-trend-row>span{color:#7788a4;font-weight:700;min-width:28px}
+.social-trend-row small{margin-left:auto;color:#91a0b8}
+.social-trend-tag{background:#1b2c46;border-color:#344c72;color:#dce7ff}
+.social-relay-entry{margin:10px 0;padding:14px 16px;border-left:3px solid #8b7cff;border-radius:0 12px 12px 0;background:#111c2d}
+.social-relay-entry small{color:#9a8eff;font-weight:800;letter-spacing:.08em}
+.social-relay-entry p{margin:8px 0 0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.social-feature-page .social-status{margin:0;color:#a9b7cf;font-size:13px}
+.social-feature-page .social-back{margin-bottom:18px;padding:9px 13px;border:1px solid #35445e;border-radius:9px;background:#172235;color:#dce5f5;cursor:pointer}
+.social-repost{color:#9facc2}
+.social-repost.is-reposted{color:#72d6b0}
+.social-nav[data-view="clubs"],.social-nav[data-view="pulse"],.social-nav[data-view="relay"],.social-nav[data-view="trending"]{margin-top:3px}
+@media(max-width:650px){.social-feature-page{padding:17px 12px 36px;max-height:calc(100dvh - 80px)}.social-feature-card{padding:15px}.social-feature-list-item{align-items:flex-start;flex-direction:column}.social-feature-list-item .social-feature-button{width:100%}.social-trend-row{gap:8px}.social-trend-row small{font-size:11px}}
