@@ -358,7 +358,7 @@
   }
   async function loadPulse() {
     featurePage.replaceChildren(featureHeading("ONE QUESTION. EVERYONE'S VOICE.","Jetchat Pulse","A shared daily question. One response per account each day."));
-    const card=featureCard();card.innerHTML="<div class='social-loading'>Loading today's Pulse…</div>";featurePage.append(card);
+    const card=featureCard();card.innerHTML="<div class='social-loading'>Loading today&#39;s Pulse…</div>";featurePage.append(card);
     try{const data=await request("/pulse");card.replaceChildren();const date=document.createElement("small");date.textContent=new Date(data.date+"T00:00:00").toLocaleDateString(undefined,{dateStyle:"full"});const prompt=document.createElement("h3");prompt.textContent=data.prompt;card.append(date,prompt);
       if(!data.responded){const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Your answer…" required></textarea><button class="social-feature-button" type="submit">Send my Pulse</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/pulse",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});loadPulse();}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
       else{const done=document.createElement("p");done.className="social-feature-muted";done.textContent="You've added your voice today. Come back for the next question.";card.append(done);}
