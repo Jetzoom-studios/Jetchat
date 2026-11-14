@@ -16,6 +16,10 @@
       <button class="social-nav active" data-view="home"><span>⌂</span> Home</button>
       <button class="social-nav" data-view="explore"><span>⌕</span> Explore</button>
       <button class="social-nav" data-view="reels"><span>▶</span> Reels</button>
+      <button class="social-nav" data-view="clubs"><span>◈</span> Clubs</button>
+      <button class="social-nav" data-view="pulse"><span>✦</span> Pulse</button>
+      <button class="social-nav" data-view="relay"><span>⤴</span> Relay</button>
+      <button class="social-nav" data-view="trending"><span>#</span> Trending</button>
       <button class="social-nav" data-view="create"><span>＋</span> Create</button>
       <button class="social-nav" data-view="chats"><span>▤</span> Chat</button>
       <div class="social-rail-spacer"></div>
@@ -30,6 +34,7 @@
           <button class="social-create-top" data-view="create">＋ Create</button>
         </div>
       </header>
+      <section id="socialFeaturePage" class="social-feature-page" hidden></section>
       <div class="social-content">
         <section class="social-feed-column">
           <section id="socialStoriesBar" class="social-stories-bar" aria-label="Stories">
@@ -41,7 +46,7 @@
         </section>
         <aside class="social-side-panel">
           <div class="social-side-card"><span class="social-side-icon">✦</span><h3>Make it yours</h3><p>Follow people whose posts you want to see. Your Home feed will fill up as your circle grows.</p><button data-view="explore">Discover people →</button></div>
-          <div class="social-side-note">Jetchat Social · 3.6.4</div>
+          <div class="social-side-note">Jetchat Social · 3.8.0</div>
         </aside>
       </div>
     </main>
@@ -138,6 +143,8 @@
   updateChatCounts();
 
   const feed = overlay.querySelector("#socialFeed");
+  const featurePage = overlay.querySelector("#socialFeaturePage");
+  const socialContent = overlay.querySelector(".social-content");
   const heading = overlay.querySelector("#socialHeading");
   const modal = overlay.querySelector("#socialModal");
   const createForm = overlay.querySelector("#socialCreateForm");
@@ -297,8 +304,101 @@
     finally { submit.disabled = false; }
   });
 
+
+  function featureHeading(kicker,title,description) {
+    const header=document.createElement("div"); header.className="social-feature-heading";
+    const small=document.createElement("p"); small.className="social-eyebrow"; small.textContent=kicker;
+    const h=document.createElement("h2"); h.textContent=title;
+    const p=document.createElement("p"); p.textContent=description;
+    header.append(small,h,p); return header;
+  }
+  function featureCard(className="social-feature-card") { const node=document.createElement("article"); node.className=className; return node; }
+  function featureButton(label,action,className="social-feature-button") { return makeButton(label,className,action); }
+  function renderFeatureError(container,error,retry) { const p=document.createElement("p"); p.className="social-error"; p.textContent=error.message; container.append(p,featureButton("Try again",retry)); }
+
+  async function loadClubs() {
+    featurePage.replaceChildren(featureHeading("FIND YOUR PEOPLE","Clubs","Communities built around the things you love."));
+    const create=featureCard(); create.innerHTML='<h3>Start a Club</h3><form class="social-feature-form" id="clubCreateForm"><input name="name" maxlength="40" minlength="3" placeholder="Club name" required><textarea name="description" maxlength="240" placeholder="What is this Club about?"></textarea><select name="visibility"><option value="public">Public · anyone can join</option><option value="private">Private · invite-only</option></select><button class="social-feature-button" type="submit">Create Club</button><p class="social-status" role="status"></p></form>';
+    featurePage.append(create);
+    create.querySelector("form").addEventListener("submit",async event=>{
+      event.preventDefault(); const form=event.currentTarget,button=form.querySelector("button"),status=form.querySelector(".social-status");
+      button.disabled=true; status.textContent="Creating…";
+      try { await request("/clubs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:form.elements.name.value,description:form.elements.description.value,visibility:form.elements.visibility.value})}); loadClubs(); }
+      catch(error){status.textContent=error.message;} finally{button.disabled=false;}
+    });
+    const list=featureCard(); list.innerHTML="<h3>Discover Clubs</h3><p class='social-feature-muted'>Join a public community or revisit one you've joined.</p><div class='social-feature-list' id='clubList'>Loading Clubs…</div>"; featurePage.append(list);
+    try {
+      const data=await request("/clubs"); const target=list.querySelector("#clubList"); target.replaceChildren();
+      if(!data.clubs.length){target.textContent="No Clubs yet. Create the first one.";}
+      data.clubs.forEach(club=>{
+        const item=featureCard("social-feature-list-item"); const info=document.createElement("div");
+        const title=document.createElement("h4"); title.textContent=club.name;
+        const desc=document.createElement("p"); desc.textContent=club.description||"A Jetchat community.";
+        const meta=document.createElement("small"); meta.textContent=club.member_count+" members · "+club.visibility+" · by @"+club.owner;
+        info.append(title,desc,meta); item.append(info);
+        if(club.joined) item.append(featureButton("Open",()=>openClub(club)));
+        else item.append(featureButton("Join Club",async event=>{const button=event.currentTarget;button.disabled=true;try{await request("/clubs/"+club.id+"/join",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});loadClubs();}catch(error){button.title=error.message;button.disabled=false;}}));
+        target.append(item);
+      });
+    } catch(error){list.querySelector("#clubList").textContent=error.message;}
+  }
+  async function openClub(club) {
+    featurePage.replaceChildren(featureButton("← All Clubs",loadClubs,"social-back"),featureHeading("CLUB SPACE",club.name,club.description||"A place for members to share."));
+    if(["owner","moderator"].includes(club.my_role)){const invite=featureCard();invite.innerHTML='<h3>Invite a member</h3><form class="social-feature-form"><input name="username" maxlength="20" placeholder="Jetchat username" required><button class="social-feature-button" type="submit">Invite</button><p class="social-status" role="status"></p></form>';featurePage.append(invite);invite.querySelector("form").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{const result=await request("/clubs/"+club.id+"/invite",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:form.elements.username.value})});status.textContent="@"+result.username+" added to the Club.";form.reset();}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
+    const formCard=featureCard(); formCard.innerHTML='<form class="social-feature-form"><textarea name="body" maxlength="1000" placeholder="Share something with this Club…" required></textarea><button class="social-feature-button" type="submit">Publish to Club</button><p class="social-status" role="status"></p></form>'; featurePage.append(formCard);
+    formCard.querySelector("form").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/clubs/"+club.id+"/posts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});form.reset();status.textContent="Posted!";loadClubPosts(club,postList);}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
+    const posts=featureCard();posts.innerHTML="<h3>Club discussions</h3><div class='social-feature-list'>Loading…</div>";featurePage.append(posts);const postList=posts.querySelector(".social-feature-list");loadClubPosts(club,postList);
+  }
+  async function loadClubPosts(club,card) {
+    const target=card||featurePage.querySelector(".social-feature-card:last-child")?.querySelector(".social-feature-list");if(!target)return;
+    try{const data=await request("/clubs/"+club.id+"/posts");target.replaceChildren();if(!data.posts.length){target.textContent="No posts yet. Start the conversation." ;return;}
+      data.posts.forEach(post=>{const item=featureCard("social-feature-list-item");const author=document.createElement("strong");author.textContent="@"+post.username;const body=document.createElement("p");body.textContent=post.body;const time=document.createElement("small");time.textContent=timeAgo(post.created_at);item.append(author,body,time);target.append(item);});
+    }catch(error){target.textContent=error.message;}
+  }
+  async function loadPulse() {
+    featurePage.replaceChildren(featureHeading("ONE QUESTION. EVERYONE'S VOICE.","Jetchat Pulse","A shared daily question. One response per account each day."));
+    const card=featureCard();card.innerHTML="<div class='social-loading'>Loading today's Pulse…</div>";featurePage.append(card);
+    try{const data=await request("/pulse");card.replaceChildren();const date=document.createElement("small");date.textContent=new Date(data.date+"T00:00:00").toLocaleDateString(undefined,{dateStyle:"full"});const prompt=document.createElement("h3");prompt.textContent=data.prompt;card.append(date,prompt);
+      if(!data.responded){const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Your answer…" required></textarea><button class="social-feature-button" type="submit">Send my Pulse</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/pulse",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});loadPulse();}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
+      else{const done=document.createElement("p");done.className="social-feature-muted";done.textContent="You've added your voice today. Come back for the next question.";card.append(done);}
+      const responses=featureCard();const title=document.createElement("h3");title.textContent="Today's answers · "+data.responses.length;responses.append(title);data.responses.forEach(row=>{const line=document.createElement("p");const strong=document.createElement("strong");strong.textContent="@"+row.username+" ";line.append(strong,document.createTextNode(row.body));responses.append(line);});if(!data.responses.length){const empty=document.createElement("p");empty.textContent="Be the first to answer.";responses.append(empty);}featurePage.append(responses);
+    }catch(error){renderFeatureError(card,error,loadPulse);}
+  }
+  async function loadTrending() {
+    featurePage.replaceChildren(featureHeading("WHAT'S MOVING","Trending","Hashtags appearing most often in posts from the last seven days."));
+    const card=featureCard();card.innerHTML="<div class='social-loading'>Finding what's trending…</div>";featurePage.append(card);
+    try{const data=await request("/trending");card.replaceChildren();if(!data.trends.length){card.textContent="No trending hashtags yet. Add a hashtag to a post and start a conversation.";return;}
+      data.trends.forEach((trend,index)=>{const row=featureCard("social-trend-row");const rank=document.createElement("span");rank.textContent="#"+(index+1);const tag=featureButton("#"+trend.tag,()=>{openView("create");document.getElementById("socialPostBody").value="#"+trend.tag+" ";},"social-trend-tag");const count=document.createElement("small");count.textContent=trend.posts+" posts · 7 days";row.append(rank,tag,count);card.append(row);});
+    }catch(error){renderFeatureError(card,error,loadTrending);}
+  }
+  async function loadRelay() {
+    featurePage.replaceChildren(featureHeading("MAKE SOMETHING TOGETHER","Relay","A chain of contributions. Every person adds the next piece."));
+    const create=featureCard();create.innerHTML='<h3>Start a Relay</h3><form class="social-feature-form" id="relayCreateForm"><input name="title" maxlength="100" placeholder="Give your Relay a title" required><textarea name="first" maxlength="280" placeholder="Write the opening contribution…" required></textarea><button class="social-feature-button" type="submit">Start the chain</button><p class="social-status" role="status"></p></form>';featurePage.append(create);
+    create.querySelector("form").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/relay",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:form.elements.title.value,first:form.elements.first.value})});loadRelay();}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});
+    const list=featureCard();list.innerHTML="<h3>Open Relays</h3><div class='social-feature-list'>Loading…</div>";featurePage.append(list);
+    try{const data=await request("/relay");const target=list.querySelector(".social-feature-list");target.replaceChildren();if(!data.relays.length){target.textContent="No Relays yet. Start the first one.";return;}
+      data.relays.forEach(relay=>{const row=featureCard("social-feature-list-item");const info=document.createElement("div");const title=document.createElement("h4");title.textContent=relay.title;const meta=document.createElement("small");meta.textContent=relay.entries+" contributions · started by @"+relay.starter;const latest=document.createElement("p");latest.textContent=relay.latest||"Be the first to add to the chain.";info.append(title,meta,latest);row.append(info,featureButton("Continue",()=>openRelay(relay)));target.append(row);});
+    }catch(error){target.textContent=error.message;}
+  }
+  async function openRelay(relay) {
+    featurePage.replaceChildren(featureButton("← All Relays",loadRelay,"social-back"),featureHeading("COMMUNITY CREATION",relay.title,"Add the next contribution to the chain."));
+    const card=featureCard();card.innerHTML="<div class='social-loading'>Loading Relay…</div>";featurePage.append(card);
+    try{const data=await request("/relay/"+relay.id);card.replaceChildren();data.entries.forEach((entry,index)=>{const row=featureCard("social-relay-entry");const n=document.createElement("small");n.textContent="PART "+(index+1)+" · @"+entry.username;const body=document.createElement("p");body.textContent=entry.body;row.append(n,body);card.append(row);});
+      if(data.relay.is_open){const form=document.createElement("form");form.className="social-feature-form";form.innerHTML='<textarea name="body" maxlength="280" placeholder="Continue the creation…" required></textarea><button class="social-feature-button" type="submit">Add my part</button><p class="social-status" role="status"></p>';card.append(form);form.addEventListener("submit",async event=>{event.preventDefault();const button=form.querySelector("button"),status=form.querySelector(".social-status");button.disabled=true;try{await request("/relay/"+relay.id+"/entries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:form.elements.body.value})});openRelay(relay);}catch(error){status.textContent=error.message;}finally{button.disabled=false;}});}
+    }catch(error){renderFeatureError(card,error,()=>openRelay(relay));}
+  }
+
   function openView(view) {
     if (view === "chats") view = "chatroom";
+    const featureViews = ["clubs","pulse","relay","trending"];
+    if(featureViews.includes(view)){
+      overlay.hidden=false;currentView=view;socialMain.hidden=false;chatHub.hidden=true;chatRoom.hidden=true;modal.hidden=true;
+      featurePage.hidden=false;socialContent.hidden=true;storyBar.hidden=true;heading.textContent=view==="clubs"?"Clubs":view==="pulse"?"Pulse":view==="relay"?"Relay":"Trending";
+      overlay.querySelectorAll(".social-nav").forEach(button=>button.classList.toggle("active",button.dataset.view===view));
+      if(view==="clubs")loadClubs();else if(view==="pulse")loadPulse();else if(view==="relay")loadRelay();else loadTrending();
+      loadNotifications();return;
+    }
+    featurePage.hidden=true;socialContent.hidden=false;
     overlay.hidden = false;
     currentView = view;
     overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "chatroom" && button.dataset.view === "chats") || (view === "home" && button.dataset.view === "home")));
@@ -477,7 +577,8 @@
     actions.className = "social-post-actions";
     const like = makeButton((post.likedByMe ? "♥" : "♡") + "  " + post.likeCount, "social-like" + (post.likedByMe ? " liked" : ""), () => toggleLike(post, like));
     const comments = makeButton("▱  " + post.commentCount + " comments", "social-comment-toggle", () => showComments(post.id, card));
-    actions.append(like, comments);
+    const repost = makeButton("↻ " + (post.repostCount||0) + " Repost", "social-repost" + (post.repostedByMe?" is-reposted":""), async () => { const quote=window.prompt("Add a comment to create a quote post. Leave blank for a simple repost:",""); if(quote===null)return; repost.disabled=true; try{if(quote.trim()){await request("/posts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:"↪ @"+post.username+": "+String(post.body||"").slice(0,500)+"\n\n"+quote.trim().slice(0,280)})});repost.textContent="↪ Quoted";repost.classList.add("is-reposted");}else{const result=await request("/posts/"+encodeURIComponent(post.id)+"/repost",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});post.repostedByMe=result.reposted;post.repostCount=result.count;repost.textContent="↻ "+result.count+" Repost";repost.classList.toggle("is-reposted",result.reposted);}}catch(error){repost.title=error.message;}finally{repost.disabled=false;} });
+    actions.append(like, comments, repost);
     card.append(actions);
 
     const commentArea = document.createElement("div");
