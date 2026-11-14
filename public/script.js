@@ -251,7 +251,41 @@ signupButton.addEventListener("click", () => {
 // =========================
 // CHAT NAVIGATION
 // =========================
+function closeMobileDrawer() {
+    document.body.classList.remove("mobile-nav-open");
+    const menuButton = document.getElementById("mobileMenuBtn");
+    if (menuButton) {
+        menuButton.setAttribute("aria-expanded", "false");
+        menuButton.setAttribute("aria-label", "Open navigation");
+    }
+}
+
+function openMobileDrawer() {
+    document.body.classList.add("mobile-nav-open");
+    const menuButton = document.getElementById("mobileMenuBtn");
+    if (menuButton) {
+        menuButton.setAttribute("aria-expanded", "true");
+        menuButton.setAttribute("aria-label", "Close navigation");
+    }
+}
+
+const mobileMenuButton = document.getElementById("mobileMenuBtn");
+const mobileNavBackdrop = document.getElementById("mobileNavBackdrop");
+
+mobileMenuButton?.addEventListener("click", () => {
+    if (document.body.classList.contains("mobile-nav-open")) {
+        closeMobileDrawer();
+    } else {
+        openMobileDrawer();
+    }
+});
+mobileNavBackdrop?.addEventListener("click", closeMobileDrawer);
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeMobileDrawer();
+});
+
 function openConversation(chat) {
+    closeMobileDrawer();
     currentChat = chat;
 
     document.querySelector(".chat-title h2").textContent =
@@ -649,7 +683,10 @@ function openSavedMessagesVault() {
     });
 }
 
-document.getElementById("savedMessagesBtn")?.addEventListener("click", openSavedMessagesVault);
+document.getElementById("savedMessagesBtn")?.addEventListener("click", () => {
+    closeMobileDrawer();
+    openSavedMessagesVault();
+});
 document.getElementById("closeSavedMessages")?.addEventListener("click", () => {
     document.getElementById("savedMessagesModal").style.display = "none";
 });
