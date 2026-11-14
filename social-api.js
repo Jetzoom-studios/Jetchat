@@ -165,7 +165,7 @@ function requireSession(getRequestSession) {
   };
 }
 
-module.exports = function createSocialRouter(getRequestSession, io) {
+module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFriend) {
   const auth = requireSession(getRequestSession);
   async function createNotification(recipient, actor, type, message, targetId = null) {
     if (!recipient || !actor || recipient.toLowerCase() === actor.toLowerCase()) return;
@@ -226,6 +226,9 @@ module.exports = function createSocialRouter(getRequestSession, io) {
       if (!story.rowCount) return res.status(404).json({ success: false, message: "This Story has expired." });
       const owner = story.rows[0].username;
       if (owner === req.socialUser.username) return res.status(400).json({ success: false, message: "You can't reply to your own Story." });
+      if (typeof isAcceptedFriend !== "function" || !(await isAcceptedFriend(req.socialUser.username, owner))) {
+        return res.status(403).json({ success: false, message: "You can only reply to Stories from friends. Add each other as friends first." });
+      }
       await createNotification(owner, req.socialUser.username, "story_reply", "replied to your Story: " + body, req.params.id);
       res.json({ success: true, recipient: owner, storyId: String(req.params.id) });
     } catch (error) { console.error("Story reply notification error:", error.message); res.status(500).json({ success: false, message: "Couldn't send your Story reply." }); }
