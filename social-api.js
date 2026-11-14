@@ -169,6 +169,8 @@ module.exports = function createSocialRouter(getRequestSession) {
   // Stories are available for 24 hours and are only served to signed-in users.
   router.get("/stories", auth, async (req, res) => {
     try {
+      // Remove expired records and their view rows; stories are temporary, not archived posts.
+      await pool.query("DELETE FROM social_stories WHERE expires_at <= NOW()");
       const result = await pool.query(`
         SELECT s.id,s.username,s.caption,s.media_type,s.created_at,s.expires_at,
           (SELECT COUNT(*) FROM social_story_views v WHERE v.story_id=s.id)::INT AS view_count,
