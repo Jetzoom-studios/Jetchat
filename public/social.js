@@ -15,9 +15,9 @@
       <div class="social-brand"><span class="social-brand-mark">J</span><span>Jetchat</span></div>
       <button class="social-nav active" data-view="home"><span>⌂</span> Home</button>
       <button class="social-nav" data-view="explore"><span>⌕</span> Explore</button>
-      <button class="social-nav" data-view="create"><span>＋</span> Create post</button>
+      <button class="social-nav" data-view="create"><span>＋</span> Create</button>
+      <button class="social-nav" data-view="chats"><span>▤</span> Chat</button>
       <div class="social-rail-spacer"></div>
-      <button class="social-nav social-return" data-view="chats"><span>▤</span> Back to chats</button>
       <div class="social-rail-footer">Your world. Your people.</div>
     </aside>
     <main class="social-main">
@@ -36,6 +36,16 @@
         </aside>
       </div>
     </main>
+    <section id="socialChatHub" class="social-chat-hub" hidden aria-label="Chats">
+      <header class="social-chat-heading"><div><p class="social-eyebrow">YOUR CONVERSATIONS</p><h1>Chat</h1></div><span class="social-chat-count" id="socialChatCount">Your people, all in one place</span></header>
+      <div class="social-chat-hub-content">
+        <section class="social-add-friends-card"><h2>Add friends</h2><p>Find people and start a conversation.</p><div id="socialFriendSearchMount"></div><div id="socialFriendResultsMount"></div></section>
+        <button id="socialGlobalChatMount" class="social-global-chat"><span class="social-global-icon">◎</span><span><strong>Global Chat</strong><small>Join the community conversation</small></span><span class="social-chat-arrow">›</span></button>
+        <section class="social-chat-list-card"><div class="social-chat-list-heading"><h2>Recent conversations</h2><span id="socialDmCount"></span></div><div id="socialDmSearchMount"></div><div id="socialDmListMount"></div></section>
+        <section class="social-chat-list-card social-groups-card"><div class="social-chat-list-heading"><h2>Group chats</h2><button id="socialCreateGroupMount" type="button">＋ New group</button></div><div id="socialGroupListMount"></div></section>
+      </div>
+    </section>
+
     <div id="socialModal" class="social-modal" hidden>
       <form id="socialCreateForm" class="social-modal-card">
         <div class="social-modal-head"><div><p class="social-eyebrow">SHARE SOMETHING</p><h2>Create a post</h2></div><button type="button" class="social-modal-close" aria-label="Close">×</button></div>
@@ -49,16 +59,32 @@
   `;
   app.appendChild(overlay);
 
-  const launcher = document.createElement("button");
-  launcher.type = "button";
-  launcher.className = "social-launcher";
-  launcher.textContent = "✦ Explore Jetchat";
-  launcher.addEventListener("click", () => openView("home"));
   const sidebar = document.getElementById("mobileSidebar");
-  if (sidebar) {
-    const logo = sidebar.querySelector(".logo");
-    if (logo) logo.insertAdjacentElement("afterend", launcher);
-  }
+  const chatHub = overlay.querySelector("#socialChatHub");
+  const socialMain = overlay.querySelector(".social-main");
+  const mount = (elementId, targetId) => {
+    const element = document.getElementById(elementId);
+    const target = overlay.querySelector("#" + targetId);
+    if (element && target && element.parentElement !== target) target.appendChild(element);
+  };
+  // Reuse the real chat controls and live-rendered lists; no duplicate chat state.
+  mount("friendSearchInput", "socialFriendSearchMount");
+  mount("friendSearchResults", "socialFriendResultsMount");
+  mount("globalChatBtn", "socialGlobalChatMount");
+  mount("dmSearchInput", "socialDmSearchMount");
+  mount("dmList", "socialDmListMount");
+  mount("createGroupBtn", "socialCreateGroupMount");
+  mount("groupList", "socialGroupListMount");
+  const chatHubCount = overlay.querySelector("#socialChatCount");
+  const dmCount = overlay.querySelector("#socialDmCount");
+  const updateChatCounts = () => {
+    if (dmCount) dmCount.textContent = document.getElementById("dmConversationCount")?.textContent || "";
+    if (chatHubCount) chatHubCount.textContent = "Your conversations, always in reach";
+  };
+  const countObserver = new MutationObserver(updateChatCounts);
+  const countNode = document.getElementById("dmConversationCount");
+  if (countNode) countObserver.observe(countNode, { childList: true, characterData: true, subtree: true });
+  updateChatCounts();
 
   const feed = overlay.querySelector("#socialFeed");
   const heading = overlay.querySelector("#socialHeading");
@@ -68,14 +94,17 @@
   const imageInput = overlay.querySelector("#socialPostImage");
 
   function openView(view) {
-    if (view === "chats") {
+    if (view === "chatroom") {
       overlay.hidden = true;
       return;
     }
     overlay.hidden = false;
     currentView = view;
-    overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view));
-    if (view === "create") { modal.hidden = false; return; }
+    overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "home" && button.dataset.view === "home")));
+    if (socialMain) socialMain.hidden = view === "chats";
+    if (chatHub) chatHub.hidden = view !== "chats";
+    if (view === "chats") { modal.hidden = true; updateChatCounts(); return; }
+    if (view === "create") { modal.hidden = false; socialMain.hidden = false; chatHub.hidden = true; return; }
     modal.hidden = true;
     heading.textContent = view === "explore" ? "Explore" : "Your feed";
     const storiesHint = overlay.querySelector("#socialStoriesHint");
@@ -324,4 +353,5 @@
 
   window.addEventListener("keydown", event => { if (event.key === "Escape" && !overlay.hidden) { if (!modal.hidden) closeModal(); else openView("chats"); } });
   window.openJetchatSocial = openView;
+  // Social is the signed-in landing screen; chat opens only after choosing a conversation.
 })();
