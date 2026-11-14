@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.6.4",
-    version: "3.6.4",
-    title: "Jetchat Explore",
+    id: "jetchat-3.7.0",
+    version: "3.7.0",
+    title: "Jetchat Goes Social",
     date: "November 14, 2026",
     items: [
-        "Jetchat is now more than chat: discover the new social Home and Explore feeds.",
-        "Create text and photo posts and share moments with the community.",
-        "Follow accounts, visit profiles, and build your own Jetchat circle.",
-        "Like posts and join conversations through comments.",
-        "Your posts, follows, likes and comments are saved in PostgreSQL."
+        "Jetchat now opens on your social Home feed when you sign in.",
+        "Use Home, Explore and Create from the new social navigation.",
+        "Chat has its own dedicated hub instead of opening a conversation automatically.",
+        "Find friends, jump into Global Chat, and browse your recent direct messages from one place.",
+        "Your existing conversations, groups, posts, follows and account data remain in place."
     ]
 };
 
