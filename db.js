@@ -697,6 +697,42 @@ async function acceptFriendRequest(sender, receiver) {
 // =========================
 // GET FRIENDS
 // =========================
+// =========================
+// SEARCH USERS FOR FRIEND DISCOVERY
+// =========================
+async function searchUsers(query, requester) {
+    const term = String(query || "").trim().slice(0, 20);
+    if (term.length < 2) return [];
+
+    const result = await pool.query(
+        `
+        SELECT
+            u.username,
+            COALESCE(u.avatar, '') AS avatar,
+            COALESCE(u.bio, '') AS bio,
+            CASE
+                WHEN f.status = 'accepted' THEN 'friend'
+                WHEN f.status = 'pending' AND f.sender = $2 THEN 'sent'
+                WHEN f.status = 'pending' AND f.receiver = $2 THEN 'received'
+                ELSE 'none'
+            END AS relationship
+        FROM users u
+        LEFT JOIN friends f
+          ON (f.sender = $2 AND f.receiver = u.username)
+          OR (f.sender = u.username AND f.receiver = $2)
+        WHERE LOWER(u.username) LIKE LOWER($1)
+          AND u.username <> $2
+        ORDER BY
+            CASE WHEN LOWER(u.username) = LOWER($3) THEN 0 ELSE 1 END,
+            LOWER(u.username)
+        LIMIT 20
+        `,
+        [`%${term}%`, requester, term]
+    );
+
+    return result.rows;
+}
+
 async function getFriends(username) {
 
     const result = await pool.query(
@@ -892,6 +928,7 @@ module.exports = {
     getFriendRequests,
     acceptFriendRequest,
     getFriends,
+    searchUsers,
 
     loadMessages,
      loadChat,
