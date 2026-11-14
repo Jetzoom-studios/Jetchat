@@ -933,7 +933,7 @@ function openSavedMessagesVault() {
             card.className = "saved-message-card";
             const meta = document.createElement("div");
             meta.className = "saved-message-meta";
-            meta.textContent = `${saved.author_username} · ${saved.chat === "global" ? "Global Chat" : "Direct Message"} · ${formatDMTime(saved.saved_at)}`;
+            meta.textContent = `${saved.author_username} · ${saved.chat === "global" ? "Global Chat" : String(saved.chat).startsWith("group:") ? "Group Chat" : "Direct Message"} · ${formatDMTime(saved.saved_at)}`;
             const body = document.createElement("p");
             body.textContent = saved.message_text;
             const actions = document.createElement("div");
@@ -1263,9 +1263,10 @@ function notifyIncomingMessage(data) {
     unreadByChat[chatId] = (unreadByChat[chatId] || 0) + 1;
     updateUnreadCount();
 
+    const group = getGroupByChat(chatId);
     const chatName = chatId === "global"
         ? "Global chat"
-        : data.username;
+        : group ? group.name : data.username;
 
     showInAppNotification(
         `New message from ${chatName}`,
@@ -1339,7 +1340,7 @@ window.addEventListener("focus", () => {
     isTabActive = true;
     clearUnreadForChat(currentChat);
 
-    if (currentChat !== "global" && jetchatSettings.readReceipts) {
+    if (currentChat !== "global" && !String(currentChat).startsWith("group:") && jetchatSettings.readReceipts) {
         socket.emit("mark chat read", currentChat, () => loadDMConversations());
     }
 });
