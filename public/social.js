@@ -603,6 +603,88 @@
     return card;
   }
 
+  function prepareReelCard(post, card) {
+    const video = card.querySelector(".social-post-video");
+    const head = card.querySelector(".social-post-head");
+    const caption = card.querySelector(".social-post-body");
+    const actions = card.querySelector(".social-post-actions");
+    const comments = card.querySelector(".social-comments");
+    if (!video || !head || !actions) return;
+
+    card.classList.add("social-reel-card");
+    video.controls = false;
+    video.autoplay = false;
+    video.muted = true;
+    video.playsInline = true;
+    video.loop = true;
+    video.preload = "metadata";
+    video.dataset.userPaused = "false";
+
+    const stage = document.createElement("div");
+    stage.className = "social-reel-stage";
+    const shade = document.createElement("div");
+    shade.className = "social-reel-shade";
+    shade.setAttribute("aria-hidden", "true");
+    const progress = document.createElement("div");
+    progress.className = "social-reel-progress";
+    const progressFill = document.createElement("span");
+    progress.append(progressFill);
+    video.addEventListener("timeupdate", () => {
+      const ratio = video.duration ? video.currentTime / video.duration : 0;
+      progressFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, ratio)) + ")";
+    });
+    video.addEventListener("ended", () => { progressFill.style.transform = "scaleX(0)"; });
+
+    const tools = document.createElement("div");
+    tools.className = "social-reel-tools";
+    const sound = document.createElement("button");
+    sound.type = "button";
+    sound.className = "social-reel-tool";
+    sound.textContent = "♪";
+    sound.setAttribute("aria-label", "Turn sound on");
+    sound.title = "Turn sound on";
+    sound.addEventListener("click", () => {
+      video.muted = !video.muted;
+      sound.textContent = video.muted ? "♪" : "♫";
+      sound.setAttribute("aria-label", video.muted ? "Turn sound on" : "Mute video");
+      sound.title = video.muted ? "Turn sound on" : "Mute video";
+    });
+    const pause = document.createElement("button");
+    pause.type = "button";
+    pause.className = "social-reel-tool";
+    pause.textContent = "Ⅱ";
+    pause.setAttribute("aria-label", "Pause video");
+    pause.title = "Pause video";
+    const togglePlayback = () => {
+      if (video.paused) {
+        video.dataset.userPaused = "false";
+        video.play().catch(() => {});
+        pause.textContent = "Ⅱ";
+        pause.setAttribute("aria-label", "Pause video");
+        pause.title = "Pause video";
+      } else {
+        video.dataset.userPaused = "true";
+        video.pause();
+        pause.textContent = "▶";
+        pause.setAttribute("aria-label", "Play video");
+        pause.title = "Play video";
+      }
+    };
+    pause.addEventListener("click", togglePlayback);
+    video.addEventListener("click", togglePlayback);
+    tools.append(sound, pause);
+
+    const mediaLabel = document.createElement("span");
+    mediaLabel.className = "social-reel-media-label";
+    mediaLabel.textContent = "REELS";
+    stage.append(video);
+    if (caption) stage.append(caption);
+    stage.append(shade, mediaLabel, progress, tools);
+    if (comments) stage.append(comments);
+    card.replaceChildren(head, stage, actions);
+    card.dataset.reelPostId = String(post.id);
+  }
+
   async function loadPosts(view) {
     feed.classList.toggle("social-reels-feed", view === "reels");
     feed.innerHTML = '<div class="social-loading">Loading posts…</div>';
@@ -617,18 +699,22 @@
         feed.append(empty);
         return;
       }
-      data.posts.forEach(post => feed.append(renderPost(post)));
+      data.posts.forEach(post => {
+        const card = renderPost(post);
+        if (view === "reels") prepareReelCard(post, card);
+        feed.append(card);
+      });
       if (view === "reels") {
         const videos = [...feed.querySelectorAll("video")];
         if ("IntersectionObserver" in window) {
           const observer = new IntersectionObserver(entries => entries.forEach(entry => {
             const video = entry.target;
-            if (entry.isIntersecting && entry.intersectionRatio >= 0.65) video.play().catch(() => {});
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.72 && video.dataset.userPaused !== "true") video.play().catch(() => {});
             else video.pause();
           }), { threshold: [0, 0.65, 1] });
           videos.forEach(video => observer.observe(video));
         } else {
-          videos.forEach(video => video.play().catch(() => {}));
+          videos.forEach(video => { if (video.dataset.userPaused !== "true") video.play().catch(() => {}); });
         }
       }
     } catch (error) {
