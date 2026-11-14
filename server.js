@@ -1125,11 +1125,23 @@ socket.on("dismiss update", async (updateId, callback) => {
 // =========================
 // START SERVER
 // =========================
-server.listen(PORT, () => {
-    console.log("");
-    console.log("=================================");
-    console.log("🚀 Jetchat is running!");
-    console.log(`🌐 Port: ${PORT}`);
-    console.log("=================================");
-    console.log("");
-});
+async function startServer() {
+    try {
+        await db.migratePlaintextPasswords();
+    } catch (error) {
+        console.error("Password security migration failed. Server startup stopped:", error.message);
+        process.exit(1);
+        return;
+    }
+
+    server.listen(PORT, () => {
+        console.log("");
+        console.log("=================================");
+        console.log("🚀 Jetchat is running!");
+        console.log(`🌐 Port: ${PORT}`);
+        console.log("=================================");
+        console.log("");
+    });
+}
+
+startServer();

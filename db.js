@@ -1,6 +1,80 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const { promisify } = require("util");
 const { Pool } = require("pg");
+
+const scryptAsync = promisify(crypto.scrypt);
+const PASSWORD_HASH_PREFIX = "scrypt";
+const PASSWORD_SCRYPT_OPTIONS = {
+    N: 16384,
+    r: 8,
+    p: 1,
+    maxmem: 64 * 1024 * 1024
+};
+
+async function hashPassword(password) {
+    const salt = crypto.randomBytes(16);
+    const derivedKey = await scryptAsync(
+        String(password),
+        salt,
+        64,
+        PASSWORD_SCRYPT_OPTIONS
+    );
+
+    return [
+        PASSWORD_HASH_PREFIX,
+        PASSWORD_SCRYPT_OPTIONS.N,
+        PASSWORD_SCRYPT_OPTIONS.r,
+        PASSWORD_SCRYPT_OPTIONS.p,
+        salt.toString("hex"),
+        derivedKey.toString("hex")
+    ].join("$");
+}
+
+async function verifyPassword(password, storedValue) {
+    if (typeof storedValue !== "string" || !storedValue.startsWith(PASSWORD_HASH_PREFIX + "$")) {
+        return false;
+    }
+
+    const parts = storedValue.split("$");
+    if (parts.length !== 6) return false;
+
+    const [, nValue, rValue, pValue, saltHex, hashHex] = parts;
+    const N = Number(nValue);
+    const r = Number(rValue);
+    const p = Number(pValue);
+
+    if (
+        !Number.isInteger(N) || N < 16384 ||
+        !Number.isInteger(r) || r < 1 ||
+        !Number.isInteger(p) || p < 1 ||
+        !/^[a-f0-9]{32}$/i.test(saltHex) ||
+        !/^[a-f0-9]{128}$/i.test(hashHex)
+    ) return false;
+
+    const expected = Buffer.from(hashHex, "hex");
+    const actual = await scryptAsync(
+        String(password),
+        Buffer.from(saltHex, "hex"),
+        expected.length,
+        { N, r, p, maxmem: 64 * 1024 * 1024 }
+    );
+
+    return crypto.timingSafeEqual(actual, expected);
+}
+
+function publicUser(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        username: row.username,
+        avatar: row.avatar || "",
+        bio: row.bio || "",
+        join_date: row.join_date,
+        show_online: row.show_online !== false
+    };
+}
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -65,6 +139,7 @@ function saveUsers(users) {
 // CREATE USER
 // =========================
 async function createUser(username, password) {
+    await ensureShowOnlineColumn();
 
     const existing = await pool.query(
         "SELECT id FROM users WHERE username = $1",
@@ -78,6 +153,7 @@ async function createUser(username, password) {
         };
     }
 
+    const passwordHash = await hashPassword(password);
     const result = await pool.query(
         `
         INSERT INTO users
@@ -88,22 +164,15 @@ async function createUser(username, password) {
             bio,
             join_date
         )
-        VALUES
-        (
-            $1,
-            $2,
-            '',
-            '',
-            NOW()
-        )
-        RETURNING *
+        VALUES ($1, $2, '', '', NOW())
+        RETURNING id, username, avatar, bio, join_date, show_online
         `,
-        [username, password]
+        [username, passwordHash]
     );
 
     return {
         success: true,
-        user: result.rows[0]
+        user: publicUser(result.rows[0])
     };
 }
 
@@ -125,9 +194,9 @@ async function loginUser(username, password) {
         SELECT *
         FROM users
         WHERE username = $1
-        AND password = $2
+        LIMIT 1
         `,
-        [username, password]
+        [username]
     );
 
     if (result.rows.length === 0) {
@@ -137,9 +206,17 @@ async function loginUser(username, password) {
         };
     }
 
+    const validPassword = await verifyPassword(password, result.rows[0].password);
+    if (!validPassword) {
+        return {
+            success: false,
+            message: "Invalid login"
+        };
+    }
+
     return {
         success: true,
-        user: result.rows[0]
+        user: publicUser(result.rows[0])
     };
 }
 
@@ -907,6 +984,33 @@ async function getSavedMessages(username) {
     return result.rows;
 }
 
+// Convert every existing plaintext password before the server accepts
+// connections. The migration is idempotent and never logs password values.
+async function migratePlaintextPasswords() {
+    await ensureShowOnlineColumn();
+
+    const result = await pool.query(
+        "SELECT id, password FROM users"
+    );
+
+    let migrated = 0;
+    for (const row of result.rows) {
+        if (typeof row.password === "string" && row.password.startsWith(PASSWORD_HASH_PREFIX + "$")) {
+            continue;
+        }
+
+        const passwordHash = await hashPassword(row.password || "");
+        await pool.query(
+            "UPDATE users SET password = $1 WHERE id = $2",
+            [passwordHash, row.id]
+        );
+        migrated += 1;
+    }
+
+    console.log(`Password security migration complete. Hashed ${migrated} legacy account(s).`);
+    return { migrated };
+}
+
 // =========================
 // EXPORTS
 // =========================
@@ -914,6 +1018,7 @@ module.exports = {
 
     createUser,
     loginUser,
+    migratePlaintextPasswords,
 
     getProfile,
     getDMConversations,
