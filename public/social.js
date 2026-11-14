@@ -296,12 +296,12 @@
     if (view === "chats") view = "chatroom";
     overlay.hidden = false;
     currentView = view;
-    overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "home" && button.dataset.view === "home")));
+    overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "chatroom" && button.dataset.view === "chats") || (view === "home" && button.dataset.view === "home")));
     if (socialMain) socialMain.hidden = view === "chatroom";
     if (storyBar) storyBar.hidden = view !== "home";
     if (chatHub) chatHub.hidden = true;
     if (chatRoom) chatRoom.hidden = view !== "chatroom";
-    if (view === "chatroom") { modal.hidden = true; notificationPanel.hidden = true; updateChatCounts(); return; }
+    if (view === "chatroom") { modal.hidden = true; notificationPanel.hidden = true; updateChatCounts(); setChatFilter("all"); return; }
     if (view === "create") { modal.hidden = false; socialMain.hidden = false; chatHub.hidden = true; return; }
     modal.hidden = true;
     heading.textContent = view === "explore" ? "Explore" : view === "reels" ? "Reels" : "Your feed";
