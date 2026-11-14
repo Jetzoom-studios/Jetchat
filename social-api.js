@@ -579,7 +579,8 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
       const result=await pool.query(`
         SELECT c.id,c.name,c.description,c.owner,c.visibility,c.created_at,
           COUNT(m.username)::INT AS member_count,
-          EXISTS(SELECT 1 FROM social_club_members mine WHERE mine.club_id=c.id AND mine.username=$1) AS joined
+          EXISTS(SELECT 1 FROM social_club_members mine WHERE mine.club_id=c.id AND mine.username=$1) AS joined,
+          COALESCE((SELECT mine.role FROM social_club_members mine WHERE mine.club_id=c.id AND mine.username=$1),'') AS my_role
         FROM social_clubs c LEFT JOIN social_club_members m ON m.club_id=c.id
         WHERE c.visibility='public' OR EXISTS(SELECT 1 FROM social_club_members mine WHERE mine.club_id=c.id AND mine.username=$1)
         GROUP BY c.id ORDER BY member_count DESC,c.created_at DESC LIMIT 100
@@ -613,6 +614,7 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
   });
   router.post("/clubs/:id/invite", auth, async (req,res) => {
     try {
+      if(!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid Club."});
       const target=String(req.body.username||"").trim();
       if(!/^[a-zA-Z0-9_]{2,20}$/.test(target)) return res.status(400).json({success:false,message:"Enter a valid username."});
       const role=await pool.query("SELECT role FROM social_club_members WHERE club_id=$1 AND username=$2",[req.params.id,req.socialUser.username]);
