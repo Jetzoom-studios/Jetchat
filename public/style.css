@@ -5411,3 +5411,35 @@ body.light-mode .captcha-section {
 body.light-mode .captcha-label { color: #514c70 !important; }
 body.light-mode .captcha-status { color: #77758d !important; }
 body.light-mode .captcha-status.is-error { color: #a33d48 !important; }
+
+
+/* Account session controls */
+.settings-footer .logout-button {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid rgba(221, 91, 105, .34);
+    border-radius: 9px;
+    background: rgba(190, 61, 78, .13);
+    color: #f0a6ad;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.settings-footer .logout-button:hover:not(:disabled) {
+    background: rgba(190, 61, 78, .23);
+    border-color: rgba(221, 91, 105, .55);
+}
+.settings-footer .logout-button:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+body.light-mode .settings-footer .logout-button {
+    border-color: #efc9cd;
+    background: #fff1f2;
+    color: #a53645;
+}
+@media (max-width: 700px) {
+    .settings-footer .logout-button { min-height: 46px; }
+}
