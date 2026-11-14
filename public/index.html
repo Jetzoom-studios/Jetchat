@@ -171,7 +171,8 @@
     <div class="login-card">
 
         <h1>Jetchat</h1>
-        <p>Login or create an account</p>
+        <p>Good conversations start here.</p>
+        <p id="authFeedback" class="auth-feedback" role="status" aria-live="polite"></p>
 
         <input
             id="usernameInput"
@@ -206,70 +207,56 @@
 
         <div class="logo">
             <h1>Jetchat</h1>
+            <span class="logo-caption">A place to talk</span>
         </div>
 
-        <button id="globalChatBtn">
-            🌍 Global Chat
-        </button>
-        <button id="savedMessagesBtn" class="saved-messages-nav" type="button">☆ Saved Messages</button>
+        <nav class="sidebar-tabs" role="tablist" aria-label="Main navigation">
+            <button class="sidebar-tab active" type="button" role="tab" aria-selected="true" data-sidebar-tab="chats">Chats</button>
+            <button class="sidebar-tab" type="button" role="tab" aria-selected="false" data-sidebar-tab="friends">Friends</button>
+            <button class="sidebar-tab" type="button" role="tab" aria-selected="false" data-sidebar-tab="discover">Find people</button>
+        </nav>
 
-        <div class="online-section">
-            <div class="online-title">
-                <span class="dot"></span>
-                Online
+        <section class="sidebar-tab-panel active" data-sidebar-panel="chats" role="tabpanel">
+            <button id="globalChatBtn" class="sidebar-primary-nav" type="button">Global Chat</button>
+            <button id="savedMessagesBtn" class="saved-messages-nav" type="button">Saved Messages</button>
+            <div class="online-section">
+                <div class="online-title"><span class="dot"></span> Online</div>
+                <div id="onlineUsers"></div>
             </div>
-
-            <div id="onlineUsers"></div>
-        </div>
-
-        <!-- FRIEND REQUESTS -->
-        <div class="friend-requests-section">
-
-            <div class="online-title">
-                Friend Requests
-            </div>
-
-            <div id="friendRequests">
-                No requests
-            </div>
-
-            <!-- FRIENDS -->
-            <div class="friends-section">
-
-                <div class="online-title">
-                    Friends
-                </div>
-
-                <div id="friendsList">
-                    No friends
-                </div>
-
-            </div>
-
-            <!-- DIRECT MESSAGES -->
             <div class="dm-section">
-
                 <div class="online-title dm-heading">
                     <span>Direct Messages</span>
                     <span id="dmConversationCount">0</span>
                 </div>
-
-                <input
-                    id="dmSearchInput"
-                    class="dm-search-input"
-                    type="search"
-                    placeholder="Search conversations..."
-                    autocomplete="off"
-                    aria-label="Search conversations"
-                >
-
-                <div id="dmList">
-                    No conversations
-                </div>
-
+                <input id="dmSearchInput" class="dm-search-input" type="search" placeholder="Search conversations..." autocomplete="off" aria-label="Search conversations">
+                <div id="dmList">No conversations</div>
             </div>
+        </section>
 
-        </div>
+        <section class="sidebar-tab-panel" data-sidebar-panel="friends" role="tabpanel" hidden>
+            <div class="sidebar-panel-heading">
+                <h3>Friend requests</h3>
+                <span class="sidebar-panel-note">People who want to connect</span>
+            </div>
+            <div id="friendRequests">No requests</div>
+            <div class="sidebar-panel-heading friends-heading">
+                <h3>Your friends</h3>
+                <span class="sidebar-panel-note">Start a conversation</span>
+            </div>
+            <div id="friendsList">No friends</div>
+        </section>
+
+        <section class="sidebar-tab-panel" data-sidebar-panel="discover" role="tabpanel" hidden>
+            <div class="sidebar-panel-heading">
+                <h3>Find people</h3>
+                <span class="sidebar-panel-note">Search by username</span>
+            </div>
+            <label class="sr-only" for="friendSearchInput">Search users by username</label>
+            <input id="friendSearchInput" class="friend-search-input" type="search" placeholder="Search usernames..." autocomplete="off" maxlength="20">
+            <div id="friendSearchResults" class="friend-search-results" aria-live="polite">
+                <p class="sidebar-empty-note">Type a username to find people.</p>
+            </div>
+        </section>
 
     </aside>
     <button id="mobileNavBackdrop" class="mobile-nav-backdrop" type="button" aria-label="Close navigation" tabindex="-1"></button>
