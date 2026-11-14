@@ -1440,6 +1440,16 @@ socket.on("dismiss update", async (updateId, callback) => {
             });
 
             if (socket.username && onlineUsers[socket.username] === socket.id) {
+                const finalSocketForAccount = ![...io.sockets.sockets.values()].some(activeSocket => activeSocket.id !== socket.id && activeSocket.username === socket.username);
+                if(finalSocketForAccount){
+                    for(const [callId,call] of activeCalls){
+                        if(call.caller===socket.username||call.callee===socket.username){
+                            activeCalls.delete(callId);
+                            const peer=call.caller===socket.username?call.callee:call.caller;
+                            io.to("user:"+peer).emit("call:ended",{callId,reason:"The other person disconnected"});
+                        }
+                    }
+                }
                 // Do not mark the account offline if another tab is still connected.
                 const remainingSocket = [...io.sockets.sockets.values()]
                     .find(activeSocket =>
