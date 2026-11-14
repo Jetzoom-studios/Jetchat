@@ -48,16 +48,15 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.8.0",
-    version: "3.8.0",
-    title: "Jetchat Communities",
+    id: "jetchat-3.9.0",
+    version: "3.9.0",
+    title: "Jetchat NOW",
     date: "November 14, 2026",
     items: [
-        "Create and join Clubs with dedicated community discussions and private invitations.",
-        "Answer the shared daily Jetchat Pulse question.",
-        "Build collaborative stories and ideas together with Relay.",
-        "Repost or quote posts directly in the social feed.",
-        "Discover the hashtags trending across Jetchat."
+        "NOW brings recent community posts, active Clubs, open Relays and today's Pulse into one live dashboard.",
+        "See the current Jetchat online count update in real time.",
+        "Set your DM call availability to Available, Busy or Unavailable.",
+        "Friends can see your call availability in their direct messages."
     ]
 };
 
