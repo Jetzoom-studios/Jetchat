@@ -4688,3 +4688,86 @@ body.reduced-motion *::after { scroll-behavior: auto !important; animation-durat
     .saved-messages-header { padding: 18px; }
     .saved-messages-list { padding: 12px; }
 }
+
+
+/* Conversation navigation polish across Global Chat and every DM. */
+.sidebar {
+    background:
+        radial-gradient(ellipse at 12% 0%, rgba(145,125,226,.10), transparent 36%),
+        linear-gradient(180deg, rgba(13,15,34,.99), rgba(10,19,32,.99));
+}
+.friend-requests-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(161,139,255,.25) transparent;
+}
+.online-section { padding-top: 14px; padding-bottom: 12px; }
+.dm-section,
+.friends-section { margin-top: 12px; }
+.dm-heading { margin-bottom: 8px; }
+.dm-search-input {
+    width: calc(100% - 20px);
+    margin: 0 10px 9px;
+    min-height: 37px;
+    padding: 0 11px;
+    border-radius: 10px;
+}
+#dmList { display: flex; flex-direction: column; gap: 4px; padding: 0 8px 14px; }
+.dm-conversation-item {
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    transition: background .16s ease, border-color .16s ease;
+}
+.dm-conversation-item:hover {
+    border-color: rgba(161,139,255,.13);
+    background: rgba(161,139,255,.075);
+}
+.dm-conversation-item.active {
+    border-color: rgba(161,139,255,.24);
+    background: linear-gradient(100deg, rgba(161,139,255,.17), rgba(90,190,198,.07));
+    box-shadow: 0 5px 18px rgba(0,0,0,.12);
+}
+.dm-conversation-open { min-height: 54px; padding: 8px 9px; }
+.dm-conversation-name { color: #e8e3ff; font-size: 12px; }
+.dm-conversation-preview { max-width: 150px; color: #8589a8; font-size: 10px; }
+.dm-conversation-time { color: #8584a4; font-size: 9px; }
+.dm-pin-button {
+    width: 30px; min-width: 30px; height: 34px;
+    border-radius: 8px; color: #a9a1d1;
+}
+.dm-pin-button:hover { background: rgba(161,139,255,.15); color: #fff; }
+.friend-item {
+    min-height: 38px;
+    margin: 2px 9px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    color: #c9c5df;
+    transition: background .15s ease, border-color .15s ease;
+}
+.friend-item:hover {
+    border-color: rgba(161,139,255,.12);
+    background: rgba(161,139,255,.08);
+}
+#friendRequests { padding: 0 10px; color: #9693b0; font-size: 11px; }
+.typing-indicator {
+    min-height: 0;
+    padding: 0 24px;
+    color: #a99de0;
+    font-size: 11px;
+}
+#replyPreview { margin: 0 22px 8px; }
+body.light-mode .sidebar {
+    background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(242,241,251,.99), rgba(235,246,247,.99)) !important;
+}
+body.light-mode .dm-conversation-name { color: #373451; }
+body.light-mode .dm-conversation-preview,
+body.light-mode .dm-conversation-time { color: #7c7896; }
+body.light-mode .friend-item { color: #514d6d; }
+@media (max-width: 620px) {
+    .dm-conversation-open { min-height: 52px; }
+    .dm-conversation-preview { max-width: 105px; }
+}
