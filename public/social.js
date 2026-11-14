@@ -241,6 +241,7 @@
     currentView = view;
     overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "home" && button.dataset.view === "home")));
     if (socialMain) socialMain.hidden = view === "chats";
+    if (storyBar) storyBar.hidden = view !== "home";
     if (chatHub) chatHub.hidden = view !== "chats";
     if (view === "chats") { modal.hidden = true; updateChatCounts(); return; }
     if (view === "create") { modal.hidden = false; socialMain.hidden = false; chatHub.hidden = true; return; }
