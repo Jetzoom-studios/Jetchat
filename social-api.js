@@ -8,6 +8,15 @@ const pool = new Pool({
 });
 
 const router = express.Router();
+const storyUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+  fileFilter(req, file, cb) {
+    const allowed = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime"]);
+    if (!allowed.has(file.mimetype)) return cb(new Error("Stories support JPG, PNG, GIF, WebP, MP4, WebM and MOV."));
+    cb(null, true);
+  }
+});
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024, files: 1 },
@@ -61,6 +70,23 @@ function ensureSchema() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS social_comments_post_idx ON social_comments(post_id, created_at);
+      CREATE TABLE IF NOT EXISTS social_stories (
+        id BIGSERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        caption TEXT NOT NULL DEFAULT '',
+        media_data BYTEA NOT NULL,
+        media_type TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours')
+      );
+      CREATE INDEX IF NOT EXISTS social_stories_expiry_idx ON social_stories(expires_at DESC);
+      CREATE INDEX IF NOT EXISTS social_stories_user_expiry_idx ON social_stories(username, expires_at DESC);
+      CREATE TABLE IF NOT EXISTS social_story_views (
+        story_id BIGINT NOT NULL REFERENCES social_stories(id) ON DELETE CASCADE,
+        viewer TEXT NOT NULL,
+        viewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (story_id, viewer)
+      );
     `).catch(error => {
       schemaPromise = null;
       throw error;
@@ -136,6 +162,100 @@ module.exports = function createSocialRouter(getRequestSession) {
     catch (error) {
       console.error("Social schema error:", error.message);
       res.status(500).json({ success: false, message: "Social features are temporarily unavailable." });
+    }
+  });
+
+
+  // Stories are available for 24 hours and are only served to signed-in users.
+  router.get("/stories", auth, async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT s.id,s.username,s.caption,s.media_type,s.created_at,s.expires_at,
+          (SELECT COUNT(*) FROM social_story_views v WHERE v.story_id=s.id)::INT AS view_count,
+          EXISTS(SELECT 1 FROM social_story_views v WHERE v.story_id=s.id AND v.viewer=$1) AS viewed_by_me
+        FROM social_stories s
+        WHERE s.expires_at > NOW()
+        ORDER BY s.created_at ASC
+        LIMIT 300
+      `, [req.socialUser.username]);
+      res.set("Cache-Control", "no-store");
+      res.json({ success: true, stories: result.rows.map(row => ({
+        id: String(row.id), username: row.username, caption: row.caption,
+        mediaType: row.media_type, createdAt: row.created_at, expiresAt: row.expires_at,
+        viewCount: Number(row.view_count || 0), viewedByMe: Boolean(row.viewed_by_me),
+        isMe: row.username === req.socialUser.username
+      })) });
+    } catch (error) {
+      console.error("Load stories error:", error.message);
+      res.status(500).json({ success: false, message: "Couldn't load stories." });
+    }
+  });
+
+  router.post("/stories", auth, (req, res, next) => storyUpload.single("media")(req, res, error => {
+    if (error) return res.status(400).json({ success: false, message: error.message || "Story upload failed." });
+    next();
+  }), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ success: false, message: "Choose a photo or video for your story." });
+      const caption = String(req.body.caption || "").trim().slice(0, 180);
+      const result = await pool.query(
+        "INSERT INTO social_stories (username,caption,media_data,media_type) VALUES ($1,$2,$3,$4) RETURNING id,username,caption,media_type,created_at,expires_at",
+        [req.socialUser.username, caption, req.file.buffer, req.file.mimetype]
+      );
+      const row = result.rows[0];
+      res.status(201).json({ success: true, story: {
+        id: String(row.id), username: row.username, caption: row.caption,
+        mediaType: row.media_type, createdAt: row.created_at, expiresAt: row.expires_at,
+        viewCount: 0, viewedByMe: false, isMe: true
+      } });
+    } catch (error) {
+      console.error("Create story error:", error.message);
+      res.status(500).json({ success: false, message: "Couldn't publish your story." });
+    }
+  });
+
+  router.get("/stories/:id/media", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.sendStatus(404);
+      const result = await pool.query("SELECT media_data,media_type FROM social_stories WHERE id=$1 AND expires_at>NOW() LIMIT 1", [req.params.id]);
+      if (!result.rows.length) return res.sendStatus(404);
+      res.set("Cache-Control", "private, no-store");
+      res.set("X-Content-Type-Options", "nosniff");
+      res.type(result.rows[0].media_type);
+      res.send(result.rows[0].media_data);
+    } catch (error) {
+      console.error("Story media error:", error.message);
+      res.sendStatus(500);
+    }
+  });
+
+  router.post("/stories/:id/view", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({ success: false });
+      const story = await pool.query("SELECT username FROM social_stories WHERE id=$1 AND expires_at>NOW()", [req.params.id]);
+      if (!story.rowCount) return res.status(404).json({ success: false, message: "This story has expired." });
+      if (story.rows[0].username !== req.socialUser.username) {
+        await pool.query("INSERT INTO social_story_views (story_id,viewer) VALUES ($1,$2) ON CONFLICT (story_id,viewer) DO NOTHING", [req.params.id, req.socialUser.username]);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Story view error:", error.message);
+      res.status(500).json({ success: false, message: "Couldn't record this view." });
+    }
+  });
+
+  router.get("/stories/:id/views", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({ success: false });
+      const story = await pool.query("SELECT username FROM social_stories WHERE id=$1 AND expires_at>NOW()", [req.params.id]);
+      if (!story.rowCount) return res.status(404).json({ success: false, message: "This story has expired." });
+      if (story.rows[0].username !== req.socialUser.username) return res.status(403).json({ success: false, message: "Only the story owner can see its viewers." });
+      const result = await pool.query("SELECT viewer,viewed_at FROM social_story_views WHERE story_id=$1 ORDER BY viewed_at DESC", [req.params.id]);
+      res.set("Cache-Control", "no-store");
+      res.json({ success: true, views: result.rows });
+    } catch (error) {
+      console.error("Story viewers error:", error.message);
+      res.status(500).json({ success: false, message: "Couldn't load story viewers." });
     }
   });
 
