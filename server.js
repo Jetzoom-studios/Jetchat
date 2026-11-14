@@ -48,16 +48,15 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.8.0",
-    version: "3.8.0",
-    title: "Jetchat Communities",
+    id: "jetchat-3.9.0",
+    version: "3.9.0",
+    title: "Jetchat NOW",
     date: "November 14, 2026",
     items: [
-        "Create and join Clubs with dedicated community discussions and private invitations.",
-        "Answer the shared daily Jetchat Pulse question.",
-        "Build collaborative stories and ideas together with Relay.",
-        "Repost or quote posts directly in the social feed.",
-        "Discover the hashtags trending across Jetchat."
+        "NOW brings recent community posts, active Clubs, open Relays and today's Pulse into one live dashboard.",
+        "See the current Jetchat online count update in real time.",
+        "Set your DM call availability to Available, Busy or Unavailable.",
+        "Friends can see your call availability in their direct messages."
     ]
 };
 
@@ -336,6 +335,7 @@ app.post("/upload-avatar", upload.single("avatar"), async (req, res) => {
 const users = {};
 const onlineUsers = {};
 const presenceVisibility = new Map();
+const callAvailability = new Map();
 
 // Typing users
 const typingUsers = new Map();
@@ -457,6 +457,33 @@ async function attachMessageReactions(chat, history) {
 // =========================
 io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
+    socket.on("set call availability", async (status, callback) => {
+        const respond = result => { if (typeof callback === "function") callback(result); };
+        if (!socket.username || !["available","busy","unavailable"].includes(status)) return respond({success:false});
+        callAvailability.set(socket.username,status);
+        try {
+            const friends = await db.getFriends(socket.username);
+            const payload = {username:socket.username,status};
+            io.to("user:"+socket.username).emit("call availability update",payload);
+            for (const row of friends) io.to("user:"+row.friend).emit("call availability update",payload);
+            respond({success:true,status});
+        } catch(error) {
+            console.error("Call availability update error:",error.message);
+            respond({success:false});
+        }
+    });
+    socket.on("get call availability", async (peer, callback) => {
+        const respond = result => { if (typeof callback === "function") callback(result); };
+        if (!socket.username || typeof peer !== "string" || !peer || peer===socket.username) return respond({success:false});
+        try {
+            if (!(await isAcceptedFriend(socket.username,peer))) return respond({success:false});
+            const isOnline=(io.sockets.adapter.rooms.get("user:"+peer)?.size||0)>0;
+            respond({success:true,username:peer,status:isOnline?(callAvailability.get(peer)||"unavailable"):"unavailable"});
+        } catch(error) {
+            console.error("Call availability lookup error:",error.message);
+            respond({success:false});
+        }
+    });
     socket.on("session activity", () => {
         if (socket.sessionHash) db.touchAuthSession(socket.sessionHash).catch(error =>
             console.error("Session activity update error:", error.message)
@@ -1395,6 +1422,11 @@ socket.on("dismiss update", async (updateId, callback) => {
                 } else {
                     delete onlineUsers[socket.username];
                     presenceVisibility.delete(socket.username);
+                    callAvailability.delete(socket.username);
+                    try {
+                        const friends = await db.getFriends(socket.username);
+                        for (const row of friends) io.to("user:"+row.friend).emit("call availability update",{username:socket.username,status:"unavailable"});
+                    } catch(error) { console.error("Call availability disconnect update error:",error.message); }
 
                     try {
                         await db.updateLastSeen(username);

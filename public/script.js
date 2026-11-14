@@ -562,10 +562,70 @@ function getGroupByChat(chat) {
     if(!String(chat).startsWith("group:"))return null;
     return groupConversationCache.find(group=>String(group.id)===String(chat).slice(6))||null;
 }
+let ownCallAvailability = "unavailable";
+let callAvailabilityPeer = "";
+let callAvailabilityUI = null;
+function ensureCallAvailabilityUI() {
+    if (callAvailabilityUI) return callAvailabilityUI;
+    const topbar = document.querySelector(".topbar");
+    if (!topbar) return null;
+    const wrap = document.createElement("div");
+    wrap.id = "dmCallAvailability";
+    wrap.className = "dm-call-availability";
+    wrap.hidden = true;
+    const peer = document.createElement("span");
+    peer.className = "dm-call-peer-status";
+    peer.textContent = "Call status unavailable";
+    const label = document.createElement("label");
+    label.textContent = "You:";
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Your call availability");
+    [["available","Available"],["busy","Busy"],["unavailable","Unavailable"]].forEach(([value,text]) => {
+        const option=document.createElement("option");option.value=value;option.textContent=text;select.append(option);
+    });
+    select.value=ownCallAvailability;
+    select.addEventListener("change",()=>{
+        ownCallAvailability=select.value;
+        socket.emit("set call availability",ownCallAvailability,result=>{
+            if(!result?.success){select.value=ownCallAvailability="unavailable";peer.textContent="Couldn't update call status.";}
+        });
+    });
+    wrap.append(peer,label,select);
+    const title=topbar.querySelector(".chat-title");
+    if(title)title.insertAdjacentElement("afterend",wrap);else topbar.prepend(wrap);
+    callAvailabilityUI=wrap;
+    return wrap;
+}
+function updateCallAvailabilityPeer(data) {
+    if(!callAvailabilityUI||!data||data.username!==callAvailabilityPeer)return;
+    const label=callAvailabilityUI.querySelector(".dm-call-peer-status");
+    const state=["available","busy","unavailable"].includes(data.status)?data.status:"unavailable";
+    label.textContent=state==="available"?"Available for calls":state==="busy"?"Busy right now":"Not available for calls";
+    label.dataset.status=state;
+}
+function refreshDMCallAvailability(peer) {
+    const ui=ensureCallAvailabilityUI();
+    if(!ui)return;
+    const isDM=Boolean(peer)&&peer!=="global"&&!String(peer).startsWith("group:");
+    ui.hidden=!isDM;
+    callAvailabilityPeer=isDM?peer:"";
+    if(!isDM)return;
+    ui.querySelector("select").value=ownCallAvailability;
+    const label=ui.querySelector(".dm-call-peer-status");
+    label.textContent="Checking call availability…";
+    label.dataset.status="loading";
+    socket.emit("get call availability",peer,result=>{
+        if(!result?.success){label.textContent="Call availability unavailable";return;}
+        updateCallAvailabilityPeer({username:peer,status:result.status});
+    });
+}
+socket.on("call availability update",updateCallAvailabilityPeer);
+
 function openConversation(chat) {
     closeMobileDrawer();
     currentChat = chat;
     const group=getGroupByChat(chat);
+    refreshDMCallAvailability(chat);
     document.querySelector(".chat-title h2").textContent =
         chat === "global" ? "Global Chat" : group ? group.name : "DM with " + chat;
 
