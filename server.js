@@ -48,9 +48,9 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.9.0",
-    version: "3.9.0",
-    title: "Jetchat NOW",
+    id: "jetchat-3.9.1",
+    version: "3.9.1",
+    title: "Calls & Settings",
     date: "November 14, 2026",
     items: [
         "NOW brings recent community posts, active Clubs, open Relays and today's Pulse into one live dashboard.",
@@ -336,6 +336,7 @@ const users = {};
 const onlineUsers = {};
 const presenceVisibility = new Map();
 const callAvailability = new Map();
+const activeCalls = new Map();
 
 // Typing users
 const typingUsers = new Map();
@@ -457,6 +458,27 @@ async function attachMessageReactions(chat, history) {
 // =========================
 io.on("connection", (socket) => {
     console.log("🟢 Someone connected");
+    socket.on("call:request", async (data, callback) => {
+        const respond = value => { if (typeof callback === "function") callback(value); };
+        const target = typeof data?.target === "string" ? data.target.trim() : "";
+        const mode = data?.mode === "video" ? "video" : "audio";
+        if (!socket.username || !target || target === socket.username) return respond({success:false,message:"Invalid call target."});
+        try {
+            if (!(await isAcceptedFriend(socket.username,target))) return respond({success:false,message:"Calls are only available between accepted friends."});
+            if (callAvailability.get(target) !== "available") return respond({success:false,message:"This person is not available for calls right now."});
+            if (!(io.sockets.adapter.rooms.get("user:"+target)?.size)) return respond({success:false,message:"This person is offline."});
+            const busy=[...activeCalls.values()].some(call=>[call.caller,call.callee].includes(socket.username)||[call.caller,call.callee].includes(target));
+            if(busy)return respond({success:false,message:"One of you is already in a call."});
+            const callId=require("crypto").randomUUID();
+            const call={callId,caller:socket.username,callee:target,mode,accepted:false};activeCalls.set(callId,call);
+            io.to("user:"+target).emit("call:incoming",{callId,caller:socket.username,mode});respond({success:true,callId});
+            setTimeout(()=>{const pending=activeCalls.get(callId);if(pending&&!pending.accepted){activeCalls.delete(callId);io.to("user:"+call.caller).emit("call:ended",{callId,reason:"No answer"});io.to("user:"+call.callee).emit("call:ended",{callId,reason:"Missed call"});}},45000);
+        } catch(error){console.error("Call request error:",error.message);respond({success:false,message:"Could not start this call."});}
+    });
+    socket.on("call:accept", (data, callback) => {const call=activeCalls.get(data?.callId);if(!socket.username||!call||call.callee!==socket.username){if(typeof callback==="function")callback({success:false});return;}call.accepted=true;io.to("user:"+call.caller).emit("call:accepted",{callId:call.callId,peer:call.callee,mode:call.mode});io.to("user:"+call.callee).emit("call:accepted",{callId:call.callId,peer:call.caller,mode:call.mode});if(typeof callback==="function")callback({success:true});});
+    socket.on("call:reject", data => {const call=activeCalls.get(data?.callId);if(!socket.username||!call||call.callee!==socket.username)return;activeCalls.delete(call.callId);io.to("user:"+call.caller).emit("call:rejected",{callId:call.callId,by:socket.username});});
+    socket.on("call:signal", data => {const call=activeCalls.get(data?.callId);if(!socket.username||!call||!call.accepted||![call.caller,call.callee].includes(socket.username))return;const signal=data.signal;if(!signal||typeof signal!=="object"||JSON.stringify(signal).length>200000)return;const peer=call.caller===socket.username?call.callee:call.caller;io.to("user:"+peer).emit("call:signal",{callId:call.callId,signal});});
+    socket.on("call:end", data => {const call=activeCalls.get(data?.callId);if(!socket.username||!call||![call.caller,call.callee].includes(socket.username))return;activeCalls.delete(call.callId);const peer=call.caller===socket.username?call.callee:call.caller;io.to("user:"+peer).emit("call:ended",{callId:call.callId,by:socket.username});});
     socket.on("set call availability", async (status, callback) => {
         const respond = result => { if (typeof callback === "function") callback(result); };
         if (!socket.username || !["available","busy","unavailable"].includes(status)) return respond({success:false});
