@@ -62,3 +62,30 @@
 .social-story-views{align-self:flex-start;margin:0 12px 12px}
 .social-story-viewer-list{max-height:130px;overflow:auto;padding:8px 14px;color:#dbe0ed;font-size:12px}
 @media(max-width:650px){.social-stories-bar{margin:0 -2px 12px;padding-top:8px}.social-story-viewer-card{height:92dvh;width:100%;border-radius:12px}}
+
+
+/* Jetchat 3.7.3 — Activity centre */
+.social-top-actions{display:flex;align-items:center;gap:10px}
+.social-notifications-button{position:relative;width:42px;height:42px;border:1px solid var(--social-border,#30384b);border-radius:13px;background:var(--social-card,#151b2a);color:var(--social-text,#f3f5fb);font-size:22px;cursor:pointer}
+.social-notifications-button span{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;display:grid;place-items:center;border-radius:20px;background:#e34f76;color:white;font-size:10px;font-weight:800}
+.social-notifications-button span[hidden]{display:none}
+.social-notification-panel{position:fixed;z-index:110;top:78px;right:24px;width:min(390px,calc(100vw - 28px));max-height:min(620px,calc(100dvh - 100px));overflow:hidden;border:1px solid #343b50;border-radius:18px;background:#121827;color:#edf1fa;box-shadow:0 24px 80px #0009;display:flex;flex-direction:column}
+.social-notification-panel[hidden]{display:none!important}
+.social-notification-panel>header{display:flex;align-items:center;justify-content:space-between;padding:18px 18px 12px}
+.social-notification-panel h2{margin:0;font-size:21px}
+.social-notification-close{width:34px;height:34px;border:0;border-radius:10px;background:#252d40;color:white;font-size:22px;cursor:pointer}
+.social-notification-tools{display:flex;gap:8px;padding:0 16px 12px;border-bottom:1px solid #2b3345}
+.social-notification-tools button{border:1px solid #343d52;border-radius:8px;background:#1b2435;color:#cbd4e7;padding:7px 10px;font-size:11px;cursor:pointer}
+#socialNotificationList{overflow:auto}
+.social-notification-item{width:100%;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:0;border-bottom:1px solid #252d3d;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.social-notification-item.is-unread{background:#1b263b}
+.social-notification-icon{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:#30304e;color:#d9caff;font-size:17px}
+.social-notification-copy{min-width:0;display:flex;flex-direction:column;gap:5px}
+.social-notification-copy strong{font-size:12px;line-height:1.45;font-weight:600;overflow-wrap:anywhere}
+.social-notification-copy small{color:#8f9ab0;font-size:10px}
+.social-notification-empty{padding:28px 18px;text-align:center;color:#9ba6bb;font-size:13px}
+.social-story-reply-form{display:flex;gap:8px;padding:10px 12px;background:#111725}
+.social-story-reply-form[hidden]{display:none!important}
+.social-story-reply-form input{min-width:0;flex:1;padding:10px 12px;border:1px solid #3a4257;border-radius:20px;background:#20283a;color:white;font:inherit;font-size:12px}
+.social-story-reply-form button{border:0;border-radius:18px;background:#7865df;color:white;padding:0 15px;font-weight:700;cursor:pointer}
+@media(max-width:600px){.social-notification-panel{top:64px;right:10px;width:calc(100vw - 20px)}}

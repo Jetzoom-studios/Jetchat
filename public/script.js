@@ -1,5 +1,6 @@
 
 const socket = io();
+window.jetchatSocket = socket;
 
 // =========================
 // STATE

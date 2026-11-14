@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.7.2",
-    version: "3.7.2",
-    title: "Jetchat Stories",
+    id: "jetchat-3.7.3",
+    version: "3.7.3",
+    title: "Jetchat Activity",
     date: "November 14, 2026",
     items: [
-        "Share photo and video Stories that automatically expire after 24 hours.",
-        "Browse active Stories from your Home feed.",
-        "Move through a friend's Story sequence with next and previous controls.",
-        "See who viewed your own Stories.",
-        "Stories and their view records are stored in PostgreSQL."
+        "A unified activity centre brings your social notifications together.",
+        "Get notified when someone likes or comments on your posts.",
+        "Get notified when someone follows you.",
+        "Reply to a Story and continue the conversation in direct messages.",
+        "Notifications are saved to your account and update while you're online."
     ]
 };
 
@@ -177,7 +177,7 @@ async function getRequestSession(req) {
     return token ? db.getAuthSession(token) : null;
 }
 
-app.use("/api/social", require("./social-api")(getRequestSession));
+app.use("/api/social", require("./social-api")(getRequestSession, io, isAcceptedFriend));
 
 // Authenticated chat media lives in PostgreSQL, so it survives Render restarts and deploys.
 app.post("/api/chat/upload",(req,res,next)=>chatUpload.single("file")(req,res,error=>{if(error)return res.status(400).json({success:false,message:error.message||"Upload failed."});next();}),async(req,res)=>{

@@ -24,7 +24,10 @@
     <main class="social-main">
       <header class="social-top">
         <div><p class="social-eyebrow">THE SOCIAL SIDE OF JETCHAT</p><h1 id="socialHeading">Your feed</h1></div>
-        <button class="social-create-top" data-view="create">＋ Create</button>
+        <div class="social-top-actions">
+          <button id="socialNotificationsButton" class="social-notifications-button" type="button" aria-label="Notifications" aria-expanded="false">♧<span id="socialNotificationBadge" hidden>0</span></button>
+          <button class="social-create-top" data-view="create">＋ Create</button>
+        </div>
       </header>
       <div class="social-content">
         <section class="social-feed-column">
@@ -63,6 +66,11 @@
     </div>
   `;
   app.appendChild(overlay);
+  const notificationPanel = document.createElement("section");
+  notificationPanel.className = "social-notification-panel";
+  notificationPanel.hidden = true;
+  notificationPanel.innerHTML = '<header><div><p class="social-eyebrow">YOUR ACTIVITY</p><h2>Notifications</h2></div><button type="button" class="social-notification-close" aria-label="Close">×</button></header><div class="social-notification-tools"><button type="button" id="socialMarkAllRead">Mark all read</button><button type="button" id="socialClearNotifications">Clear all</button></div><div id="socialNotificationList" aria-live="polite"><p class="social-loading">Loading activity…</p></div>';
+  overlay.appendChild(notificationPanel);
 
   const sidebar = document.getElementById("mobileSidebar");
   const chatHub = overlay.querySelector("#socialChatHub");
@@ -105,6 +113,10 @@
   const createForm = overlay.querySelector("#socialCreateForm");
   const status = overlay.querySelector("#socialCreateStatus");
   const imageInput = overlay.querySelector("#socialPostImage");
+  const notificationButton = overlay.querySelector("#socialNotificationsButton");
+  const notificationBadge = overlay.querySelector("#socialNotificationBadge");
+  const notificationList = notificationPanel.querySelector("#socialNotificationList");
+  let notificationItems = [];
 
   let storyGroups = [];
   let activeStoryGroup = [];
@@ -118,7 +130,7 @@
   const storyViewer = document.createElement("div");
   storyViewer.className = "social-story-viewer";
   storyViewer.hidden = true;
-  storyViewer.innerHTML = '<div class="social-story-viewer-card"><div class="social-story-progress" id="socialStoryProgress"></div><header><strong id="socialStoryAuthor"></strong><span id="socialStoryAge"></span><button type="button" id="socialStoryViewerClose" aria-label="Close">×</button></header><div class="social-story-stage" id="socialStoryStage"></div><footer><button type="button" id="socialStoryPrevious">‹</button><span id="socialStoryCaptionView"></span><button type="button" id="socialStoryNext">›</button></footer><button type="button" id="socialStoryViews" class="social-story-views" hidden>View viewers</button><div id="socialStoryViewerList" class="social-story-viewer-list" hidden></div></div>';
+  storyViewer.innerHTML = '<div class="social-story-viewer-card"><div class="social-story-progress" id="socialStoryProgress"></div><header><strong id="socialStoryAuthor"></strong><span id="socialStoryAge"></span><button type="button" id="socialStoryViewerClose" aria-label="Close">×</button></header><div class="social-story-stage" id="socialStoryStage"></div><footer><button type="button" id="socialStoryPrevious">‹</button><span id="socialStoryCaptionView"></span><button type="button" id="socialStoryNext">›</button></footer><form id="socialStoryReplyForm" class="social-story-reply-form"><input id="socialStoryReplyInput" maxlength="1000" placeholder="Reply to this Story…" autocomplete="off" required><button type="submit">Send</button></form><button type="button" id="socialStoryViews" class="social-story-views" hidden>View viewers</button><div id="socialStoryViewerList" class="social-story-viewer-list" hidden></div></div>';
   overlay.appendChild(storyViewer);
   const storyBar = overlay.querySelector("#socialStoriesBar");
   const storyPeople = overlay.querySelector("#socialStoryPeople");
@@ -126,6 +138,8 @@
   const storyCaption = overlay.querySelector("#socialStoryCaption");
   const storyStatus = overlay.querySelector("#socialStoryStatus");
   const storyComposerForm = storyComposer.querySelector("form");
+  const storyReplyForm = storyViewer.querySelector("#socialStoryReplyForm");
+  const storyReplyInput = storyViewer.querySelector("#socialStoryReplyInput");
   const storyViewerStage = storyViewer.querySelector("#socialStoryStage");
   const closeStoryComposer = () => { storyComposer.hidden = true; storyComposerForm.reset(); storyStatus.textContent = ""; storyComposer.querySelector("#socialStoryFileName").textContent = "Photos and videos · 25 MB maximum"; };
   function groupStories(stories) {
@@ -190,12 +204,29 @@
     viewers.replaceChildren();
     if (story.isMe) viewsButton.textContent = "View viewers · " + (story.viewCount || 0);
     try { await request("/stories/" + encodeURIComponent(story.id) + "/view", { method: "POST" }); } catch {}
+    storyReplyForm.hidden = story.isMe;
+    storyReplyInput.value = "";
     if (media.tagName === "VIDEO") {
       media.addEventListener("ended", nextStory, { once: true });
     } else {
       storyTimer = setTimeout(nextStory, 5000);
     }
   }
+  storyReplyForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const story = activeStoryGroup[activeStoryIndex];
+    const body = storyReplyInput.value.trim();
+    if (!story || !body) return;
+    const submit = storyReplyForm.querySelector("button");
+    submit.disabled = true;
+    try {
+      const result = await request("/stories/" + encodeURIComponent(story.id) + "/reply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+      if (window.jetchatSocket) window.jetchatSocket.emit("chat message", { text: "↪ Story reply: " + body, chat: result.recipient, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+      storyReplyInput.value = "";
+      storyReplyInput.placeholder = "Reply sent";
+    } catch (error) { storyReplyInput.setCustomValidity(error.message); storyReplyInput.reportValidity(); }
+    finally { submit.disabled = false; }
+  });
   function nextStory() { if (activeStoryIndex < activeStoryGroup.length-1) { activeStoryIndex++; renderActiveStory(); } else { storyViewer.hidden = true; loadStories(); } }
   function previousStory() { if (activeStoryIndex > 0) { activeStoryIndex--; renderActiveStory(); } }
   storyViewer.querySelector("#socialStoryViewerClose").addEventListener("click", () => { if(storyTimer)clearTimeout(storyTimer); storyViewer.hidden = true; loadStories(); });
@@ -251,6 +282,7 @@
     if (storiesHint) storiesHint.hidden = view === "explore" || view === "reels";
     loadPosts(view);
     if (view === "home") loadStories();
+    loadNotifications();
   }
 
   async function request(path, options = {}) {
@@ -259,6 +291,84 @@
     if (!response.ok || data.success === false) throw new Error(data.message || "Something went wrong.");
     return data;
   }
+
+  function setNotificationCount(count) {
+    const value = Math.max(0, Number(count) || 0);
+    notificationBadge.textContent = value > 99 ? "99+" : String(value);
+    notificationBadge.hidden = value === 0;
+  }
+  function renderNotifications() {
+    notificationList.replaceChildren();
+    if (!notificationItems.length) {
+      const empty = document.createElement("p");
+      empty.className = "social-notification-empty";
+      empty.textContent = "You're all caught up.";
+      notificationList.append(empty);
+      return;
+    }
+    notificationItems.forEach(item => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "social-notification-item" + (item.read_at ? " is-read" : " is-unread");
+      const mark = document.createElement("span");
+      mark.className = "social-notification-icon";
+      mark.textContent = item.type === "like" ? "♥" : item.type === "comment" ? "▱" : item.type === "follow" ? "＋" : "↩";
+      const copy = document.createElement("span");
+      copy.className = "social-notification-copy";
+      const message = document.createElement("strong");
+      message.textContent = "@" + item.actor + " " + item.message;
+      const time = document.createElement("small");
+      time.textContent = timeAgo(item.created_at);
+      copy.append(message, time);
+      row.append(mark, copy);
+      row.addEventListener("click", async () => {
+        if (!item.read_at) {
+          try { await request("/notifications/" + encodeURIComponent(item.id) + "/read", { method: "POST" }); item.read_at = new Date().toISOString(); setNotificationCount(notificationItems.filter(value => !value.read_at).length); row.classList.remove("is-unread"); row.classList.add("is-read"); } catch {}
+        }
+        if (item.type === "story_reply") {
+          openView("chats");
+          if (typeof window.openConversation === "function") window.openConversation(item.actor);
+        } else if (item.type === "like" || item.type === "comment") openView("home");
+        notificationPanel.hidden = true;
+        notificationButton.setAttribute("aria-expanded", "false");
+      });
+      notificationList.append(row);
+    });
+  }
+  async function loadNotifications() {
+    try {
+      const data = await request("/notifications");
+      notificationItems = data.notifications || [];
+      setNotificationCount(data.unread);
+      renderNotifications();
+    } catch (error) {
+      notificationList.textContent = error.message;
+    }
+  }
+  notificationButton.addEventListener("click", () => {
+    notificationPanel.hidden = !notificationPanel.hidden;
+    notificationButton.setAttribute("aria-expanded", String(!notificationPanel.hidden));
+    if (!notificationPanel.hidden) loadNotifications();
+  });
+  notificationPanel.querySelector(".social-notification-close").addEventListener("click", () => {
+    notificationPanel.hidden = true;
+    notificationButton.setAttribute("aria-expanded", "false");
+  });
+  notificationPanel.querySelector("#socialMarkAllRead").addEventListener("click", async () => {
+    try { await request("/notifications/read-all", { method: "POST" }); notificationItems.forEach(item => item.read_at = item.read_at || new Date().toISOString()); setNotificationCount(0); renderNotifications(); } catch {}
+  });
+  notificationPanel.querySelector("#socialClearNotifications").addEventListener("click", async () => {
+    try { await request("/notifications", { method: "DELETE" }); notificationItems = []; setNotificationCount(0); renderNotifications(); } catch {}
+  });
+  if (window.jetchatSocket) {
+    window.jetchatSocket.on("social notification", notification => {
+      notificationItems.unshift(notification);
+      notificationItems = notificationItems.slice(0, 100);
+      setNotificationCount(notificationItems.filter(item => !item.read_at).length);
+      if (!notificationPanel.hidden) renderNotifications();
+    });
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotifications(); });
 
   function timeAgo(value) {
     const date = new Date(value);
@@ -525,6 +635,7 @@
   window.addEventListener("keydown", event => {
     if (event.key === "Escape" && !overlay.hidden) {
       if (!storyViewer.hidden) { if(storyTimer)clearTimeout(storyTimer); storyViewer.hidden = true; }
+      else if (!notificationPanel.hidden) { notificationPanel.hidden = true; notificationButton.setAttribute("aria-expanded", "false"); }
       else if (!storyComposer.hidden) closeStoryComposer();
       else if (!modal.hidden) closeModal();
       else openView("chats");

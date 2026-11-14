@@ -87,6 +87,17 @@ function ensureSchema() {
         viewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (story_id, viewer)
       );
+      CREATE TABLE IF NOT EXISTS social_notifications (
+        id BIGSERIAL PRIMARY KEY,
+        recipient TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('like','comment','follow','story_reply')),
+        message TEXT NOT NULL,
+        target_id TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        read_at TIMESTAMPTZ
+      );
+      CREATE INDEX IF NOT EXISTS social_notifications_recipient_idx ON social_notifications(recipient, created_at DESC);
     `).catch(error => {
       schemaPromise = null;
       throw error;
@@ -154,8 +165,16 @@ function requireSession(getRequestSession) {
   };
 }
 
-module.exports = function createSocialRouter(getRequestSession) {
+module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFriend) {
   const auth = requireSession(getRequestSession);
+  async function createNotification(recipient, actor, type, message, targetId = null) {
+    if (!recipient || !actor || recipient.toLowerCase() === actor.toLowerCase()) return;
+    const result = await pool.query(
+      "INSERT INTO social_notifications (recipient,actor,type,message,target_id) VALUES ($1,$2,$3,$4,$5) RETURNING id,recipient,actor,type,message,target_id,created_at,read_at",
+      [recipient, actor, type, String(message).slice(0, 240), targetId == null ? null : String(targetId)]
+    );
+    if (io) io.to("user:" + recipient).emit("social notification", result.rows[0]);
+  }
 
   router.use(async (req, res, next) => {
     try { await ensureSchema(); next(); }
@@ -165,6 +184,55 @@ module.exports = function createSocialRouter(getRequestSession) {
     }
   });
 
+
+
+  router.get("/notifications", auth, async (req, res) => {
+    try {
+      const result = await pool.query("SELECT id,actor,type,message,target_id,created_at,read_at FROM social_notifications WHERE recipient=$1 ORDER BY created_at DESC LIMIT 100", [req.socialUser.username]);
+      const unread = await pool.query("SELECT COUNT(*)::INT AS count FROM social_notifications WHERE recipient=$1 AND read_at IS NULL", [req.socialUser.username]);
+      res.set("Cache-Control", "no-store");
+      res.json({ success: true, notifications: result.rows, unread: Number(unread.rows[0].count || 0) });
+    } catch (error) { console.error("Load notifications error:", error.message); res.status(500).json({ success: false, message: "Couldn't load notifications." }); }
+  });
+
+  router.post("/notifications/:id/read", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({ success: false });
+      await pool.query("UPDATE social_notifications SET read_at=NOW() WHERE id=$1 AND recipient=$2 AND read_at IS NULL", [req.params.id, req.socialUser.username]);
+      res.json({ success: true });
+    } catch (error) { console.error("Mark notification read error:", error.message); res.status(500).json({ success: false, message: "Couldn't update that notification." }); }
+  });
+
+  router.post("/notifications/read-all", auth, async (req, res) => {
+    try {
+      await pool.query("UPDATE social_notifications SET read_at=NOW() WHERE recipient=$1 AND read_at IS NULL", [req.socialUser.username]);
+      res.json({ success: true });
+    } catch (error) { console.error("Mark all notifications read error:", error.message); res.status(500).json({ success: false, message: "Couldn't update notifications." }); }
+  });
+
+  router.delete("/notifications", auth, async (req, res) => {
+    try {
+      await pool.query("DELETE FROM social_notifications WHERE recipient=$1", [req.socialUser.username]);
+      res.json({ success: true });
+    } catch (error) { console.error("Clear notifications error:", error.message); res.status(500).json({ success: false, message: "Couldn't clear notifications." }); }
+  });
+
+  router.post("/stories/:id/reply", auth, async (req, res) => {
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({ success: false, message: "Invalid Story." });
+      const body = String(req.body.body || "").trim().slice(0, 1000);
+      if (!body) return res.status(400).json({ success: false, message: "Write a reply first." });
+      const story = await pool.query("SELECT username FROM social_stories WHERE id=$1 AND expires_at>NOW()", [req.params.id]);
+      if (!story.rowCount) return res.status(404).json({ success: false, message: "This Story has expired." });
+      const owner = story.rows[0].username;
+      if (owner === req.socialUser.username) return res.status(400).json({ success: false, message: "You can't reply to your own Story." });
+      if (typeof isAcceptedFriend !== "function" || !(await isAcceptedFriend(req.socialUser.username, owner))) {
+        return res.status(403).json({ success: false, message: "You can only reply to Stories from friends. Add each other as friends first." });
+      }
+      await createNotification(owner, req.socialUser.username, "story_reply", "replied to your Story: " + body, req.params.id);
+      res.json({ success: true, recipient: owner, storyId: String(req.params.id) });
+    } catch (error) { console.error("Story reply notification error:", error.message); res.status(500).json({ success: false, message: "Couldn't send your Story reply." }); }
+  });
 
   // Stories are available for 24 hours and are only served to signed-in users.
   router.get("/stories", auth, async (req, res) => {
@@ -347,7 +415,7 @@ module.exports = function createSocialRouter(getRequestSession) {
   router.post("/posts/:id/like", auth, async (req, res) => {
     try {
       if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({ success: false });
-      const exists = await pool.query("SELECT 1 FROM social_posts WHERE id=$1", [req.params.id]);
+      const exists = await pool.query("SELECT username FROM social_posts WHERE id=$1", [req.params.id]);
       if (!exists.rowCount) return res.status(404).json({ success: false, message: "Post not found." });
       const removed = await pool.query("DELETE FROM social_likes WHERE post_id=$1 AND username=$2 RETURNING post_id", [req.params.id, req.socialUser.username]);
       let liked = false;
@@ -356,6 +424,7 @@ module.exports = function createSocialRouter(getRequestSession) {
         liked = true;
       }
       const count = await pool.query("SELECT COUNT(*)::INT AS count FROM social_likes WHERE post_id=$1", [req.params.id]);
+      if (liked) await createNotification(exists.rows[0].username, req.socialUser.username, "like", "liked your post", req.params.id);
       res.json({ success: true, liked, count: count.rows[0].count });
     } catch (error) { console.error("Social like error:", error.message); res.status(500).json({ success: false, message: "Couldn't update your like." }); }
   });
@@ -373,9 +442,10 @@ module.exports = function createSocialRouter(getRequestSession) {
     try {
       const body = String(req.body.body || "").trim();
       if (!/^[1-9][0-9]*$/.test(req.params.id) || !body || body.length > 500) return res.status(400).json({ success: false, message: "Comments must be 1–500 characters." });
-      const post = await pool.query("SELECT id FROM social_posts WHERE id=$1", [req.params.id]);
+      const post = await pool.query("SELECT id,username FROM social_posts WHERE id=$1", [req.params.id]);
       if (!post.rowCount) return res.status(404).json({ success: false, message: "Post not found." });
       const result = await pool.query("INSERT INTO social_comments (post_id,username,body) VALUES ($1,$2,$3) RETURNING id,username,body,created_at", [req.params.id, req.socialUser.username, body]);
+      await createNotification(post.rows[0].username, req.socialUser.username, "comment", "commented on your post: " + body, req.params.id);
       res.status(201).json({ success: true, comment: result.rows[0] });
     } catch (error) { console.error("Create social comment error:", error.message); res.status(500).json({ success: false, message: "Couldn't post your comment." }); }
   });
@@ -392,6 +462,7 @@ module.exports = function createSocialRouter(getRequestSession) {
       if (!removed.rowCount) {
         await pool.query("INSERT INTO social_follows (follower,following) VALUES ($1,$2) ON CONFLICT DO NOTHING", [req.socialUser.username, actual]);
         following = true;
+        await createNotification(actual, req.socialUser.username, "follow", "started following you");
       }
       const count = await pool.query("SELECT COUNT(*)::INT AS count FROM social_follows WHERE following=$1", [actual]);
       res.json({ success: true, following, followers: count.rows[0].count });
