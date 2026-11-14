@@ -19,14 +19,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.3",
-    version: "3.3",
-    title: "What's New in Jetchat",
+    id: "jetchat-4.0",
+    version: "4.0",
+    title: "Jetchat: The Next Era",
     date: "November 2026",
     items: [
-        "Introducing the Jetchat update log.",
-        "Update notifications are remembered per account.",
-        "Dismiss the announcement with OK or X."
+        "Reactions now work live and stay saved across sessions.",
+        "Introducing your personal Saved Messages vault.",
+        "A redesigned conversation experience across Global Chat and DMs.",
+        "New accessibility controls for spacing, keyboard focus and message actions.",
+        "Keyboard shortcuts: Ctrl/Cmd + K for conversations, Ctrl/Cmd + / to compose."
     ]
 };
 
@@ -162,6 +164,25 @@ function makeDMChatId(username, peer) {
     return [username, peer].sort().join("|");
 }
 
+
+async function attachMessageReactions(chat, history) {
+    const rows = await db.getMessageReactions(chat);
+    const grouped = new Map();
+    rows.forEach(row => {
+        const key = String(row.message_id);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push({
+            emoji: row.emoji,
+            count: Number(row.count),
+            users: row.users || []
+        });
+    });
+    return history.map(message => ({
+        ...message,
+        reactions: grouped.get(String(message.id)) || []
+    }));
+}
+
 // =========================
 // SOCKET.IO
 // =========================
@@ -228,7 +249,7 @@ io.on("connection", (socket) => {
                 text: `🟢 ${result.user.username} joined the chat`
             });
 
-            socket.emit("chat history", db.loadMessages());
+            socket.emit("chat history", await attachMessageReactions("global", db.loadMessages()));
 
             callback({
                 success: true,
@@ -611,7 +632,7 @@ socket.on("dismiss update", async (updateId, callback) => {
                 );
             }
 
-            socket.emit("chat history", history);
+            socket.emit("chat history", await attachMessageReactions(chat === "global" ? "global" : makeDMChatId(socket.username, getDMPartner(chat, socket.username)), history));
         } catch (err) {
             console.error("Load chat error:", err);
             socket.emit("chat history", []);
@@ -753,6 +774,130 @@ socket.on("dismiss update", async (updateId, callback) => {
             }
         } catch (err) {
             console.error("Direct message error:", err);
+        }
+    });
+
+
+    // =========================
+    // PERSISTENT MESSAGE REACTIONS
+    // =========================
+    socket.on("toggle message reaction", async (data, callback) => {
+        const respond = result => {
+            if (typeof callback === "function") callback(result);
+        };
+        const allowedEmoji = new Set(["👍", "❤️", "😂", "🔥", "🎉", "😮", "😢", "👎", "👏", "💯"]);
+        if (!socket.username || !data || data.messageId === undefined ||
+            typeof data.chat !== "string" || !allowedEmoji.has(data.emoji)) {
+            return respond({ success: false, message: "Invalid reaction." });
+        }
+
+        try {
+            let messageExists = false;
+            let peer = null;
+            if (data.chat === "global") {
+                messageExists = db.loadMessages().some(message =>
+                    String(message.id) === String(data.messageId)
+                );
+            } else {
+                peer = getDMPartner(data.chat, socket.username);
+                if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
+                    return respond({ success: false, message: "You cannot react in this conversation." });
+                }
+                const chatId = makeDMChatId(socket.username, peer);
+                const history = await db.loadChat(chatId, socket.username, peer);
+                messageExists = history.some(message =>
+                    String(message.id) === String(data.messageId)
+                );
+            }
+
+            if (!messageExists) {
+                return respond({ success: false, message: "Message not found." });
+            }
+
+            const reactionChat = data.chat === "global" ? "global" : makeDMChatId(socket.username, peer);
+            await db.toggleMessageReaction(data.messageId, reactionChat, socket.username, data.emoji);
+            const rows = await db.getMessageReactions(reactionChat);
+            const reactions = rows
+                .filter(row => String(row.message_id) === String(data.messageId))
+                .map(row => ({
+                    emoji: row.emoji,
+                    count: Number(row.count),
+                    users: row.users || []
+                }));
+            const update = {
+                messageId: String(data.messageId),
+                chat: reactionChat,
+                reactions
+            };
+
+            if (reactionChat === "global") {
+                io.emit("message reactions updated", update);
+            } else {
+                io.to(`user:${socket.username}`).emit("message reactions updated", update);
+                io.to(`user:${peer}`).emit("message reactions updated", update);
+            }
+            respond({ success: true, reactions });
+        } catch (err) {
+            console.error("Reaction error:", err);
+            respond({ success: false, message: "Couldn't save that reaction." });
+        }
+    });
+
+    // =========================
+    // PERSONAL SAVED-MESSAGE VAULT
+    // =========================
+    socket.on("toggle saved message", async (data, callback) => {
+        const respond = result => {
+            if (typeof callback === "function") callback(result);
+        };
+        if (!socket.username || !data || data.messageId === undefined ||
+            typeof data.chat !== "string") {
+            return respond({ success: false, message: "Invalid save request." });
+        }
+        try {
+            let source = null;
+            if (data.chat === "global") {
+                source = db.loadMessages().find(message =>
+                    String(message.id) === String(data.messageId)
+                );
+            } else {
+                const peer = getDMPartner(data.chat, socket.username);
+                if (!peer || !(await isAcceptedFriend(socket.username, peer))) {
+                    return respond({ success: false, message: "You cannot save from this conversation." });
+                }
+                const history = await db.loadChat(makeDMChatId(socket.username, peer), socket.username, peer);
+                source = history.find(message =>
+                    String(message.id) === String(data.messageId)
+                );
+            }
+            if (!source) {
+                return respond({ success: false, message: "Message not found." });
+            }
+            const savedChat = data.chat === "global" ? "global" : makeDMChatId(socket.username, getDMPartner(data.chat, socket.username));
+            const result = await db.toggleSavedMessage(socket.username, {
+                id: source.id,
+                chat: savedChat,
+                username: source.username,
+                text: source.text
+            });
+            respond({ success: true, saved: result.saved });
+        } catch (err) {
+            console.error("Save message error:", err);
+            respond({ success: false, message: "Couldn't update your saved messages." });
+        }
+    });
+
+    socket.on("get saved messages", async callback => {
+        if (!socket.username) {
+            if (typeof callback === "function") callback({ success: false, messages: [] });
+            return;
+        }
+        try {
+            const saved = await db.getSavedMessages(socket.username);
+            if (typeof callback === "function") callback({ success: true, messages: saved });
+        } catch (err) {
+            console.error("Saved messages error:", err);
+            if (typeof callback === "function") callback({ success: false, messages: [] });
         }
     });
 

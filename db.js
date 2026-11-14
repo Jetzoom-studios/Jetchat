@@ -766,6 +766,111 @@ async function dismissUpdate(userId, updateId) {
     return { success: true };
 }
 
+
+
+// =========================
+// MESSAGE REACTIONS + SAVED MESSAGES
+// =========================
+async function ensureMessageReactionsTable() {
+    await runSchemaMigration(
+        "message_reactions.table",
+        `CREATE TABLE IF NOT EXISTS message_reactions (
+            message_id TEXT NOT NULL,
+            chat TEXT NOT NULL,
+            username TEXT NOT NULL,
+            emoji TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (message_id, chat, username, emoji)
+        )`
+    );
+}
+
+async function getMessageReactions(chat) {
+    await ensureMessageReactionsTable();
+    const result = await pool.query(
+        `SELECT message_id, emoji, COUNT(*)::INT AS count,
+                ARRAY_AGG(username ORDER BY username) AS users
+         FROM message_reactions
+         WHERE chat = $1
+         GROUP BY message_id, emoji
+         ORDER BY message_id, emoji`,
+        [chat]
+    );
+    return result.rows;
+}
+
+async function toggleMessageReaction(messageId, chat, username, emoji) {
+    await ensureMessageReactionsTable();
+    const values = [String(messageId), chat, username, emoji];
+    const removed = await pool.query(
+        `DELETE FROM message_reactions
+         WHERE message_id = $1 AND chat = $2 AND username = $3 AND emoji = $4
+         RETURNING message_id`,
+        values
+    );
+    if (!removed.rowCount) {
+        await pool.query(
+            `INSERT INTO message_reactions (message_id, chat, username, emoji)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (message_id, chat, username, emoji) DO NOTHING`,
+            values
+        );
+        return { active: true };
+    }
+    return { active: false };
+}
+
+async function ensureSavedMessagesTable() {
+    await runSchemaMigration(
+        "saved_messages.table",
+        `CREATE TABLE IF NOT EXISTS saved_messages (
+            id BIGSERIAL PRIMARY KEY,
+            saver_username TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            chat TEXT NOT NULL,
+            author_username TEXT NOT NULL,
+            message_text TEXT NOT NULL,
+            saved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (saver_username, message_id, chat)
+        )`
+    );
+}
+
+async function toggleSavedMessage(username, message) {
+    await ensureSavedMessagesTable();
+    const messageId = String(message.id);
+    const existing = await pool.query(
+        `SELECT id FROM saved_messages
+         WHERE saver_username = $1 AND message_id = $2 AND chat = $3`,
+        [username, messageId, message.chat]
+    );
+    if (existing.rows.length) {
+        await pool.query("DELETE FROM saved_messages WHERE id = $1", [existing.rows[0].id]);
+        return { saved: false };
+    }
+    await pool.query(
+        `INSERT INTO saved_messages
+            (saver_username, message_id, chat, author_username, message_text)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (saver_username, message_id, chat) DO NOTHING`,
+        [username, messageId, message.chat, message.username, message.text]
+    );
+    return { saved: true };
+}
+
+async function getSavedMessages(username) {
+    await ensureSavedMessagesTable();
+    const result = await pool.query(
+        `SELECT id, message_id, chat, author_username, message_text, saved_at
+         FROM saved_messages
+         WHERE saver_username = $1
+         ORDER BY saved_at DESC
+         LIMIT 500`,
+        [username]
+    );
+    return result.rows;
+}
+
 // =========================
 // EXPORTS
 // =========================
@@ -802,5 +907,9 @@ module.exports = {
     hasDismissedUpdate,
 dismissUpdate,
 ensureUpdateDismissalsTable,
+    getMessageReactions,
+    toggleMessageReaction,
+    toggleSavedMessage,
+    getSavedMessages,
 
 };
