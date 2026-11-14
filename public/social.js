@@ -14,6 +14,7 @@
     <aside class="social-rail">
       <div class="social-brand"><span class="social-brand-mark">J</span><span>Jetchat</span></div>
       <button class="social-nav active" data-view="home"><span>⌂</span> Home</button>
+      <button class="social-nav" data-view="now"><span>◉</span> NOW</button>
       <button class="social-nav" data-view="explore"><span>⌕</span> Explore</button>
       <button class="social-nav" data-view="reels"><span>▶</span> Reels</button>
       <button class="social-nav" data-view="clubs"><span>◈</span> Clubs</button>
@@ -403,14 +404,53 @@
     }catch(error){renderFeatureError(card,error,()=>openRelay(relay));}
   }
 
+  let nowOnlineCount = 0;
+  async function loadNow() {
+    featurePage.replaceChildren();
+    const shell=document.createElement("div");shell.className="jetchat-now";
+    const hero=document.createElement("section");hero.className="now-hero";
+    const heroCopy=document.createElement("div");
+    const eyebrow=document.createElement("p");eyebrow.className="social-eyebrow";eyebrow.textContent="THE LIVE SIDE OF JETCHAT";
+    const title=document.createElement("h2");title.textContent="What's happening right now?";
+    const subtitle=document.createElement("p");subtitle.textContent="A live snapshot of conversations, communities and moments across Jetchat.";
+    heroCopy.append(eyebrow,title,subtitle);
+    const online=document.createElement("div");online.className="now-online";online.innerHTML='<span class="now-live-dot"></span><strong id="nowOnlineCount">';online.querySelector("strong").textContent=String(nowOnlineCount)+" online";
+    const refresh=makeButton("↻ Refresh","now-refresh",()=>loadNow());
+    hero.append(heroCopy,online,refresh);shell.append(hero);
+    const grid=document.createElement("div");grid.className="now-grid";
+    const activity=document.createElement("section");activity.className="now-panel now-activity";activity.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">FRESH FROM THE COMMUNITY</span><h3>Latest moments</h3></div><span class="now-live-label">LIVE FEED</span></div><div class="now-posts"><p class="social-loading">Loading recent posts…</p></div>';
+    const community=document.createElement("section");community.className="now-panel";community.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">FIND YOUR PEOPLE</span><h3>Active Clubs</h3></div><span class="now-panel-mark">◈</span></div><div class="now-clubs"><p class="social-loading">Loading Clubs…</p></div>';
+    const relays=document.createElement("section");relays.className="now-panel";relays.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">BUILD SOMETHING TOGETHER</span><h3>Open Relays</h3></div><span class="now-panel-mark">⤴</span></div><div class="now-relays"><p class="social-loading">Loading Relays…</p></div>';
+    const pulse=document.createElement("section");pulse.className="now-panel";pulse.innerHTML='<div class="now-panel-head"><div><span class="social-eyebrow">TODAY'S COMMUNITY QUESTION</span><h3>Pulse</h3></div><span class="now-panel-mark">✦</span></div><div class="now-pulse"><p class="social-loading">Loading today's Pulse…</p></div>';
+    grid.append(activity,community,relays,pulse);shell.append(grid);featurePage.append(shell);
+    const [feedResult,clubResult,relayResult,pulseResult]=await Promise.allSettled([request("/feed"),request("/clubs"),request("/relay"),request("/pulse")]);
+    if(currentView!=="now")return;
+    const postMount=activity.querySelector(".now-posts");postMount.replaceChildren();
+    if(feedResult.status==="fulfilled"&&Array.isArray(feedResult.value.posts)&&feedResult.value.posts.length){
+      feedResult.value.posts.slice(0,5).forEach(post=>postMount.append(renderPost(post)));
+    }else{const empty=document.createElement("p");empty.className="now-empty";empty.textContent=feedResult.status==="rejected"?"Couldn't load the latest posts.":"No recent posts yet. Be the first to share something.";postMount.append(empty);}
+    const clubMount=community.querySelector(".now-clubs");clubMount.replaceChildren();
+    if(clubResult.status==="fulfilled"&&clubResult.value.clubs?.length){
+      clubResult.value.clubs.slice(0,5).forEach(club=>{const row=document.createElement("button");row.type="button";row.className="now-list-row";const copy=document.createElement("span");copy.innerHTML="<strong></strong><small></small>";copy.querySelector("strong").textContent=club.name;copy.querySelector("small").textContent=(club.member_count||0)+" members · "+(club.description||"Community");const action=document.createElement("span");action.textContent=club.joined?"Open →":"Explore →";row.append(copy,action);row.addEventListener("click",()=>openView("clubs"));clubMount.append(row);});
+    }else{const empty=document.createElement("p");empty.className="now-empty";empty.textContent="No Clubs to show yet.";clubMount.append(empty);}
+    const relayMount=relays.querySelector(".now-relays");relayMount.replaceChildren();
+    if(relayResult.status==="fulfilled"&&relayResult.value.relays?.length){
+      relayResult.value.relays.filter(item=>item.is_open).slice(0,5).forEach(item=>{const row=document.createElement("button");row.type="button";row.className="now-list-row";const copy=document.createElement("span");copy.innerHTML="<strong></strong><small></small>";copy.querySelector("strong").textContent=item.title;copy.querySelector("small").textContent=(item.entries||0)+" contributions · started by @"+item.starter;const action=document.createElement("span");action.textContent="Join →";row.append(copy,action);row.addEventListener("click",()=>openView("relay"));relayMount.append(row);});
+    }
+    if(!relayMount.children.length){const empty=document.createElement("p");empty.className="now-empty";empty.textContent="No open Relays right now. Start one and invite people in.";relayMount.append(empty);}
+    const pulseMount=pulse.querySelector(".now-pulse");pulseMount.replaceChildren();
+    if(pulseResult.status==="fulfilled"){const prompt=document.createElement("p");prompt.className="now-prompt";prompt.textContent=pulseResult.value.prompt;const meta=document.createElement("p");meta.className="now-pulse-meta";meta.textContent=(pulseResult.value.responses||[]).length+" people have responded today";const button=makeButton("Join today's Pulse →","now-action",()=>openView("pulse"));pulseMount.append(prompt,meta,button);}
+    else{const empty=document.createElement("p");empty.className="now-empty";empty.textContent="Today's Pulse is unavailable.";pulseMount.append(empty);}
+  }
+
   function openView(view) {
     if (view === "chats") view = "chatroom";
-    const featureViews = ["clubs","pulse","relay","trending"];
+    const featureViews = ["now","clubs","pulse","relay","trending"];
     if(featureViews.includes(view)){
       overlay.hidden=false;currentView=view;socialMain.hidden=false;chatHub.hidden=true;chatRoom.hidden=true;modal.hidden=true;
-      featurePage.hidden=false;socialContent.hidden=true;storyBar.hidden=true;heading.textContent=view==="clubs"?"Clubs":view==="pulse"?"Pulse":view==="relay"?"Relay":"Trending";
+      featurePage.hidden=false;socialContent.hidden=true;storyBar.hidden=true;heading.textContent=view==="now"?"NOW":view==="clubs"?"Clubs":view==="pulse"?"Pulse":view==="relay"?"Relay":"Trending";
       overlay.querySelectorAll(".social-nav").forEach(button=>button.classList.toggle("active",button.dataset.view===view));
-      if(view==="clubs")loadClubs();else if(view==="pulse")loadPulse();else if(view==="relay")loadRelay();else loadTrending();
+      if(view==="now")loadNow();else if(view==="clubs")loadClubs();else if(view==="pulse")loadPulse();else if(view==="relay")loadRelay();else loadTrending();
       loadNotifications();return;
     }
     featurePage.hidden=true;socialContent.hidden=false;
@@ -508,6 +548,7 @@
     try { await request("/notifications", { method: "DELETE" }); notificationItems = []; setNotificationCount(0); renderNotifications(); } catch {}
   });
   if (window.jetchatSocket) {
+    window.jetchatSocket.on("presence update", presence => { nowOnlineCount=Number(presence?.count)||0; const count=overlay.querySelector("#nowOnlineCount"); if(count)count.textContent=String(nowOnlineCount)+" online"; });
     window.jetchatSocket.on("social notification", notification => {
       notificationItems.unshift(notification);
       notificationItems = notificationItems.slice(0, 100);
