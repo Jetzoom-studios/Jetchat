@@ -53,6 +53,28 @@
         <section class="social-chat-list-card social-groups-card"><div class="social-chat-list-heading"><h2>Group chats</h2><div id="socialCreateGroupMount"></div></div><div id="socialGroupListMount"></div></section>
       </div>
     </section>
+    <section id="socialChatRoom" class="social-chat-room" hidden aria-label="Chat workspace">
+      <aside class="social-chat-room-sidebar">
+        <header class="social-chat-room-sidebar-head"><div><p class="social-eyebrow">YOUR SPACE</p><h2>Inbox</h2></div><span id="socialInboxCount"></span></header>
+        <nav class="social-chat-tabs" role="tablist" aria-label="Conversation filters">
+          <button type="button" class="active" data-chat-tab="all" role="tab" aria-selected="true">All</button>
+          <button type="button" data-chat-tab="unread" role="tab" aria-selected="false">Unread</button>
+          <button type="button" data-chat-tab="groups" role="tab" aria-selected="false">Groups</button>
+          <button type="button" data-chat-tab="friends" role="tab" aria-selected="false">Friends</button>
+        </nav>
+        <section class="social-chat-room-section" data-chat-section="global"><div class="social-chat-section-label">COMMUNITY</div><div id="socialChatGlobalMount"></div></section>
+        <section class="social-chat-room-section" data-chat-section="dm"><div class="social-chat-section-label">DIRECT MESSAGES <span id="socialInboxDmCount"></span></div><div id="socialChatDmSearchMount"></div><div id="socialChatDmListMount"></div></section>
+        <section class="social-chat-room-section" data-chat-section="groups"><div class="social-chat-section-label">GROUPS <span id="socialChatCreateGroupMount"></span></div><div id="socialChatGroupListMount"></div></section>
+        <section class="social-chat-room-section" data-chat-section="friends" hidden><div class="social-chat-section-label">FRIEND REQUESTS</div><div id="socialChatFriendRequestsMount"></div><div class="social-chat-section-label social-friends-label">YOUR FRIENDS</div><div id="socialChatFriendsMount"></div><div id="socialChatFriendSearchMount"></div><div id="socialChatFriendResultsMount"></div></section>
+      </aside>
+      <div class="social-chat-room-main">
+        <nav class="social-chat-room-tabs" aria-label="Chat workspace tabs">
+          <button type="button" class="active" data-room-tab="messages">Messages</button>
+          <button type="button" data-room-tab="media">Shared media</button>
+        </nav>
+        <div id="socialChatRoomMain"></div>
+      </div>
+    </section>
 
     <div id="socialModal" class="social-modal" hidden>
       <form id="socialCreateForm" class="social-modal-card">
@@ -74,6 +96,7 @@
 
   const sidebar = document.getElementById("mobileSidebar");
   const chatHub = overlay.querySelector("#socialChatHub");
+  const chatRoom = overlay.querySelector("#socialChatRoom");
   const socialMain = overlay.querySelector(".social-main");
   const mount = (elementId, targetId) => {
     const element = document.getElementById(elementId);
@@ -81,13 +104,19 @@
     if (element && target && element.parentElement !== target) target.appendChild(element);
   };
   // Reuse the real chat controls and live-rendered lists; no duplicate chat state.
-  mount("friendSearchInput", "socialFriendSearchMount");
-  mount("friendSearchResults", "socialFriendResultsMount");
-  mount("globalChatBtn", "socialGlobalChatMount");
-  mount("dmSearchInput", "socialDmSearchMount");
-  mount("dmList", "socialDmListMount");
-  mount("createGroupBtn", "socialCreateGroupMount");
-  mount("groupList", "socialGroupListMount");
+  mount("globalChatBtn", "socialChatGlobalMount");
+  mount("dmSearchInput", "socialChatDmSearchMount");
+  mount("dmList", "socialChatDmListMount");
+  mount("createGroupBtn", "socialChatCreateGroupMount");
+  mount("groupList", "socialChatGroupListMount");
+  mount("friendRequests", "socialChatFriendRequestsMount");
+  mount("friendsList", "socialChatFriendsMount");
+  mount("friendSearchInput", "socialChatFriendSearchMount");
+  mount("friendSearchResults", "socialChatFriendResultsMount");
+  const legacyMain = app.querySelector(".main");
+  const chatRoomMain = overlay.querySelector("#socialChatRoomMain");
+  if (legacyMain && chatRoomMain) chatRoomMain.appendChild(legacyMain);
+  if (sidebar) sidebar.hidden = true;
   const chatReturnButton = document.createElement("button");
   chatReturnButton.type = "button";
   chatReturnButton.className = "social-chat-return-button";
@@ -264,17 +293,15 @@
   });
 
   function openView(view) {
-    if (view === "chatroom") {
-      overlay.hidden = true;
-      return;
-    }
+    if (view === "chats") view = "chatroom";
     overlay.hidden = false;
     currentView = view;
     overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "home" && button.dataset.view === "home")));
-    if (socialMain) socialMain.hidden = view === "chats";
+    if (socialMain) socialMain.hidden = view === "chatroom";
     if (storyBar) storyBar.hidden = view !== "home";
-    if (chatHub) chatHub.hidden = view !== "chats";
-    if (view === "chats") { modal.hidden = true; updateChatCounts(); return; }
+    if (chatHub) chatHub.hidden = true;
+    if (chatRoom) chatRoom.hidden = view !== "chatroom";
+    if (view === "chatroom") { modal.hidden = true; notificationPanel.hidden = true; updateChatCounts(); return; }
     if (view === "create") { modal.hidden = false; socialMain.hidden = false; chatHub.hidden = true; return; }
     modal.hidden = true;
     heading.textContent = view === "explore" ? "Explore" : view === "reels" ? "Reels" : "Your feed";
@@ -326,7 +353,7 @@
           try { await request("/notifications/" + encodeURIComponent(item.id) + "/read", { method: "POST" }); item.read_at = new Date().toISOString(); setNotificationCount(notificationItems.filter(value => !value.read_at).length); row.classList.remove("is-unread"); row.classList.add("is-read"); } catch {}
         }
         if (item.type === "story_reply") {
-          openView("chats");
+          openView("chatroom");
           if (typeof window.openConversation === "function") window.openConversation(item.actor);
         } else if (item.type === "like" || item.type === "comment") openView("home");
         notificationPanel.hidden = true;
@@ -568,17 +595,32 @@
       const close = makeButton("← Back", "social-back", () => panel.remove());
       const avatar = document.createElement("div");
       avatar.className = "social-profile-avatar";
-      avatar.textContent = profile.username.slice(0, 1).toUpperCase();
+      if (profile.avatar) {
+        const image = document.createElement("img");
+        image.src = profile.avatar;
+        image.alt = "";
+        avatar.append(image);
+      } else avatar.textContent = profile.username.slice(0, 1).toUpperCase();
       const details = document.createElement("div");
       details.className = "social-profile-details";
       const name = document.createElement("h2");
-      name.textContent = "@" + profile.username;
+      name.textContent = profile.display_name || profile.username;
+      const handle = document.createElement("span");
+      handle.className = "social-profile-handle";
+      handle.textContent = "@" + profile.username;
       const bio = document.createElement("p");
       bio.textContent = profile.bio || "No bio yet.";
       const stats = document.createElement("p");
       stats.textContent = profile.followers + " followers · " + profile.following + " following";
-      details.append(name, bio, stats);
+      details.append(name, handle, bio, stats);
       top.append(close, avatar, details);
+      panel.dataset.cardStyle = profile.profile_card_style || "glass";
+      panel.style.setProperty("--profile-accent", profile.profile_accent || "#8d70ff");
+      panel.style.setProperty("--profile-banner-color", profile.profile_color || "#5865f2");
+      panel.dataset.bannerStyle = profile.profile_banner_style || "aurora";
+      const banner = document.createElement("div");
+      banner.className = "social-profile-banner";
+      panel.prepend(banner);
       if (!profile.isMe) top.append(makeButton(profile.is_following ? "Following" : "＋ Follow", "social-profile-follow", async event => {
         const result = await request("/users/" + encodeURIComponent(profile.username) + "/follow", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         event.currentTarget.textContent = result.following ? "Following" : "＋ Follow";
@@ -600,6 +642,37 @@
   function closeModal() { modal.hidden = true; createForm.reset(); status.textContent = ""; overlay.querySelector("#socialImageName").textContent = "No photo selected · 8 MB maximum"; }
   function openCreate() { modal.hidden = false; overlay.querySelector("#socialPostBody").focus(); }
   overlay.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => button.dataset.view === "create" ? openCreate() : openView(button.dataset.view)));
+  const chatFilterButtons = [...overlay.querySelectorAll("[data-chat-tab]")];
+  const chatSections = [...overlay.querySelectorAll("[data-chat-section]")];
+  function setChatFilter(filter) {
+    chatFilterButtons.forEach(button => {
+      const active = button.dataset.chatTab === filter;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    chatSections.forEach(section => {
+      const kind = section.dataset.chatSection;
+      let visible = filter === "all" || (filter === "groups" && kind === "groups") || (filter === "friends" && kind === "friends");
+      if (filter === "unread") visible = kind === "dm";
+      section.hidden = !visible;
+    });
+    if (filter === "unread") {
+      const list = overlay.querySelector("#socialChatDmListMount");
+      if (list) [...list.children].forEach(item => item.hidden = !item.querySelector(".dm-conversation-unread"));
+    } else {
+      const list = overlay.querySelector("#socialChatDmListMount");
+      if (list) [...list.children].forEach(item => item.hidden = false);
+    }
+  }
+  chatFilterButtons.forEach(button => button.addEventListener("click", () => setChatFilter(button.dataset.chatTab)));
+  overlay.querySelectorAll("[data-room-tab]").forEach(button => button.addEventListener("click", () => {
+    overlay.querySelectorAll("[data-room-tab]").forEach(tab => tab.classList.toggle("active", tab === button));
+    if (button.dataset.roomTab === "media") document.getElementById("mediaGalleryBtn")?.click();
+  }));
+  overlay.querySelector("#socialChatDmListMount")?.addEventListener("click", () => {
+    const list = overlay.querySelector("#socialChatDmListMount");
+    if (list) [...list.children].forEach(item => item.hidden = false);
+  });
   overlay.querySelector(".social-modal-close").addEventListener("click", closeModal);
   overlay.querySelector(".social-cancel").addEventListener("click", closeModal);
   imageInput.addEventListener("change", () => {
