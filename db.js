@@ -907,5 +907,9 @@ module.exports = {
     hasDismissedUpdate,
 dismissUpdate,
 ensureUpdateDismissalsTable,
+    getMessageReactions,
+    toggleMessageReaction,
+    toggleSavedMessage,
+    getSavedMessages,
 
 };
