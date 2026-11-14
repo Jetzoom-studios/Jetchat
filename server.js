@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.7.0",
-    version: "3.7.0",
-    title: "Jetchat Goes Social",
+    id: "jetchat-3.7.1",
+    version: "3.7.1",
+    title: "Jetchat Reels",
     date: "November 14, 2026",
     items: [
-        "Jetchat now opens on your social Home feed when you sign in.",
-        "Use Home, Explore and Create from the new social navigation.",
-        "Chat has its own dedicated hub instead of opening a conversation automatically.",
-        "Find friends, jump into Global Chat, and browse your recent direct messages from one place.",
-        "Your existing conversations, groups, posts, follows and account data remain in place."
+        "Meet Reels: a dedicated home for short videos.",
+        "Publish MP4, WebM and MOV videos alongside your existing photo and text posts.",
+        "Watch videos with an in-feed player designed for vertical clips.",
+        "Like and comment on video posts using the existing social interactions.",
+        "Videos are stored with your Jetchat posts and remain available after signing out."
     ]
 };
 
