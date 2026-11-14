@@ -28,6 +28,10 @@
       </header>
       <div class="social-content">
         <section class="social-feed-column">
+          <section id="socialStoriesBar" class="social-stories-bar" aria-label="Stories">
+            <button id="socialAddStory" class="social-story-add" type="button"><span class="social-story-avatar">＋</span><span>Your story</span></button>
+            <div id="socialStoryPeople" class="social-story-people"></div>
+          </section>
           <div id="socialStoriesHint" class="social-welcome"><div><strong>Welcome to Jetchat Social</strong><p>Share a moment, discover people and see what your circle is up to.</p></div><span>✦</span></div>
           <div id="socialFeed" class="social-feed" aria-live="polite"><div class="social-loading">Loading your feed…</div></div>
         </section>
@@ -102,6 +106,132 @@
   const status = overlay.querySelector("#socialCreateStatus");
   const imageInput = overlay.querySelector("#socialPostImage");
 
+  let storyGroups = [];
+  let activeStoryGroup = [];
+  let activeStoryIndex = 0;
+  let storyTimer = null;
+  const storyComposer = document.createElement("div");
+  storyComposer.className = "social-story-composer";
+  storyComposer.hidden = true;
+  storyComposer.innerHTML = '<form class="social-story-composer-card"><div class="social-story-composer-head"><div><p class="social-eyebrow">A MOMENT THAT LASTS 24 HOURS</p><h2>Add to your story</h2></div><button type="button" class="social-story-close" aria-label="Close">×</button></div><label class="social-image-picker">＋ Choose photo or video <input id="socialStoryFile" type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime" required></label><p class="social-image-name" id="socialStoryFileName">Photos and videos · 25 MB maximum</p><textarea id="socialStoryCaption" maxlength="180" placeholder="Add a caption…" rows="3"></textarea><p class="social-status" id="socialStoryStatus" role="status"></p><div class="social-modal-actions"><button type="button" class="social-cancel social-story-cancel">Cancel</button><button type="submit" class="social-publish">Share story</button></div></form>';
+  overlay.appendChild(storyComposer);
+  const storyViewer = document.createElement("div");
+  storyViewer.className = "social-story-viewer";
+  storyViewer.hidden = true;
+  storyViewer.innerHTML = '<div class="social-story-viewer-card"><div class="social-story-progress" id="socialStoryProgress"></div><header><strong id="socialStoryAuthor"></strong><span id="socialStoryAge"></span><button type="button" id="socialStoryViewerClose" aria-label="Close">×</button></header><div class="social-story-stage" id="socialStoryStage"></div><footer><button type="button" id="socialStoryPrevious">‹</button><span id="socialStoryCaptionView"></span><button type="button" id="socialStoryNext">›</button></footer><button type="button" id="socialStoryViews" class="social-story-views" hidden>View viewers</button><div id="socialStoryViewerList" class="social-story-viewer-list" hidden></div></div>';
+  overlay.appendChild(storyViewer);
+  const storyBar = overlay.querySelector("#socialStoriesBar");
+  const storyPeople = overlay.querySelector("#socialStoryPeople");
+  const storyFile = overlay.querySelector("#socialStoryFile");
+  const storyCaption = overlay.querySelector("#socialStoryCaption");
+  const storyStatus = overlay.querySelector("#socialStoryStatus");
+  const storyComposerForm = storyComposer.querySelector("form");
+  const storyViewerStage = storyViewer.querySelector("#socialStoryStage");
+  const closeStoryComposer = () => { storyComposer.hidden = true; storyComposerForm.reset(); storyStatus.textContent = ""; storyComposer.querySelector("#socialStoryFileName").textContent = "Photos and videos · 25 MB maximum"; };
+  function groupStories(stories) {
+    const groups = new Map();
+    stories.forEach(story => {
+      if (!groups.has(story.username)) groups.set(story.username, []);
+      groups.get(story.username).push(story);
+    });
+    return [...groups.entries()].map(([username, items]) => ({ username, stories: items.sort((a,b) => new Date(a.createdAt)-new Date(b.createdAt)), viewed: items.every(item => item.viewedByMe), isMe: items[0].isMe }))
+      .sort((a,b) => Number(b.isMe)-Number(a.isMe) || Number(a.viewed)-Number(b.viewed) || new Date(b.stories[b.stories.length-1].createdAt)-new Date(a.stories[a.stories.length-1].createdAt));
+  }
+  async function loadStories() {
+    try {
+      const data = await request("/stories");
+      storyGroups = groupStories(data.stories || []);
+      storyPeople.replaceChildren();
+      storyGroups.forEach((group, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "social-story-person" + (group.viewed ? " viewed" : "");
+        const avatar = document.createElement("span");
+        avatar.className = "social-story-avatar";
+        avatar.textContent = group.username.slice(0,1).toUpperCase();
+        const name = document.createElement("span");
+        name.textContent = group.isMe ? "Your story" : group.username;
+        button.append(avatar, name);
+        button.addEventListener("click", () => openStoryGroup(index));
+        storyPeople.append(button);
+      });
+      storyBar.hidden = currentView !== "home";
+    } catch (error) {
+      storyBar.title = error.message;
+    }
+  }
+  async function openStoryGroup(groupIndex) {
+    const group = storyGroups[groupIndex];
+    if (!group) return;
+    activeStoryGroup = group.stories;
+    activeStoryIndex = 0;
+    storyViewer.hidden = false;
+    await renderActiveStory();
+  }
+  async function renderActiveStory() {
+    if (storyTimer) clearTimeout(storyTimer);
+    const story = activeStoryGroup[activeStoryIndex];
+    if (!story) { storyViewer.hidden = true; loadStories(); return; }
+    storyViewer.querySelector("#socialStoryAuthor").textContent = "@" + story.username;
+    storyViewer.querySelector("#socialStoryAge").textContent = timeAgo(story.createdAt);
+    storyViewer.querySelector("#socialStoryCaptionView").textContent = story.caption || "";
+    storyViewer.querySelector("#socialStoryProgress").innerHTML = activeStoryGroup.map((item,index) => '<span class="' + (index < activeStoryIndex ? "done" : index === activeStoryIndex ? "current" : "") + '"></span>').join("");
+    storyViewerStage.replaceChildren();
+    const media = document.createElement(story.mediaType.startsWith("video/") ? "video" : "img");
+    media.className = "social-story-media";
+    media.src = api + "/stories/" + encodeURIComponent(story.id) + "/media";
+    if (media.tagName === "VIDEO") { media.controls = true; media.autoplay = true; media.playsInline = true; media.muted = false; }
+    else media.alt = "Story shared by " + story.username;
+    storyViewerStage.append(media);
+    const viewsButton = storyViewer.querySelector("#socialStoryViews");
+    const viewers = storyViewer.querySelector("#socialStoryViewerList");
+    viewsButton.hidden = !story.isMe;
+    viewers.hidden = true;
+    viewers.replaceChildren();
+    if (story.isMe) viewsButton.textContent = "View viewers · " + (story.viewCount || 0);
+    try { await request("/stories/" + encodeURIComponent(story.id) + "/view", { method: "POST" }); } catch {}
+    if (media.tagName === "VIDEO") {
+      media.addEventListener("ended", nextStory, { once: true });
+    } else {
+      storyTimer = setTimeout(nextStory, 5000);
+    }
+  }
+  function nextStory() { if (activeStoryIndex < activeStoryGroup.length-1) { activeStoryIndex++; renderActiveStory(); } else { storyViewer.hidden = true; loadStories(); } }
+  function previousStory() { if (activeStoryIndex > 0) { activeStoryIndex--; renderActiveStory(); } }
+  storyViewer.querySelector("#socialStoryViewerClose").addEventListener("click", () => { if(storyTimer)clearTimeout(storyTimer); storyViewer.hidden = true; loadStories(); });
+  storyViewer.querySelector("#socialStoryNext").addEventListener("click", nextStory);
+  storyViewer.querySelector("#socialStoryPrevious").addEventListener("click", previousStory);
+  storyViewer.querySelector("#socialStoryViews").addEventListener("click", async () => {
+    const story = activeStoryGroup[activeStoryIndex];
+    const list = storyViewer.querySelector("#socialStoryViewerList");
+    list.hidden = !list.hidden;
+    if (list.hidden) return;
+    try {
+      const data = await request("/stories/" + encodeURIComponent(story.id) + "/views");
+      list.replaceChildren();
+      if (!data.views.length) { list.textContent = "No views yet."; return; }
+      data.views.forEach(view => { const line = document.createElement("p"); line.textContent = "@" + view.viewer; list.append(line); });
+    } catch (error) { list.textContent = error.message; }
+  });
+  overlay.querySelector("#socialAddStory").addEventListener("click", () => { storyComposer.hidden = false; storyFile.focus(); });
+  storyComposer.querySelector(".social-story-close").addEventListener("click", closeStoryComposer);
+  storyComposer.querySelector(".social-story-cancel").addEventListener("click", closeStoryComposer);
+  storyFile.addEventListener("change", () => { const file=storyFile.files[0]; storyComposer.querySelector("#socialStoryFileName").textContent=file ? file.name+" · "+(file.size/1024/1024).toFixed(1)+" MB" : "Photos and videos · 25 MB maximum"; });
+  storyComposerForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const file = storyFile.files[0];
+    if (!file) { storyStatus.textContent = "Choose a photo or video first."; return; }
+    if (file.size > 25*1024*1024) { storyStatus.textContent = "Choose a file smaller than 25 MB."; return; }
+    const submit = storyComposerForm.querySelector('[type="submit"]');
+    submit.disabled = true; storyStatus.textContent = "Sharing…";
+    try {
+      const form = new FormData(); form.append("media", file); form.append("caption", storyCaption.value);
+      await request("/stories", { method:"POST", body:form });
+      closeStoryComposer(); await loadStories();
+    } catch(error) { storyStatus.textContent = error.message; }
+    finally { submit.disabled = false; }
+  });
+
   function openView(view) {
     if (view === "chatroom") {
       overlay.hidden = true;
@@ -111,6 +241,7 @@
     currentView = view;
     overlay.querySelectorAll(".social-nav").forEach(button => button.classList.toggle("active", button.dataset.view === view || (view === "home" && button.dataset.view === "home")));
     if (socialMain) socialMain.hidden = view === "chats";
+    if (storyBar) storyBar.hidden = view !== "home";
     if (chatHub) chatHub.hidden = view !== "chats";
     if (view === "chats") { modal.hidden = true; updateChatCounts(); return; }
     if (view === "create") { modal.hidden = false; socialMain.hidden = false; chatHub.hidden = true; return; }
@@ -119,6 +250,7 @@
     const storiesHint = overlay.querySelector("#socialStoriesHint");
     if (storiesHint) storiesHint.hidden = view === "explore" || view === "reels";
     loadPosts(view);
+    if (view === "home") loadStories();
   }
 
   async function request(path, options = {}) {
@@ -390,7 +522,15 @@
     finally { busy = false; button.disabled = false; }
   });
 
-  window.addEventListener("keydown", event => { if (event.key === "Escape" && !overlay.hidden) { if (!modal.hidden) closeModal(); else openView("chats"); } });
+  window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !overlay.hidden) {
+      if (!storyViewer.hidden) { if(storyTimer)clearTimeout(storyTimer); storyViewer.hidden = true; }
+      else if (!storyComposer.hidden) closeStoryComposer();
+      else if (!modal.hidden) closeModal();
+      else openView("chats");
+    } else if (!storyViewer.hidden && event.key === "ArrowRight") nextStory();
+    else if (!storyViewer.hidden && event.key === "ArrowLeft") previousStory();
+  });
   window.openJetchatSocial = openView;
   // Social is the signed-in landing screen; chat opens only after choosing a conversation.
 })();
