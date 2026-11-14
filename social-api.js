@@ -55,7 +55,10 @@ function ensureSchema() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS social_comments_post_idx ON social_comments(post_id, created_at);
-    `);
+    `).catch(error => {
+      schemaPromise = null;
+      throw error;
+    });
   }
   return schemaPromise;
 }
@@ -201,6 +204,7 @@ module.exports = function createSocialRouter(getRequestSession) {
 
   router.get("/posts/:id/comments", auth, async (req, res) => {
     try {
+      if (!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({ success: false, message: "Invalid post." });
       const result = await pool.query("SELECT id,username,body,created_at FROM social_comments WHERE post_id=$1 ORDER BY created_at ASC LIMIT 100", [req.params.id]);
       res.set("Cache-Control", "no-store");
       res.json({ success: true, comments: result.rows });
