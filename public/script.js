@@ -992,9 +992,7 @@ document.getElementById("closeMediaGallery")?.addEventListener("click",()=>docum
 // RECEIVE MESSAGES
 // =========================
 function displayMessage(data) {
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
 
     if (!data || data.chat !== expectedChat) {
         return;
@@ -1256,9 +1254,7 @@ function notifyIncomingMessage(data) {
     if (!data || data.system || data.username === username) return;
 
     const chatId = data.chat || "global";
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
     const isCurrentChat = chatId === expectedChat;
     const isVisible = isTabActive && document.visibilityState === "visible";
 
@@ -1331,7 +1327,7 @@ document.addEventListener("visibilitychange", () => {
         clearUnreadForChat(currentChat);
 
         if (
-            currentChat !== "global" &&
+            currentChat !== "global" && !String(currentChat).startsWith("group:") &&
             jetchatSettings.readReceipts
         ) {
             socket.emit("mark chat read", currentChat, () => loadDMConversations());
@@ -1358,9 +1354,7 @@ socket.on("chat message received", handleIncomingMessage);
 function updateVisibleMessageStatuses(data, status) {
     if (!data || !Array.isArray(data.ids)) return;
 
-    const expectedChat = currentChat === "global"
-        ? "global"
-        : [username, currentChat].sort().join("|");
+    const expectedChat = getChatKey();
 
     if (data.chat !== expectedChat) return;
 
@@ -1495,7 +1489,7 @@ socket.on("chat history", (history) => {
     loadDMConversations();
 
     if (
-        currentChat !== "global" &&
+        currentChat !== "global" && !String(currentChat).startsWith("group:") &&
         jetchatSettings.readReceipts &&
         document.visibilityState === "visible"
     ) {
