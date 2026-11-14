@@ -562,7 +562,7 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
   router.get("/trending", auth, async (req,res) => {
     try {
       const result = await pool.query(`
-        SELECT lower(match[1]) AS tag, COUNT(*)::INT AS posts
+        SELECT lower(match[1]) AS tag, COUNT(DISTINCT p.id)::INT AS posts
         FROM social_posts p
         CROSS JOIN LATERAL regexp_matches(p.body, '#([a-zA-Z0-9_]{2,30})', 'g') AS matches(match)
         WHERE p.created_at > NOW() - INTERVAL '7 days'
@@ -700,7 +700,7 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
     try {
       if(!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid Relay."});
       const [relay,entries]=await Promise.all([
-        pool.query("SELECT id,title,starter,created_at,is_open FROM social_relays WHERE id=$1",[req.params.id]),
+        pool.query("SELECT id,title,starter,created_at,is_open,(starter=$2) AS is_owner FROM social_relays WHERE id=$1",[req.params.id,req.socialUser.username]),
         pool.query("SELECT username,body,created_at FROM social_relay_entries WHERE relay_id=$1 ORDER BY created_at ASC,id ASC",[req.params.id])
       ]);
       if(!relay.rowCount) return res.status(404).json({success:false,message:"Relay not found."});
@@ -717,6 +717,22 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
       const result=await pool.query("INSERT INTO social_relay_entries(relay_id,username,body) VALUES($1,$2,$3) RETURNING username,body,created_at",[req.params.id,req.socialUser.username,body]);
       res.status(201).json({success:true,entry:result.rows[0]});
     } catch(error) { console.error("Relay contribution error:",error.message); res.status(500).json({success:false,message:"Couldn't add your contribution."}); }
+  });
+
+  // Only the person who started a Relay can close it.
+  router.post("/relay/:id/close", auth, async (req,res) => {
+    try {
+      if(!/^[1-9][0-9]*$/.test(req.params.id)) return res.status(400).json({success:false,message:"Invalid Relay."});
+      const closed=await pool.query(
+        "UPDATE social_relays SET is_open=FALSE WHERE id=$1 AND starter=$2 AND is_open=TRUE RETURNING id",
+        [req.params.id,req.socialUser.username]
+      );
+      if(closed.rowCount) return res.json({success:true,is_open:false});
+      const existing=await pool.query("SELECT starter,is_open FROM social_relays WHERE id=$1",[req.params.id]);
+      if(!existing.rowCount) return res.status(404).json({success:false,message:"Relay not found."});
+      if(existing.rows[0].starter!==req.socialUser.username) return res.status(403).json({success:false,message:"Only the person who started this Relay can close it."});
+      return res.status(409).json({success:false,message:"This Relay is already closed."});
+    } catch(error) { console.error("Close Relay error:",error.message); res.status(500).json({success:false,message:"Couldn't close this Relay."}); }
   });
 
   return router;
