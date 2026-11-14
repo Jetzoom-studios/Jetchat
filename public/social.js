@@ -155,7 +155,7 @@
         button.addEventListener("click", () => openStoryGroup(index));
         storyPeople.append(button);
       });
-      storyBar.hidden = false;
+      storyBar.hidden = currentView !== "home";
     } catch (error) {
       storyBar.title = error.message;
     }
