@@ -78,7 +78,8 @@
     if (view === "create") { modal.hidden = false; return; }
     modal.hidden = true;
     heading.textContent = view === "explore" ? "Explore" : "Your feed";
-    overlay.querySelector("#socialStoriesHint").hidden = view === "explore";
+    const storiesHint = overlay.querySelector("#socialStoriesHint");
+    if (storiesHint) storiesHint.hidden = view === "explore";
     loadPosts(view);
   }
 
@@ -105,7 +106,7 @@
     button.type = "button";
     button.className = className;
     button.textContent = label;
-    button.addEventListener("click", action);
+    button.addEventListener("click", event => action(event));
     return button;
   }
 
@@ -239,6 +240,7 @@
         submit.disabled = true;
         try {
           await request("/posts/" + encodeURIComponent(postId) + "/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: input.value }) });
+          area.hidden = true;
           showComments(postId, card);
         } catch (error) { input.setCustomValidity(error.message); input.reportValidity(); }
         finally { submit.disabled = false; }
@@ -283,7 +285,7 @@
       data.posts.forEach(post => posts.append(renderPost(post)));
       if (!data.posts.length) posts.textContent = "No posts yet.";
       panel.append(posts);
-      overlay.querySelector(".social-content").replaceChildren(panel);
+      overlay.append(panel);
     } catch (error) { window.alert(error.message); }
   }
 
