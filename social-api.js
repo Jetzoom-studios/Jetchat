@@ -353,7 +353,12 @@ module.exports = function createSocialRouter(getRequestSession, io, isAcceptedFr
     try {
       const target = String(req.params.username || "").trim();
       if (!/^[a-zA-Z0-9_]{2,20}$/.test(target)) return res.status(400).json({ success: false, message: "Invalid username." });
-      const user = await pool.query("SELECT username, COALESCE(avatar,'') AS avatar, COALESCE(bio,'') AS bio, join_date FROM users WHERE LOWER(username)=LOWER($1) LIMIT 1", [target]);
+      const user = await pool.query("SELECT username, COALESCE(avatar,'') AS avatar, COALESCE(bio,'') AS bio, join_date,
+        COALESCE(display_name,'') AS display_name, COALESCE(profile_color,'#5865f2') AS profile_color,
+        COALESCE(profile_accent,'#8d70ff') AS profile_accent,
+        COALESCE(profile_banner_style,'aurora') AS profile_banner_style,
+        COALESCE(profile_card_style,'glass') AS profile_card_style
+        FROM users WHERE LOWER(username)=LOWER($1) LIMIT 1", [target]);
       if (!user.rows.length) return res.status(404).json({ success: false, message: "User not found." });
       const actualName = user.rows[0].username;
       const [posts, counts] = await Promise.all([
