@@ -571,6 +571,7 @@ function openReactionPicker(messageElement, trigger) {
                     showInAppNotification("Reaction failed", result?.message || "Please try again.");
                 }
             });
+            document.removeEventListener("pointerdown", close);
             picker.remove();
         });
         picker.appendChild(choice);
