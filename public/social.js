@@ -15,6 +15,7 @@
       <div class="social-brand"><span class="social-brand-mark">J</span><span>Jetchat</span></div>
       <button class="social-nav active" data-view="home"><span>⌂</span> Home</button>
       <button class="social-nav" data-view="explore"><span>⌕</span> Explore</button>
+      <button class="social-nav" data-view="reels"><span>▶</span> Reels</button>
       <button class="social-nav" data-view="create"><span>＋</span> Create</button>
       <button class="social-nav" data-view="chats"><span>▤</span> Chat</button>
       <div class="social-rail-spacer"></div>
@@ -50,8 +51,8 @@
       <form id="socialCreateForm" class="social-modal-card">
         <div class="social-modal-head"><div><p class="social-eyebrow">SHARE SOMETHING</p><h2>Create a post</h2></div><button type="button" class="social-modal-close" aria-label="Close">×</button></div>
         <textarea id="socialPostBody" maxlength="2000" placeholder="What's happening?" rows="5"></textarea>
-        <label class="social-image-picker">＋ Add a photo <input id="socialPostImage" type="file" accept="image/jpeg,image/png,image/gif,image/webp"></label>
-        <p id="socialImageName" class="social-image-name">No photo selected · 8 MB maximum</p>
+        <label class="social-image-picker">＋ Add photo or video <input id="socialPostImage" type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"></label>
+        <p id="socialImageName" class="social-image-name">Photos up to 8 MB · Videos up to 25 MB (MP4, WebM, MOV)</p>
         <p id="socialCreateStatus" class="social-status" role="status"></p>
         <div class="social-modal-actions"><button type="button" class="social-cancel">Cancel</button><button type="submit" class="social-publish">Publish post</button></div>
       </form>
@@ -114,9 +115,9 @@
     if (view === "chats") { modal.hidden = true; updateChatCounts(); return; }
     if (view === "create") { modal.hidden = false; socialMain.hidden = false; chatHub.hidden = true; return; }
     modal.hidden = true;
-    heading.textContent = view === "explore" ? "Explore" : "Your feed";
+    heading.textContent = view === "explore" ? "Explore" : view === "reels" ? "Reels" : "Your feed";
     const storiesHint = overlay.querySelector("#socialStoriesHint");
-    if (storiesHint) storiesHint.hidden = view === "explore";
+    if (storiesHint) storiesHint.hidden = view === "explore" || view === "reels";
     loadPosts(view);
   }
 
@@ -175,7 +176,21 @@
       body.textContent = post.body;
       card.append(body);
     }
-    if (post.hasImage) {
+    if (post.hasVideo) {
+      const video = document.createElement("video");
+      video.className = "social-post-video";
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.autoplay = true;
+      video.muted = true;
+      video.loop = true;
+      video.poster = "";
+      video.src = api + "/videos/" + encodeURIComponent(post.id);
+      video.setAttribute("aria-label", "Video shared by " + post.username);
+      card.classList.add("social-video-post");
+      card.append(video);
+    } else if (post.hasImage) {
       const image = document.createElement("img");
       image.className = "social-post-image";
       image.loading = "lazy";
@@ -199,19 +214,33 @@
   }
 
   async function loadPosts(view) {
+    feed.classList.toggle("social-reels-feed", view === "reels");
     feed.innerHTML = '<div class="social-loading">Loading posts…</div>';
     try {
-      const data = await request(view === "explore" ? "/explore" : "/feed");
+      const data = await request(view === "explore" ? "/explore" : view === "reels" ? "/reels" : "/feed");
       feed.replaceChildren();
       if (!data.posts.length) {
         const empty = document.createElement("div");
         empty.className = "social-empty";
-        empty.innerHTML = '<div class="social-empty-symbol">✦</div><h2>' + (view === "explore" ? "It's quiet out here" : "Your feed is waiting") + '</h2><p>' + (view === "explore" ? "Be the first to share something with the Jetchat community." : "Follow people or publish your first post to get things started.") + '</p>';
+        empty.innerHTML = '<div class="social-empty-symbol">✦</div><h2>' + (view === "explore" ? "It's quiet out here" : view === "reels" ? "No Reels yet" : "Your feed is waiting") + '</h2><p>' + (view === "explore" ? "Be the first to share something with the Jetchat community." : view === "reels" ? "Be the first to share a short video. Create a post and choose a video." : "Follow people or publish your first post to get things started.") + '</p>';
         empty.append(makeButton("＋ Create a post", "social-publish", () => openView("create")));
         feed.append(empty);
         return;
       }
       data.posts.forEach(post => feed.append(renderPost(post)));
+      if (view === "reels") {
+        const videos = [...feed.querySelectorAll("video")];
+        if ("IntersectionObserver" in window) {
+          const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+            const video = entry.target;
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.65) video.play().catch(() => {});
+            else video.pause();
+          }), { threshold: [0, 0.65, 1] });
+          videos.forEach(video => observer.observe(video));
+        } else {
+          videos.forEach(video => video.play().catch(() => {}));
+        }
+      }
     } catch (error) {
       feed.innerHTML = "";
       const message = document.createElement("p");
@@ -333,13 +362,15 @@
   overlay.querySelector(".social-cancel").addEventListener("click", closeModal);
   imageInput.addEventListener("change", () => {
     const file = imageInput.files[0];
-    overlay.querySelector("#socialImageName").textContent = file ? file.name + " · " + (file.size / 1024 / 1024).toFixed(1) + " MB" : "No photo selected · 8 MB maximum";
+    overlay.querySelector("#socialImageName").textContent = file ? file.name + " · " + (file.size / 1024 / 1024).toFixed(1) + " MB" : "Photos up to 8 MB · Videos up to 25 MB";
   });
   createForm.addEventListener("submit", async event => {
     event.preventDefault();
     if (busy) return;
     const file = imageInput.files[0];
-    if (file && file.size > 8 * 1024 * 1024) { status.textContent = "Choose an image smaller than 8 MB."; return; }
+    const isVideo = file && file.type.startsWith("video/");
+    const maxBytes = isVideo ? 25 * 1024 * 1024 : 8 * 1024 * 1024;
+    if (file && file.size > maxBytes) { status.textContent = isVideo ? "Choose a video smaller than 25 MB." : "Choose an image smaller than 8 MB."; return; }
     busy = true;
     status.textContent = "Publishing…";
     const button = overlay.querySelector(".social-publish");
@@ -347,7 +378,7 @@
     try {
       const form = new FormData();
       form.append("body", overlay.querySelector("#socialPostBody").value);
-      if (file) form.append("image", file);
+      if (file) form.append(isVideo ? "video" : "image", file);
       await request("/posts", { method: "POST", body: form });
       closeModal();
       currentView = "home";
