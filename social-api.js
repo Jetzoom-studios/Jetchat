@@ -24,7 +24,7 @@ function ensureSchema() {
     schemaPromise = pool.query(`
       CREATE TABLE IF NOT EXISTS social_posts (
         id BIGSERIAL PRIMARY KEY,
-        username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+        username TEXT NOT NULL,
         body TEXT NOT NULL DEFAULT '',
         image_data BYTEA,
         image_type TEXT,
@@ -34,8 +34,8 @@ function ensureSchema() {
       CREATE INDEX IF NOT EXISTS social_posts_created_idx ON social_posts(created_at DESC);
       CREATE INDEX IF NOT EXISTS social_posts_user_idx ON social_posts(username, created_at DESC);
       CREATE TABLE IF NOT EXISTS social_follows (
-        follower TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
-        following TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+        follower TEXT NOT NULL,
+        following TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (follower, following),
         CHECK (follower <> following)
@@ -43,14 +43,14 @@ function ensureSchema() {
       CREATE INDEX IF NOT EXISTS social_follows_following_idx ON social_follows(following);
       CREATE TABLE IF NOT EXISTS social_likes (
         post_id BIGINT NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
-        username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+        username TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (post_id, username)
       );
       CREATE TABLE IF NOT EXISTS social_comments (
         id BIGSERIAL PRIMARY KEY,
         post_id BIGINT NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
-        username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+        username TEXT NOT NULL,
         body TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
