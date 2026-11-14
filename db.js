@@ -261,34 +261,11 @@ function addMessage(message) {
 // SAVE DM
 // =========================
 async function saveDM(message) {
-
+    await ensureAttachmentsSchema();
     const result = await pool.query(
-        `
-        INSERT INTO messages
-        (
-            username,
-            recipient,
-            text,
-            chat,
-            time
-        )
-        VALUES
-        (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5
-        )
-        RETURNING id
-        `,
-        [
-            message.username,
-            message.recipient,
-            message.text,
-            message.chat,
-            message.time
-        ]
+        `INSERT INTO messages (username, recipient, text, chat, time, attachment_id)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [message.username, message.recipient, message.text, message.chat, message.time, message.attachmentId || null]
     );
 
     return result.rows[0] || null;
@@ -353,25 +330,22 @@ async function markDMRead(chat, reader) {
 // =========================
 async function loadChat(chat, username, peer) {
 
+    await ensureAttachmentsSchema();
     let query = `
-        SELECT *
-        FROM messages
-        WHERE chat = $1
-        ORDER BY id ASC
+        SELECT m.*, a.original_name AS attachment_name, a.mime_type AS attachment_mime, a.size AS attachment_size
+        FROM messages m LEFT JOIN chat_attachments a ON a.id = m.attachment_id
+        WHERE m.chat = $1 ORDER BY m.id ASC
     `;
 
     let params = [chat];
 
     if (username && peer) {
         query = `
-            SELECT *
-            FROM messages
-            WHERE
-                chat = $1
-                OR (username = $2 AND recipient = $3)
-                OR (username = $3 AND recipient = $2)
-                OR recipient IN ($4, $5)
-            ORDER BY id ASC
+            SELECT m.*, a.original_name AS attachment_name, a.mime_type AS attachment_mime, a.size AS attachment_size
+            FROM messages m LEFT JOIN chat_attachments a ON a.id = m.attachment_id
+            WHERE m.chat = $1 OR (m.username = $2 AND m.recipient = $3)
+               OR (m.username = $3 AND m.recipient = $2) OR m.recipient IN ($4, $5)
+            ORDER BY m.id ASC
         `;
 
         params = [
@@ -1142,6 +1116,102 @@ async function migratePlaintextPasswords() {
     return { migrated };
 }
 
+
+
+// GROUP CHATS + POSTGRESQL-BACKED CHAT ATTACHMENTS
+async function ensureGroupsSchema() {
+    await runSchemaMigration("groups.schema", `
+        CREATE TABLE IF NOT EXISTS chat_groups (
+            id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, created_by TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS chat_group_members (
+            group_id BIGINT NOT NULL REFERENCES chat_groups(id) ON DELETE CASCADE,
+            username TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member',
+            joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (group_id, username)
+        );
+        CREATE INDEX IF NOT EXISTS chat_group_members_username_idx ON chat_group_members(username);
+    `);
+}
+async function ensureAttachmentsSchema() {
+    await Promise.all([
+        runSchemaMigration("messages.attachment_id", "ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_id BIGINT"),
+        runSchemaMigration("chat_attachments.table", `
+            CREATE TABLE IF NOT EXISTS chat_attachments (
+                id BIGSERIAL PRIMARY KEY, chat TEXT NOT NULL, uploader TEXT NOT NULL,
+                original_name TEXT NOT NULL, mime_type TEXT NOT NULL, size INTEGER NOT NULL,
+                data BYTEA NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS chat_attachments_chat_idx ON chat_attachments(chat);
+        `)
+    ]);
+}
+async function createGroup(name, creator, members) {
+    await ensureGroupsSchema();
+    const client=await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const inserted=await client.query("INSERT INTO chat_groups (name,created_by) VALUES ($1,$2) RETURNING id,name,created_by,created_at",[name,creator]);
+        const group=inserted.rows[0], allMembers=[...new Set([creator,...(members||[])])];
+        for(const member of allMembers) await client.query("INSERT INTO chat_group_members (group_id,username,role) VALUES ($1,$2,$3)",[group.id,member,member===creator?"admin":"member"]);
+        await client.query("COMMIT"); return {...group,members:allMembers};
+    } catch(error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+}
+async function getUserGroups(username) {
+    await ensureGroupsSchema();
+    const result=await pool.query(
+        `SELECT g.id,g.name,g.created_by,g.created_at,COUNT(gm.username)::INT AS member_count,
+          COALESCE((SELECT m.text FROM messages m WHERE m.chat='group:'||g.id::TEXT ORDER BY m.id DESC LIMIT 1),'') AS last_message,
+          (SELECT m.username FROM messages m WHERE m.chat='group:'||g.id::TEXT ORDER BY m.id DESC LIMIT 1) AS last_sender,
+          (SELECT m.time FROM messages m WHERE m.chat='group:'||g.id::TEXT ORDER BY m.id DESC LIMIT 1) AS last_message_time
+         FROM chat_groups g JOIN chat_group_members mine ON mine.group_id=g.id AND mine.username=$1
+         JOIN chat_group_members gm ON gm.group_id=g.id GROUP BY g.id
+         ORDER BY COALESCE((SELECT MAX(m.id) FROM messages m WHERE m.chat='group:'||g.id::TEXT),g.id) DESC`,[username]);
+    return result.rows;
+}
+async function isGroupMember(groupId,username) {
+    await ensureGroupsSchema();
+    const result=await pool.query("SELECT 1 FROM chat_group_members WHERE group_id=$1 AND username=$2 LIMIT 1",[groupId,username]);
+    return result.rowCount>0;
+}
+async function getGroup(groupId,username) {
+    await ensureGroupsSchema();
+    const result=await pool.query(`SELECT g.id,g.name,g.created_by,ARRAY_AGG(gm.username ORDER BY gm.joined_at) AS members
+        FROM chat_groups g JOIN chat_group_members gm ON gm.group_id=g.id
+        WHERE g.id=$1 AND EXISTS(SELECT 1 FROM chat_group_members mine WHERE mine.group_id=g.id AND mine.username=$2)
+        GROUP BY g.id`,[groupId,username]);
+    return result.rows[0]||null;
+}
+async function addGroupMessage(message) {
+    await ensureAttachmentsSchema();
+    const result=await pool.query(`INSERT INTO messages (username,recipient,text,chat,time,attachment_id)
+        VALUES ($1,NULL,$2,$3,$4,$5) RETURNING id`,[message.username,message.text,message.chat,message.time,message.attachmentId||null]);
+    return result.rows[0]||null;
+}
+async function loadGroupMessages(groupId) {
+    await ensureAttachmentsSchema();
+    const result=await pool.query(`SELECT m.*,a.original_name AS attachment_name,a.mime_type AS attachment_mime,a.size AS attachment_size
+        FROM messages m LEFT JOIN chat_attachments a ON a.id=m.attachment_id WHERE m.chat=$1 ORDER BY m.id ASC`,[`group:${groupId}`]);
+    return result.rows;
+}
+async function storeChatAttachment(chat,uploader,file) {
+    await ensureAttachmentsSchema();
+    const result=await pool.query(`INSERT INTO chat_attachments (chat,uploader,original_name,mime_type,size,data)
+        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,original_name,mime_type,size`,
+        [chat,uploader,String(file.originalname||"attachment").slice(0,180),file.mimetype,file.size,file.buffer]);
+    return result.rows[0];
+}
+async function getChatAttachment(id) {
+    await ensureAttachmentsSchema();
+    const result=await pool.query("SELECT id,chat,uploader,original_name,mime_type,size,data FROM chat_attachments WHERE id=$1 LIMIT 1",[id]);
+    return result.rows[0]||null;
+}
+async function getChatMedia(chat) {
+    await ensureAttachmentsSchema();
+    const result=await pool.query("SELECT id,original_name,mime_type,size,uploader,created_at FROM chat_attachments WHERE chat=$1 ORDER BY created_at DESC LIMIT 100",[chat]);
+    return result.rows;
+}
+
 // =========================
 // EXPORTS
 // =========================
@@ -1192,5 +1262,16 @@ ensureUpdateDismissalsTable,
     toggleMessageReaction,
     toggleSavedMessage,
     getSavedMessages,
+    ensureGroupsSchema,
+    ensureAttachmentsSchema,
+    createGroup,
+    getUserGroups,
+    isGroupMember,
+    getGroup,
+    addGroupMessage,
+    loadGroupMessages,
+    storeChatAttachment,
+    getChatAttachment,
+    getChatMedia,
 
 };
