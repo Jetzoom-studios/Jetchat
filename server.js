@@ -48,16 +48,16 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const CURRENT_UPDATE = {
-    id: "jetchat-3.7.4",
-    version: "3.7.4",
-    title: "Jetchat Profiles & Chat",
+    id: "jetchat-3.8.0",
+    version: "3.8.0",
+    title: "Jetchat Communities",
     date: "November 14, 2026",
     items: [
-        "A redesigned chat workspace replaces the old chat menu.",
-        "Filter conversations with All, Unread, Groups and Friends tabs.",
-        "Switch between Messages and Shared media from the chat workspace.",
-        "Profiles now support display names, banner designs, card styles and custom accent colours.",
-        "Your profile design is saved to your account."
+        "Create and join Clubs with dedicated community discussions and private invitations.",
+        "Answer the shared daily Jetchat Pulse question.",
+        "Build collaborative stories and ideas together with Relay.",
+        "Repost or quote posts directly in the social feed.",
+        "Discover the hashtags trending across Jetchat."
     ]
 };
 
