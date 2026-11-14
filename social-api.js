@@ -21,7 +21,7 @@ const upload = multer({
 let schemaPromise;
 function ensureSchema() {
   if (!schemaPromise) {
-    schemaPromise = pool.query(\`
+    schemaPromise = pool.query(`
       CREATE TABLE IF NOT EXISTS social_posts (
         id BIGSERIAL PRIMARY KEY,
         username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
@@ -55,7 +55,7 @@ function ensureSchema() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS social_comments_post_idx ON social_comments(post_id, created_at);
-    \`);
+    `);
   }
   return schemaPromise;
 }
@@ -85,17 +85,17 @@ async function listPosts(viewer, mode, username) {
     params.push(username);
     where = "WHERE p.username = $2";
   }
-  const result = await pool.query(\`
+  const result = await pool.query(`
     SELECT p.id,p.username,p.body,p.image_type,p.created_at,
       (SELECT COUNT(*) FROM social_likes l WHERE l.post_id=p.id)::INT AS like_count,
       (SELECT COUNT(*) FROM social_comments c WHERE c.post_id=p.id)::INT AS comment_count,
       EXISTS(SELECT 1 FROM social_likes l WHERE l.post_id=p.id AND l.username=$1) AS liked_by_me,
       EXISTS(SELECT 1 FROM social_follows f WHERE f.follower=$1 AND f.following=p.username) AS following
     FROM social_posts p
-    \${where}
+    ${where}
     ORDER BY p.created_at DESC
     LIMIT 60
-  \`, params);
+  `, params);
   return result.rows.map(safePost);
 }
 
@@ -143,10 +143,10 @@ module.exports = function createSocialRouter(getRequestSession) {
       const actualName = user.rows[0].username;
       const [posts, counts] = await Promise.all([
         listPosts(req.socialUser.username, "profile", actualName),
-        pool.query(\`SELECT
+        pool.query(`SELECT
           (SELECT COUNT(*) FROM social_follows WHERE following=$1)::INT AS followers,
           (SELECT COUNT(*) FROM social_follows WHERE follower=$1)::INT AS following,
-          EXISTS(SELECT 1 FROM social_follows WHERE follower=$2 AND following=$1) AS is_following\`, [actualName, req.socialUser.username])
+          EXISTS(SELECT 1 FROM social_follows WHERE follower=$2 AND following=$1) AS is_following`, [actualName, req.socialUser.username])
       ]);
       res.set("Cache-Control", "no-store");
       res.json({ success: true, profile: { ...user.rows[0], ...counts.rows[0], isMe: actualName === req.socialUser.username }, posts });
