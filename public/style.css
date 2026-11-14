@@ -4458,3 +4458,30 @@ body.light-mode .settings-panel {
         margin: auto 0;
     }
 }
+
+
+/* =========================================================
+   LAYOUT POLISH: keep the conversation anchored to the left
+   instead of constraining it to a centered column.
+========================================================= */
+#messages {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    align-items: stretch;
+}
+
+.message {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+}
+
+.message-body,
+.message .username,
+.message .text,
+.message .time {
+    text-align: left;
+}
