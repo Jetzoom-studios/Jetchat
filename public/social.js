@@ -47,7 +47,7 @@
         </section>
         <aside class="social-side-panel">
           <div class="social-side-card"><span class="social-side-icon">✦</span><h3>Make it yours</h3><p>Follow people whose posts you want to see. Your Home feed will fill up as your circle grows.</p><button data-view="explore">Discover people →</button></div>
-          <div class="social-side-note">Jetchat Social · 3.8.0</div>
+          <div class="social-side-note">Jetchat Social · 3.9.0</div>
         </aside>
       </div>
     </main>
