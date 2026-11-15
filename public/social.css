@@ -305,3 +305,129 @@ body.light-mode .now-hero p:not(.social-eyebrow),body.light-mode .now-list-row s
 /* Settings is a first-class item in the social rail */
 #socialExperience .social-rail .social-nav[data-view="settings"]{margin-top:2px}
 #socialExperience .social-rail .social-nav[data-view="settings"] span{font-size:17px}
+
+
+/* Jetchat 3.9.3 — mobile navigation and touch accessibility only.
+   No rules in this block apply to desktop widths. */
+@media (max-width:650px) {
+  #socialExperience {
+    height:100%;
+    height:100dvh;
+    min-height:0;
+    overflow:hidden;
+    flex-direction:column-reverse;
+  }
+  #socialExperience .social-rail {
+    flex:0 0 auto;
+    width:100%;
+    min-width:0;
+    height:auto;
+    min-height:76px;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    justify-content:flex-start;
+    gap:5px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  #socialExperience .social-rail::-webkit-scrollbar { display:none; }
+  #socialExperience .social-nav {
+    flex:0 0 auto;
+    min-width:64px;
+    min-height:58px;
+    padding:7px 9px;
+    gap:4px;
+    border-radius:12px;
+    font-size:11px;
+    line-height:1.15;
+    white-space:nowrap;
+  }
+  #socialExperience .social-nav span {
+    display:block;
+    width:auto;
+    font-size:21px;
+    line-height:1.1;
+  }
+  #socialExperience .social-nav.active { box-shadow:inset 0 -3px #9b83ff; }
+  #socialExperience .social-main {
+    flex:1 1 auto;
+    width:100%;
+    min-height:0;
+    height:auto;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  #socialExperience .social-top {
+    position:sticky;
+    padding:15px 14px;
+    gap:10px;
+  }
+  #socialExperience .social-top h1 { font-size:23px; }
+  #socialExperience .social-create-top,
+  #socialExperience .social-publish {
+    min-height:44px;
+    padding:11px 14px;
+    font-size:14px;
+  }
+  #socialExperience .social-content {
+    width:100%;
+    margin:12px auto;
+    padding:0 10px 24px;
+  }
+  #socialExperience .social-post { padding:14px; border-radius:15px; }
+  #socialExperience .social-post-actions { gap:4px; }
+  #socialExperience .social-post-actions button {
+    flex:1 1 0;
+    min-height:44px;
+    padding:9px 5px;
+    font-size:12px;
+  }
+  #socialExperience .social-comment-form input,
+  #socialExperience .social-modal-card textarea,
+  #socialExperience .social-chat-hub input {
+    min-height:46px;
+    font-size:16px;
+  }
+  #socialExperience .social-comment-form button,
+  #socialExperience .social-modal-actions button,
+  #socialExperience .social-chat-list-heading button {
+    min-height:44px;
+  }
+  #socialExperience .social-modal {
+    align-items:end;
+    padding:8px;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+  }
+  #socialExperience .social-modal-card {
+    max-height:88dvh;
+    overflow-y:auto;
+    padding:18px 15px;
+    border-radius:18px;
+  }
+  #socialExperience .social-chat-hub { padding-bottom:12px; }
+  #socialExperience .social-chat-hub-content {
+    width:calc(100% - 20px);
+    gap:12px;
+  }
+  #socialExperience .social-chat-hub .dm-conversation-open,
+  #socialExperience .social-chat-hub .group-conversation-item {
+    min-height:64px;
+  }
+  #socialExperience .social-profile-view {
+    inset:10px 8px 8px;
+    padding:12px;
+    border-radius:15px;
+  }
+  #socialExperience .now-hero { padding:18px 15px; }
+  #socialExperience .now-panel { padding:15px; }
+  #socialExperience .now-refresh,
+  #socialExperience .now-action { min-height:44px; }
+}
+@media (max-width:380px) {
+  #socialExperience .social-nav { min-width:58px; padding-inline:7px; font-size:10px; }
+  #socialExperience .social-top h1 { font-size:21px; }
+  #socialExperience .social-content { padding-inline:8px; }
+}
